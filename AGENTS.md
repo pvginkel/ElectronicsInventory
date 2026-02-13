@@ -336,7 +336,7 @@ assert after - before == 1.0
 
 - **Auth validation**: `app/services/auth_service.py` (AUTH_VALIDATION_TOTAL, AUTH_VALIDATION_DURATION_SECONDS, JWKS_REFRESH_TOTAL)
 - **OIDC token exchange**: `app/services/oidc_client_service.py` (OIDC_TOKEN_EXCHANGE_TOTAL, AUTH_TOKEN_REFRESH_TOTAL)
-- **SSE connections**: `app/services/connection_manager.py` (SSE_GATEWAY_*)
+- **SSE connections**: `app/services/sse_connection_manager.py` (SSE_GATEWAY_*)
 - **AI analysis**: `app/utils/ai/openai/openai_runner.py` (AI_ANALYSIS_*)
 - **Duplicate search**: `app/services/duplicate_search_service.py` (AI_DUPLICATE_SEARCH_*)
 - **Mouser API**: `app/services/mouser_service.py` (MOUSER_API_*)

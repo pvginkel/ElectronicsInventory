@@ -11,7 +11,7 @@ import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.models.type import Type
 from app.services.ai_service import AIService
 from app.services.container import ServiceContainer
@@ -23,19 +23,18 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def real_ai_settings() -> Settings:
+def real_ai_settings() -> AppSettings:
     """Settings for real AI API integration testing."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         pytest.skip("OPENAI_API_KEY environment variable required for integration tests")
 
-    return Settings(
-        database_url="sqlite:///:memory:",
+    return AppSettings(
         openai_api_key=api_key,
-        OPENAI_MODEL="gpt-5-mini",
-        OPENAI_REASONING_EFFORT="low",
-        OPENAI_VERBOSITY="medium",
-        OPENAI_MAX_OUTPUT_TOKENS=None,
+        openai_model="gpt-5-mini",
+        openai_reasoning_effort="low",
+        openai_verbosity="medium",
+        openai_max_output_tokens=None,
         ai_analysis_cache_path=None
     )
 
@@ -49,11 +48,11 @@ def real_temp_file_manager():
 
 
 @pytest.fixture
-def real_download_cache_service(real_ai_settings: Settings, real_temp_file_manager: TempFileManager):
+def real_download_cache_service(real_ai_settings: AppSettings, real_temp_file_manager: TempFileManager):
     """Create download cache service for real integration testing."""
     return DownloadCacheService(
         temp_file_manager=real_temp_file_manager,
-        max_download_size=real_ai_settings.MAX_FILE_SIZE,
+        max_download_size=real_ai_settings.max_file_size,
         download_timeout=30
     )
 
@@ -81,13 +80,13 @@ def real_type_service(session: Session):
 
 
 @pytest.fixture
-def real_ai_service(session: Session, real_ai_settings: Settings,
+def real_ai_service(session: Session, real_ai_settings: AppSettings,
                    real_temp_file_manager: TempFileManager, real_type_service: TypeService,
                    real_download_cache_service: DownloadCacheService):
     """Create AI service instance for real integration testing."""
     return AIService(
         db=session,
-        config=real_ai_settings,
+        app_config=real_ai_settings,
         temp_file_manager=real_temp_file_manager,
         type_service=real_type_service,
         download_cache_service=real_download_cache_service
@@ -206,7 +205,7 @@ class TestAIServiceRealIntegration:
 
         assert ai_service is not None, "Container should provide AI service"
         assert hasattr(ai_service, 'analyze_part'), "AI service should have analyze_part method"
-        assert ai_service.config.OPENAI_API_KEY, "AI service should have API key configured"
+        assert ai_service.config.openai_api_key, "AI service should have API key configured"
 
         # Test basic functionality
         try:

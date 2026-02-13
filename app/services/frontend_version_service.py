@@ -10,32 +10,32 @@ from typing import Any, cast
 import requests
 
 from app.config import Settings
-from app.services.connection_manager import ConnectionManager
+from app.services.sse_connection_manager import SSEConnectionManager
 from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol, LifecycleEvent
 
 logger = logging.getLogger(__name__)
 
 
-class VersionService:
+class FrontendVersionService:
     """Service for managing frontend version notifications."""
 
     def __init__(
         self,
         settings: Settings,
         lifecycle_coordinator: LifecycleCoordinatorProtocol,
-        connection_manager: ConnectionManager
+        sse_connection_manager: SSEConnectionManager
     ):
         """Initialize version service and register observer callback."""
         self.settings = settings
         self.lifecycle_coordinator = lifecycle_coordinator
-        self.connection_manager = connection_manager
+        self.sse_connection_manager = sse_connection_manager
 
         self._lock = threading.RLock()
         self._pending_version: dict[str, dict[str, Any]] = {}  # request_id -> {version, changelog}
         self._is_shutting_down = False
 
-        # Register observer callback with ConnectionManager
-        self.connection_manager.register_on_connect(self._on_connect_callback)
+        # Register observer callback with SSEConnectionManager
+        self.sse_connection_manager.register_on_connect(self._on_connect_callback)
 
         # Register for lifecycle notifications
         lifecycle_coordinator.register_lifecycle_notification(self._handle_lifecycle_event)
@@ -55,7 +55,7 @@ class VersionService:
     def _on_connect_callback(self, request_id: str) -> None:
         """Observer callback invoked when a connection is established.
 
-        This method is called by ConnectionManager after a connection is registered.
+        This method is called by SSEConnectionManager after a connection is registered.
         It sends either the pending version (if queued) or fetches the current version.
 
         Args:
@@ -75,8 +75,8 @@ class VersionService:
             version_payload = self._fetch_frontend_version()
             logger.debug(f"Fetched current version for request_id {request_id}")
 
-        # Send version event via ConnectionManager
-        success = self.connection_manager.send_event(
+        # Send version event via SSEConnectionManager
+        success = self.sse_connection_manager.send_event(
             request_id,
             version_payload,
             event_name="version",
@@ -118,7 +118,7 @@ class VersionService:
             event_payload["changelog"] = changelog
 
         # Broadcast to all connected clients
-        self.connection_manager.send_event(
+        self.sse_connection_manager.send_event(
             None,  # None = broadcast to all connections
             event_payload,
             event_name="version",
@@ -140,8 +140,8 @@ class VersionService:
         if event == LifecycleEvent.PREPARE_SHUTDOWN:
             with self._lock:
                 self._is_shutting_down = True
-                logger.info("VersionService: preparing for shutdown")
+                logger.info("FrontendVersionService: preparing for shutdown")
         elif event == LifecycleEvent.SHUTDOWN:
             with self._lock:
                 self._pending_version.clear()
-                logger.info("VersionService: shutdown complete")
+                logger.info("FrontendVersionService: shutdown complete")

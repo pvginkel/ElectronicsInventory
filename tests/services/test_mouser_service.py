@@ -5,25 +5,23 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.services.download_cache_service import DownloadCacheService
 from app.services.mouser_service import MouserService
 
 
 @pytest.fixture
-def test_settings():
-    """Create test settings with Mouser API key."""
-    return Settings(
-        database_url="sqlite:///:memory:",
+def mouser_app_settings():
+    """Create app settings with Mouser API key."""
+    return AppSettings(
         mouser_search_api_key="test-mouser-api-key-12345"
     )
 
 
 @pytest.fixture
-def test_settings_no_key():
-    """Create test settings without Mouser API key."""
-    return Settings(
-        database_url="sqlite:///:memory:",
+def mouser_app_settings_no_key():
+    """Create app settings without Mouser API key."""
+    return AppSettings(
         mouser_search_api_key=""
     )
 
@@ -36,19 +34,19 @@ def mock_download_cache_service():
 
 
 @pytest.fixture
-def mouser_service(test_settings, mock_download_cache_service):
+def mouser_service(mouser_app_settings, mock_download_cache_service):
     """Create MouserService instance."""
     return MouserService(
-        config=test_settings,
+        app_config=mouser_app_settings,
         download_cache_service=mock_download_cache_service,
     )
 
 
 @pytest.fixture
-def mouser_service_no_key(test_settings_no_key, mock_download_cache_service):
+def mouser_service_no_key(mouser_app_settings_no_key, mock_download_cache_service):
     """Create MouserService instance without API key."""
     return MouserService(
-        config=test_settings_no_key,
+        app_config=mouser_app_settings_no_key,
         download_cache_service=mock_download_cache_service,
     )
 

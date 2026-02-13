@@ -6,7 +6,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.models.attachment import AttachmentType
 from app.schemas.datasheet_extraction import ExtractSpecsFromDatasheetResponse
 from app.services.base_task import ProgressHandle
@@ -28,7 +28,7 @@ class DatasheetExtractionService:
 
     def __init__(
         self,
-        config: Settings,
+        app_config: AppSettings,
         document_service: DocumentService,
         type_service: TypeService,
         ai_runner: AIRunner | None,
@@ -37,13 +37,13 @@ class DatasheetExtractionService:
         """Initialize the datasheet extraction service.
 
         Args:
-            config: Application configuration
+            app_config: Application-specific configuration
             document_service: Service for downloading and validating URLs
             type_service: Service for retrieving product categories
             ai_runner: AI runner for making OpenAI API calls (None if AI disabled)
             temp_file_manager: Manager for temporary file storage
         """
-        self.config = config
+        self.config = app_config
         self.document_service = document_service
         self.type_service = type_service
         self.ai_runner = ai_runner

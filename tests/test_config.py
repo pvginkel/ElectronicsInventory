@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.app_config import AppEnvironment, AppSettings
 from app.config import Environment, Settings
 from app.exceptions import ConfigurationError
 
@@ -56,20 +57,20 @@ def test_settings_load_production_heartbeat():
     assert settings.sse_heartbeat_interval == 30
 
 
-def test_settings_load_testing_ai_mode():
-    """Test Settings.load() forces ai_testing_mode=True in testing."""
-    env = Environment(FLASK_ENV="testing", AI_TESTING_MODE=False)
-    settings = Settings.load(env)
+def test_app_settings_load_testing_ai_mode():
+    """Test AppSettings.load() forces ai_testing_mode=True in testing."""
+    app_env = AppEnvironment(AI_TESTING_MODE=False)
+    app_settings = AppSettings.load(app_env, flask_env="testing")
 
-    assert settings.ai_testing_mode is True
+    assert app_settings.ai_testing_mode is True
 
 
-def test_settings_load_explicit_ai_testing_mode():
-    """Test Settings.load() respects explicit AI_TESTING_MODE in development."""
-    env = Environment(FLASK_ENV="development", AI_TESTING_MODE=True)
-    settings = Settings.load(env)
+def test_app_settings_load_explicit_ai_testing_mode():
+    """Test AppSettings.load() respects explicit AI_TESTING_MODE in development."""
+    app_env = AppEnvironment(AI_TESTING_MODE=True)
+    app_settings = AppSettings.load(app_env, flask_env="development")
 
-    assert settings.ai_testing_mode is True
+    assert app_settings.ai_testing_mode is True
 
 
 def test_settings_load_engine_options():
@@ -97,23 +98,6 @@ def test_settings_direct_construction():
         s3_bucket_name="test-bucket",
         s3_region="us-east-1",
         s3_use_ssl=False,
-        max_image_size=10000000,
-        max_file_size=100000000,
-        allowed_image_types=["image/jpeg"],
-        allowed_file_types=["application/pdf"],
-        thumbnail_storage_path="/tmp/thumbnails",
-        download_cache_base_path="/tmp/cache",
-        download_cache_cleanup_hours=24,
-        ai_provider="openai",
-        openai_api_key="",
-        openai_model="gpt-5-mini",
-        openai_reasoning_effort="low",
-        openai_verbosity="medium",
-        openai_max_output_tokens=None,
-        ai_analysis_cache_path=None,
-        ai_cleanup_cache_path=None,
-        ai_testing_mode=True,
-        mouser_search_api_key="",
         task_max_workers=4,
         task_timeout_seconds=300,
         task_cleanup_interval_seconds=600,
@@ -136,6 +120,32 @@ def test_settings_direct_construction():
 
     assert settings.database_url == "sqlite://"
     assert settings.secret_key == "test-key"
+
+
+def test_app_settings_direct_construction():
+    """Test constructing AppSettings directly (for tests)."""
+    app_settings = AppSettings(
+        max_image_size=10000000,
+        max_file_size=100000000,
+        allowed_image_types=["image/jpeg"],
+        allowed_file_types=["application/pdf"],
+        thumbnail_storage_path="/tmp/thumbnails",
+        download_cache_base_path="/tmp/cache",
+        download_cache_cleanup_hours=24,
+        ai_provider="openai",
+        openai_api_key="",
+        openai_model="gpt-5-mini",
+        openai_reasoning_effort="low",
+        openai_verbosity="medium",
+        openai_max_output_tokens=None,
+        ai_analysis_cache_path=None,
+        ai_cleanup_cache_path=None,
+        ai_testing_mode=True,
+        mouser_search_api_key="",
+    )
+
+    assert app_settings.max_image_size == 10000000
+    assert app_settings.ai_testing_mode is True
 
 
 def test_settings_model_copy_update():
@@ -179,14 +189,13 @@ def test_settings_is_testing_property():
     assert settings.is_testing is False
 
 
-def test_settings_real_ai_allowed_property():
-    """Test real_ai_allowed property."""
-    settings = Settings.load(Environment(AI_TESTING_MODE=True))
-    assert settings.real_ai_allowed is False
+def test_app_settings_real_ai_allowed_property():
+    """Test real_ai_allowed property on AppSettings."""
+    app_settings = AppSettings(ai_testing_mode=True)
+    assert app_settings.real_ai_allowed is False
 
-    # Use FLASK_ENV=development to prevent Settings.load() from forcing ai_testing_mode=True
-    settings = Settings.load(Environment(FLASK_ENV="development", AI_TESTING_MODE=False))
-    assert settings.real_ai_allowed is True
+    app_settings = AppSettings(ai_testing_mode=False)
+    assert app_settings.real_ai_allowed is True
 
 
 def test_settings_is_production_property():

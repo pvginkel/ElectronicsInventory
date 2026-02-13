@@ -1,4 +1,4 @@
-"""Image service for thumbnail generation and processing."""
+"""CAS image service for thumbnail generation and processing."""
 
 import io
 import logging
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.exceptions import InvalidOperationException
 from app.schemas.upload_document import DocumentContentSchema
 from app.services.s3_service import S3Service
@@ -15,23 +15,23 @@ from app.services.s3_service import S3Service
 logger = logging.getLogger(__name__)
 
 
-class ImageService:
+class CasImageService:
     """Service for image processing and thumbnail generation."""
 
-    def __init__(self, s3_service: S3Service, settings: Settings):
-        """Initialize image service with S3 service.
+    def __init__(self, s3_service: S3Service, app_settings: AppSettings):
+        """Initialize CAS image service with S3 service.
 
         Args:
             s3_service: S3 service for file operations
-            settings: Application settings
+            app_settings: Application-specific settings
         """
         self.s3_service = s3_service
-        self.settings = settings
+        self.app_settings = app_settings
         self._ensure_thumbnail_directory()
 
     def _ensure_thumbnail_directory(self) -> None:
         """Ensure thumbnail storage directory exists."""
-        thumbnail_path = Path(self.settings.thumbnail_storage_path)
+        thumbnail_path = Path(self.app_settings.thumbnail_storage_path)
         thumbnail_path.mkdir(parents=True, exist_ok=True)
 
     def get_thumbnail_for_hash(self, content_hash: str, size: int) -> str:
@@ -52,7 +52,7 @@ class ImageService:
         """
         # Use hash as cache key instead of attachment_id
         thumbnail_path = os.path.join(
-            self.settings.thumbnail_storage_path,
+            self.app_settings.thumbnail_storage_path,
             f"{content_hash}_{size}.jpg"
         )
 

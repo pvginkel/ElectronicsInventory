@@ -130,7 +130,7 @@ class TestTaskAPIIntegration:
         from unittest.mock import MagicMock
         service = TaskService(
             lifecycle_coordinator=StubLifecycleCoordinator(),
-            connection_manager=MagicMock(),
+            sse_connection_manager=MagicMock(),
             max_workers=1,
             task_timeout=10
         )

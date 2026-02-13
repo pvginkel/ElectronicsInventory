@@ -61,10 +61,10 @@ cd "$BACKEND_DIR"
 
 if $LOAD_TEST_DATA; then
     echo "Loading fixed test dataset into SQLite database..."
-    poetry run inventory-cli load-test-data --yes-i-am-sure
+    poetry run cli load-test-data --yes-i-am-sure
 else
     echo "Applying database migrations..."
-    poetry run inventory-cli upgrade-db
+    poetry run cli upgrade-db
 fi
 
 echo "SQLite database initialization complete."

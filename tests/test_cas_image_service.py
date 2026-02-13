@@ -1,4 +1,4 @@
-"""Unit tests for ImageService."""
+"""Unit tests for CasImageService."""
 
 import io
 from pathlib import Path
@@ -8,8 +8,8 @@ import pytest
 from flask import Flask
 from PIL import Image
 
-from app.config import Settings
-from app.services.image_service import ImageService
+from app.app_config import AppSettings
+from app.services.cas_image_service import CasImageService
 
 
 @pytest.fixture
@@ -20,20 +20,20 @@ def temp_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def mock_s3_service():
-    """Create mock S3Service for ImageService."""
+    """Create mock S3Service for CasImageService."""
     return MagicMock()
 
 @pytest.fixture
-def test_settings(temp_dir: Path):
-    return Settings(
+def cas_app_settings(temp_dir: Path):
+    return AppSettings(
         thumbnail_storage_path=str(temp_dir)
     )
 
 
 @pytest.fixture
-def image_service(app: Flask, mock_s3_service, test_settings):
-    """Create ImageService with temporary directory."""
-    return ImageService(mock_s3_service, test_settings)
+def cas_image_service(app: Flask, mock_s3_service, cas_app_settings):
+    """Create CasImageService with temporary directory."""
+    return CasImageService(mock_s3_service, cas_app_settings)
 
 
 @pytest.fixture
@@ -54,16 +54,16 @@ def large_image_bytes():
     return img_bytes.getvalue()
 
 
-class TestImageService:
-    """Test ImageService functionality."""
+class TestCasImageService:
+    """Test CasImageService functionality."""
 
-    def test_init_creates_thumbnail_directory(self, temp_dir, mock_s3_service, test_settings):
-        """Test that ImageService creates thumbnail directory."""
-        ImageService(mock_s3_service, test_settings)
-        assert Path(test_settings.thumbnail_storage_path).exists()
+    def test_init_creates_thumbnail_directory(self, temp_dir, mock_s3_service, test_app_settings):
+        """Test that CasImageService creates thumbnail directory."""
+        CasImageService(mock_s3_service, test_app_settings)
+        assert Path(test_app_settings.thumbnail_storage_path).exists()
 
 
-def test_convert_image_to_png_success(image_service):
+def test_convert_image_to_png_success(cas_image_service):
     """Test successful image conversion to PNG."""
     # Create a test JPEG image
     img = Image.new('RGB', (50, 50), color='blue')
@@ -72,7 +72,7 @@ def test_convert_image_to_png_success(image_service):
     jpeg_content = jpeg_buffer.getvalue()
 
     # Convert to PNG
-    result = image_service.convert_image_to_png(jpeg_content)
+    result = cas_image_service.convert_image_to_png(jpeg_content)
 
     assert result is not None
     assert result.content_type == 'image/png'
@@ -85,7 +85,7 @@ def test_convert_image_to_png_success(image_service):
     assert converted_img.size == (50, 50)
 
 
-def test_convert_image_to_png_with_transparency(image_service):
+def test_convert_image_to_png_with_transparency(cas_image_service):
     """Test image conversion preserves transparency."""
     # Create a test image with transparency
     img = Image.new('RGBA', (32, 32), color=(255, 0, 0, 128))  # Semi-transparent red
@@ -94,7 +94,7 @@ def test_convert_image_to_png_with_transparency(image_service):
     original_content = png_buffer.getvalue()
 
     # Convert (should work even though it's already PNG)
-    result = image_service.convert_image_to_png(original_content)
+    result = cas_image_service.convert_image_to_png(original_content)
 
     assert result is not None
     assert result.content_type == 'image/png'
@@ -104,17 +104,17 @@ def test_convert_image_to_png_with_transparency(image_service):
     assert converted_img.mode in ('RGBA', 'LA')  # Should preserve alpha channel
 
 
-def test_convert_image_to_png_invalid_data(image_service):
+def test_convert_image_to_png_invalid_data(cas_image_service):
     """Test conversion with invalid image data."""
     invalid_content = b"This is not an image"
 
-    result = image_service.convert_image_to_png(invalid_content)
+    result = cas_image_service.convert_image_to_png(invalid_content)
 
     assert result is None
 
 
-def test_convert_image_to_png_empty_data(image_service):
+def test_convert_image_to_png_empty_data(cas_image_service):
     """Test conversion with empty data."""
-    result = image_service.convert_image_to_png(b"")
+    result = cas_image_service.convert_image_to_png(b"")
 
     assert result is None

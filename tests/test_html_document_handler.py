@@ -21,16 +21,16 @@ def mock_download_cache_service():
 
 
 @pytest.fixture
-def mock_image_service():
-    """Create mock ImageService."""
+def mock_cas_image_service():
+    """Create mock CasImageService."""
     mock = MagicMock()
     return mock
 
 
 @pytest.fixture
-def html_handler(mock_download_cache_service, test_settings, mock_image_service):
+def html_handler(mock_download_cache_service, test_app_settings, mock_cas_image_service):
     """Create HtmlDocumentHandler with mocked dependencies."""
-    return HtmlDocumentHandler(mock_download_cache_service, test_settings, mock_image_service)
+    return HtmlDocumentHandler(mock_download_cache_service, test_app_settings, mock_cas_image_service)
 
 
 @pytest.fixture
@@ -376,8 +376,8 @@ class TestHtmlDocumentHandler:
             content_type="image/vnd.microsoft.icon"
         )
 
-        # Mock ImageService conversion to return None (conversion failed)
-        html_handler.image_service.convert_image_to_png.return_value = None
+        # Mock CasImageService conversion to return None (conversion failed)
+        html_handler.cas_image_service.convert_image_to_png.return_value = None
 
         with patch('magic.from_buffer') as mock_magic:
             # Magic detects .ico file
@@ -391,7 +391,7 @@ class TestHtmlDocumentHandler:
 
             assert result is None
             # Verify conversion was attempted
-            html_handler.image_service.convert_image_to_png.assert_called_once_with(ico_content)
+            html_handler.cas_image_service.convert_image_to_png.assert_called_once_with(ico_content)
 
     def test_download_and_validate_image_accepts_supported_types(self, html_handler, mock_download_cache_service, create_test_image):
         """Test that _download_and_validate_image accepts supported image types."""
@@ -428,7 +428,7 @@ class TestHtmlDocumentHandler:
         # Mock successful conversion to PNG
         converted_png_content = create_test_image(32, 32, 'red')  # Fake PNG content
         from app.schemas.upload_document import DocumentContentSchema
-        html_handler.image_service.convert_image_to_png.return_value = DocumentContentSchema(
+        html_handler.cas_image_service.convert_image_to_png.return_value = DocumentContentSchema(
             content=converted_png_content,
             content_type='image/png'
         )
@@ -447,4 +447,4 @@ class TestHtmlDocumentHandler:
             assert result.content_type == "image/png"
             assert result.content == converted_png_content
             # Verify conversion was attempted
-            html_handler.image_service.convert_image_to_png.assert_called_once_with(ico_content)
+            html_handler.cas_image_service.convert_image_to_png.assert_called_once_with(ico_content)

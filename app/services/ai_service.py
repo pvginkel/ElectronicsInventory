@@ -10,7 +10,7 @@ from jinja2 import Environment
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import AttachmentType
 from app.models.part import Part
@@ -47,7 +47,7 @@ class AIService:
     def __init__(
         self,
         db: Session,
-        config: Settings,
+        app_config: AppSettings,
         temp_file_manager: TempFileManager,
         type_service: TypeService,
         seller_service: SellerService,
@@ -60,7 +60,7 @@ class AIService:
         ai_runner: AIRunner | None = None,
     ) -> None:
         self.db = db
-        self.config = config
+        self.config = app_config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service
         self.seller_service = seller_service
@@ -69,11 +69,11 @@ class AIService:
         self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service, document_service)
         self.duplicate_search_function = duplicate_search_function
         self.datasheet_extraction_function = datasheet_extraction_function
-        self.real_ai_allowed = config.real_ai_allowed
+        self.real_ai_allowed = app_config.real_ai_allowed
         self.runner = ai_runner
 
         # Mouser function tools - conditionally enabled based on API key
-        self.mouser_enabled = bool(config.mouser_search_api_key)
+        self.mouser_enabled = bool(app_config.mouser_search_api_key)
         self.mouser_part_number_search_function = mouser_part_number_search_function
         self.mouser_keyword_search_function = mouser_keyword_search_function
 

@@ -9,6 +9,7 @@ from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
 from werkzeug.datastructures import FileStorage
 
+from app.app_config import AppSettings
 from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import Attachment
@@ -41,6 +42,7 @@ def analyze_part(
     task_service: TaskService = Provide[ServiceContainer.task_service],
     container: ServiceContainer = Provide[ServiceContainer],
     settings: Settings = Provide[ServiceContainer.config],
+    app_settings: AppSettings = Provide[ServiceContainer.app_config],
 ) -> Any:
     """
     Start AI analysis task for part creation.
@@ -104,7 +106,7 @@ def analyze_part(
         }), 400
 
     # Short-circuit when real AI usage is disabled and no cache response is available
-    if not settings.real_ai_allowed and not settings.ai_analysis_cache_path:
+    if not app_settings.real_ai_allowed and not app_settings.ai_analysis_cache_path:
         exception = InvalidOperationException(
             "perform AI analysis",
             "real AI usage is disabled in testing mode",
@@ -208,6 +210,7 @@ def cleanup_part(
     task_service: TaskService = Provide[ServiceContainer.task_service],
     container: ServiceContainer = Provide[ServiceContainer],
     settings: Settings = Provide[ServiceContainer.config],
+    app_settings: AppSettings = Provide[ServiceContainer.app_config],
     part_service: PartService = Provide[ServiceContainer.part_service],
 ) -> Any:
     """
@@ -239,7 +242,7 @@ def cleanup_part(
         ), 400
 
     # Short-circuit when real AI usage is disabled and no cache response is available
-    if not settings.real_ai_allowed and not settings.ai_cleanup_cache_path:
+    if not app_settings.real_ai_allowed and not app_settings.ai_cleanup_cache_path:
         exception = InvalidOperationException(
             "perform AI cleanup",
             "real AI usage is disabled in testing mode",

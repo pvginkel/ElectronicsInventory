@@ -161,7 +161,7 @@ class TestSSEGatewayVersion:
         time.sleep(0.5)
 
         # Verify Python backend processed the disconnect
-        # (ConnectionManager should have removed the token mapping)
+        # (SSEConnectionManager should have removed the token mapping)
         # This is validated implicitly by subsequent version events not being
         # queued as pending (since connection is gone)
 

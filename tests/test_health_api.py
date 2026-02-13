@@ -14,8 +14,8 @@ class TestHealthEndpoints:
     def test_readyz_when_ready(self, client: FlaskClient):
         """Test readiness probe returns 200 when ready."""
         # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
 
             response = client.get("/health/readyz")
 
@@ -32,7 +32,6 @@ class TestHealthEndpoints:
             if isinstance(coordinator, StubLifecycleCoordinator):
                 coordinator.simulate_shutdown()
             else:
-                # For real coordinator, we'd need to handle sys.exit in tests
                 coordinator._shutting_down = True
 
         response = client.get("/health/readyz")
@@ -54,11 +53,9 @@ class TestHealthEndpoints:
         with app.app_context():
             coordinator = app.container.lifecycle_coordinator()
 
-            # Use proper interface to trigger shutdown
             if isinstance(coordinator, StubLifecycleCoordinator):
                 coordinator.simulate_shutdown()
             else:
-                # For real coordinator, we'd need to handle sys.exit in tests
                 coordinator._shutting_down = True
 
         # Liveness should still return 200
@@ -70,9 +67,8 @@ class TestHealthEndpoints:
 
     def test_health_endpoints_response_format(self, client: FlaskClient):
         """Test that health endpoints return correct response format."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
             # Test readyz format
             readyz_response = client.get("/health/readyz")
             assert "status" in readyz_response.json
@@ -87,9 +83,8 @@ class TestHealthEndpoints:
 
     def test_health_endpoints_content_type(self, client: FlaskClient):
         """Test that health endpoints return JSON content type."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
             readyz_response = client.get("/health/readyz")
             assert readyz_response.content_type == "application/json"
 
@@ -98,9 +93,8 @@ class TestHealthEndpoints:
 
     def test_health_endpoint_urls(self, client: FlaskClient):
         """Test that health endpoints are available at expected URLs."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
             # Test readyz is available
             readyz_response = client.get("/health/readyz")
             assert readyz_response.status_code in [200, 503]
@@ -111,9 +105,8 @@ class TestHealthEndpoints:
 
     def test_readyz_status_transitions(self, app: Flask, client: FlaskClient):
         """Test readiness probe status transitions during shutdown."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
 
             with app.app_context():
                 coordinator = app.container.lifecycle_coordinator()
@@ -167,15 +160,48 @@ class TestHealthEndpoints:
                 assert response.status_code == 200
                 assert response.json["ready"] is True
 
+    def test_readyz_includes_database_check_results(self, client: FlaskClient):
+        """Test that readyz response includes database check details."""
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
+
+            response = client.get("/health/readyz")
+
+            assert response.status_code == 200
+            assert "database" in response.json
+            assert response.json["database"]["connected"] is True
+            assert response.json["database"]["ok"] is True
+
+    def test_readyz_database_not_connected(self, client: FlaskClient):
+        """Test readyz returns 503 when database is not connected."""
+        with patch('app.database.check_db_connection', return_value=False):
+
+            response = client.get("/health/readyz")
+
+            assert response.status_code == 503
+            assert response.json["ready"] is False
+            assert response.json["database"]["connected"] is False
+            assert response.json["database"]["ok"] is False
+
+    def test_readyz_migrations_pending(self, client: FlaskClient):
+        """Test readyz returns 503 when migrations are pending."""
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=["rev1", "rev2"]):
+
+            response = client.get("/health/readyz")
+
+            assert response.status_code == 503
+            assert response.json["ready"] is False
+            assert response.json["database"]["migrations_pending"] == 2
+
 
 class TestHealthEndpointIntegration:
     """Test health endpoints integration with other services."""
 
     def test_readyz_with_task_service(self, app: Flask, client: FlaskClient):
         """Test readiness during task service operations."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
             with app.app_context():
                 # Verify task service is available
                 task_service = app.container.task_service()
@@ -186,9 +212,8 @@ class TestHealthEndpointIntegration:
 
     def test_health_endpoints_with_noop_coordinator(self, app: Flask, client: FlaskClient):
         """Test health endpoints work correctly with StubLifecycleCoordinator."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
             with app.app_context():
                 coordinator = app.container.lifecycle_coordinator()
 
@@ -245,9 +270,8 @@ class TestHealthEndpointIntegration:
 
     def test_health_check_service_lifecycle_simple(self, app: Flask, client: FlaskClient):
         """Test health checks during service lifecycle - simplified."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
             with app.app_context():
                 coordinator = app.container.lifecycle_coordinator()
 
@@ -266,9 +290,8 @@ class TestHealthEndpointIntegration:
 
     def test_readyz_status_messages(self, app: Flask, client: FlaskClient):
         """Test that readyz returns appropriate status messages."""
-        # Mock the database functions since tests use SQLite with create_all() instead of migrations
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
             with app.app_context():
                 coordinator = app.container.lifecycle_coordinator()
 
@@ -302,3 +325,44 @@ class TestHealthEndpointIntegration:
 
             response = client.get("/health/healthz")
             assert response.json["status"] == "alive"  # Should remain alive
+
+
+class TestDrainEndpoint:
+    """Test drain endpoint via HealthService."""
+
+    def test_drain_without_auth_key_configured(self, app: Flask, client: FlaskClient):
+        """Test drain returns 401 when DRAIN_AUTH_KEY is not configured."""
+        response = client.get("/health/drain", headers={"Authorization": "Bearer test"})
+        assert response.status_code == 401
+        assert response.json["status"] == "unauthorized"
+
+    def test_drain_with_invalid_token(self, app: Flask, client: FlaskClient):
+        """Test drain returns 401 with invalid bearer token."""
+        with app.app_context():
+            health_service = app.container.health_service()
+            health_service.settings.drain_auth_key = "valid-key"
+
+        response = client.get("/health/drain", headers={"Authorization": "Bearer wrong-key"})
+        assert response.status_code == 401
+
+    def test_drain_with_valid_token(self, app: Flask, client: FlaskClient):
+        """Test drain succeeds with valid bearer token."""
+        with app.app_context():
+            health_service = app.container.health_service()
+            health_service.settings.drain_auth_key = "test-drain-key"
+
+        response = client.get(
+            "/health/drain",
+            headers={"Authorization": "Bearer test-drain-key"},
+        )
+        assert response.status_code == 200
+        assert response.json["status"] == "alive"
+
+    def test_drain_without_authorization_header(self, app: Flask, client: FlaskClient):
+        """Test drain returns 401 without Authorization header."""
+        with app.app_context():
+            health_service = app.container.health_service()
+            health_service.settings.drain_auth_key = "valid-key"
+
+        response = client.get("/health/drain")
+        assert response.status_code == 401

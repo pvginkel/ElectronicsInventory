@@ -26,120 +26,6 @@ from app.utils.log_capture import LogCaptureHandler, SSELogClient
 class TestTestingEndpoints:
     """Test testing API endpoints for Playwright integration."""
 
-    def test_reset_endpoint_basic_functionality(self, client: FlaskClient, container: ServiceContainer):
-        """Test basic database reset functionality."""
-        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
-        with patch('app.services.testing_service.drop_all_tables'), \
-             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
-             patch('app.services.testing_service.sync_master_data_from_setup'):
-
-            # Configure mock to return migration list
-            mock_upgrade.return_value = ['002', '003', '004']
-
-            # Test reset without seeding
-            response = client.post("/api/testing/reset")
-
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["status"] == "complete"
-            assert data["mode"] == "testing"
-            assert data["seeded"] is False
-            assert "migrations_applied" in data
-
-    def test_reset_endpoint_with_seeding(self, client: FlaskClient, container: ServiceContainer):
-        """Test database reset with test data seeding."""
-        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
-        with patch('app.services.testing_service.drop_all_tables'), \
-             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
-             patch('app.services.testing_service.sync_master_data_from_setup'), \
-             patch('app.services.test_data_service.TestDataService.load_full_dataset'):
-
-            # Configure mock to return migration list
-            mock_upgrade.return_value = ['002', '003', '004']
-
-            response = client.post("/api/testing/reset?seed=true")
-
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["status"] == "complete"
-            assert data["mode"] == "testing"
-            assert data["seeded"] is True
-            assert "migrations_applied" in data
-
-    def test_reset_endpoint_query_parameter_variations(self, client: FlaskClient):
-        """Test different query parameter formats for seed parameter."""
-        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
-        with patch('app.services.testing_service.drop_all_tables'), \
-             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
-             patch('app.services.testing_service.sync_master_data_from_setup'), \
-             patch('app.services.test_data_service.TestDataService.load_full_dataset'):
-
-            # Configure mock to return migration list
-            mock_upgrade.return_value = ['002', '003', '004']
-
-            # Test various true values
-            for seed_value in ["true", "1", "yes", "True", "YES"]:
-                response = client.post(f"/api/testing/reset?seed={seed_value}")
-                assert response.status_code == 200
-                data = response.get_json()
-                assert data["seeded"] is True
-
-            # Test various false values
-            for seed_value in ["false", "0", "no", "False", "NO", ""]:
-                response = client.post(f"/api/testing/reset?seed={seed_value}")
-                assert response.status_code == 200
-                data = response.get_json()
-                assert data["seeded"] is False
-
-    def test_reset_endpoint_concurrency_control(self, client: FlaskClient, container: ServiceContainer):
-        """Test that concurrent reset requests are properly handled."""
-        # Get the reset lock and manually acquire it
-        reset_lock = container.reset_lock()
-
-        # Acquire the lock to simulate reset in progress
-        assert reset_lock.acquire_reset() is True
-
-        try:
-            # Now try to reset while lock is held
-            response = client.post("/api/testing/reset")
-
-            assert response.status_code == 503
-            assert "Retry-After" in response.headers
-            assert response.headers["Retry-After"] == "5"
-
-            data = response.get_json()
-            assert "already in progress" in data["error"].lower()
-            assert data["status"] == "busy"
-
-        finally:
-            # Release the lock
-            reset_lock.release_reset()
-
-    def test_reset_endpoint_idempotent(self, client: FlaskClient):
-        """Test that reset operation is idempotent."""
-        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
-        with patch('app.services.testing_service.drop_all_tables'), \
-             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
-             patch('app.services.testing_service.sync_master_data_from_setup'), \
-             patch('app.services.test_data_service.TestDataService.load_full_dataset'):
-
-            # Configure mock to return migration list
-            mock_upgrade.return_value = ['002', '003', '004']
-
-            # First reset
-            response1 = client.post("/api/testing/reset?seed=true")
-            assert response1.status_code == 200
-            data1 = response1.get_json()
-
-            # Second reset with same parameters
-            response2 = client.post("/api/testing/reset?seed=true")
-            assert response2.status_code == 200
-            data2 = response2.get_json()
-
-            # Both should succeed with same structure
-            assert data1["status"] == data2["status"] == "complete"
-            assert data1["seeded"] == data2["seeded"] is True
-
     def test_content_image_endpoint_generates_expected_png(self, client: FlaskClient):
         """Test that the content image endpoint returns a deterministic PNG with text rendering."""
         response = client.get("/api/testing/content/image", query_string={"text": "Hello"})
@@ -287,12 +173,12 @@ class TestTestingEndpoints:
         """Test that deployment trigger stores version as pending and broadcasts."""
         from unittest.mock import Mock
 
-        version_service = container.version_service()
+        version_service = container.frontend_version_service()
         request_id = "playwright-queued"
 
-        # Mock ConnectionManager to verify broadcast
-        mock_connection_manager = Mock()
-        version_service.connection_manager = mock_connection_manager
+        # Mock SSEConnectionManager to verify broadcast
+        mock_sse_connection_manager = Mock()
+        version_service.sse_connection_manager = mock_sse_connection_manager
 
         response = client.post(
             "/api/testing/deployments/version",
@@ -308,8 +194,8 @@ class TestTestingEndpoints:
         }
 
         # Verify it was broadcast
-        mock_connection_manager.send_event.assert_called_once()
-        call_args = mock_connection_manager.send_event.call_args
+        mock_sse_connection_manager.send_event.assert_called_once()
+        call_args = mock_sse_connection_manager.send_event.call_args
         assert call_args.args[0] is None  # Broadcast mode
         assert call_args.args[1] == {"version": "2024.01.0"}
 
@@ -325,12 +211,12 @@ class TestTestingEndpoints:
         """Test deployment trigger with changelog."""
         from unittest.mock import Mock
 
-        version_service = container.version_service()
+        version_service = container.frontend_version_service()
         request_id = "playwright-live"
 
-        # Mock ConnectionManager
-        mock_connection_manager = Mock()
-        version_service.connection_manager = mock_connection_manager
+        # Mock SSEConnectionManager
+        mock_sse_connection_manager = Mock()
+        version_service.sse_connection_manager = mock_sse_connection_manager
 
         response = client.post(
             "/api/testing/deployments/version",
@@ -350,7 +236,7 @@ class TestTestingEndpoints:
         }
 
         # Verify it was broadcast with changelog
-        call_args = mock_connection_manager.send_event.call_args
+        call_args = mock_sse_connection_manager.send_event.call_args
         assert call_args.args[1] == {
             "version": "2024.02.1",
             "changelog": "Testing banner copy"
@@ -361,20 +247,6 @@ class TestTestingEndpoints:
             "version": "2024.02.1",
             "changelog": "Testing banner copy"
         }
-
-    @patch('app.services.testing_service.drop_all_tables')
-    def test_reset_endpoint_error_handling(self, mock_drop_tables, client: FlaskClient):
-        """Test error handling during reset operation."""
-        # Make drop_all_tables raise an exception
-        mock_drop_tables.side_effect = Exception("Database error")
-
-        response = client.post("/api/testing/reset")
-
-        # Should return 500 error
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-        assert "correlationId" in data or "correlationId" not in data  # Optional
 
     def test_logs_stream_endpoint_connection(self, client: FlaskClient):
         """Test log streaming endpoint basic connection."""
@@ -501,84 +373,10 @@ class TestTestingEndpoints:
         # Should not crash and handler should still be functional
         assert isinstance(handler._clients, set)
 
-    def test_reset_lock_basic_functionality(self, container: ServiceContainer):
-        """Test reset lock basic acquire/release functionality."""
-        reset_lock = container.reset_lock()
-
-        # Initial state
-        assert not reset_lock.is_resetting()
-
-        # Acquire lock
-        assert reset_lock.acquire_reset() is True
-        assert reset_lock.is_resetting()
-
-        # Try to acquire again (should fail)
-        assert reset_lock.acquire_reset() is False
-        assert reset_lock.is_resetting()
-
-        # Release lock
-        reset_lock.release_reset()
-        assert not reset_lock.is_resetting()
-
-        # Should be able to acquire again
-        assert reset_lock.acquire_reset() is True
-
-    def test_reset_lock_context_manager(self, container: ServiceContainer):
-        """Test reset lock context manager functionality."""
-        reset_lock = container.reset_lock()
-
-        # Test successful acquisition
-        with reset_lock as acquired:
-            assert acquired is True
-            assert reset_lock.is_resetting()
-
-        # Should be released after context
-        assert not reset_lock.is_resetting()
-
-        # Test failed acquisition
-        reset_lock.acquire_reset()  # Manually acquire
-        try:
-            with reset_lock as acquired:
-                assert acquired is False
-                assert reset_lock.is_resetting()  # Still held by manual acquire
-        finally:
-            reset_lock.release_reset()
-
-    def test_correlation_id_propagation(self, client: FlaskClient):
-        """Test that correlation IDs are properly propagated through the system."""
-        test_correlation_id = "test-correlation-456"
-
-        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
-        with patch('app.services.testing_service.drop_all_tables'), \
-             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
-             patch('app.services.testing_service.sync_master_data_from_setup'):
-
-            # Configure mock to return migration list
-            mock_upgrade.return_value = ['002', '003', '004']
-
-            # Make request with correlation ID
-            response = client.post(
-                "/api/testing/reset",
-                headers={"X-Request-Id": test_correlation_id}
-            )
-
-            assert response.status_code == 200
-
-            # Response should include correlation ID
-            data = response.get_json()
-            assert data.get("correlationId") == test_correlation_id or "correlationId" not in data
-
     def test_testing_service_dependency_injection(self, container: ServiceContainer):
-        """Test that testing service is properly configured with dependencies."""
+        """Test that testing service is properly configured via DI."""
         testing_service = container.testing_service()
-
-        # Should have database session
-        assert hasattr(testing_service, 'db')
-        assert testing_service.db is not None
-
-        # Should have reset lock
-        assert hasattr(testing_service, 'reset_lock')
-        assert testing_service.reset_lock is not None
+        assert testing_service is not None
 
 
 class TestTestingEndpointsNonTestingMode:
@@ -595,10 +393,6 @@ class TestTestingEndpointsNonTestingMode:
             debug=True,
             flask_env="development",  # Not testing mode
             cors_origins=["http://localhost:3000"],
-            allowed_image_types=["image/jpeg", "image/png"],
-            allowed_file_types=["application/pdf"],
-            max_image_size=10 * 1024 * 1024,  # 10MB
-            max_file_size=100 * 1024 * 1024,  # 100MB
             # SQLite compatibility options
             sqlalchemy_engine_options={
                 "poolclass": StaticPool,
@@ -622,27 +416,6 @@ class TestTestingEndpointsNonTestingMode:
         """Create test client for non-testing mode app."""
         return non_testing_app.test_client()
 
-    def test_reset_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
-        """Test that reset endpoint returns 400 when not in testing mode."""
-        response = non_testing_client.post("/api/testing/reset")
-
-        assert response.status_code == 400
-        data = response.get_json()
-        assert data["error"] == "This endpoint is only available when the server is running in testing mode"
-        assert data["code"] == "ROUTE_NOT_AVAILABLE"
-        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
-        assert "correlationId" in data or "correlationId" not in data  # Optional
-
-    def test_reset_endpoint_with_seed_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
-        """Test that reset endpoint with seed parameter returns 400 when not in testing mode."""
-        response = non_testing_client.post("/api/testing/reset?seed=true")
-
-        assert response.status_code == 400
-        data = response.get_json()
-        assert data["error"] == "This endpoint is only available when the server is running in testing mode"
-        assert data["code"] == "ROUTE_NOT_AVAILABLE"
-        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
-
     def test_content_image_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
         """Test that content image endpoint is unavailable outside testing mode."""
         response = non_testing_client.get("/api/testing/content/image", query_string={"text": "Hello"})
@@ -663,24 +436,10 @@ class TestTestingEndpointsNonTestingMode:
         assert data["code"] == "ROUTE_NOT_AVAILABLE"
         assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
 
-    def test_correlation_id_included_in_non_testing_mode_error(self, non_testing_client: FlaskClient):
-        """Test that correlation IDs are included in error responses when not in testing mode."""
-        test_correlation_id = "test-correlation-789"
-
-        response = non_testing_client.post(
-            "/api/testing/reset",
-            headers={"X-Request-Id": test_correlation_id}
-        )
-
-        assert response.status_code == 400
-        data = response.get_json()
-        assert data.get("correlationId") == test_correlation_id or "correlationId" not in data
-
     def test_before_request_applies_to_all_testing_routes(self, non_testing_client: FlaskClient):
         """Test that before_request handler applies to all routes in testing blueprint."""
         # Test all known testing endpoints
         endpoints = [
-            ("/api/testing/reset", "POST"),
             ("/api/testing/logs/stream", "GET"),
             ("/api/testing/content/image?text=test", "GET"),
             ("/api/testing/content/pdf", "GET"),
@@ -707,11 +466,11 @@ class TestTaskEventEndpoint:
 
     def test_send_task_event_success(self, client: FlaskClient, container: ServiceContainer):
         """Test successful task event delivery to an active connection."""
-        connection_manager = container.connection_manager()
+        sse_connection_manager = container.sse_connection_manager()
 
         # Mock has_connection to return True and send_event to return True
-        with patch.object(connection_manager, 'has_connection', return_value=True), \
-             patch.object(connection_manager, 'send_event', return_value=True) as mock_send:
+        with patch.object(sse_connection_manager, 'has_connection', return_value=True), \
+             patch.object(sse_connection_manager, 'send_event', return_value=True) as mock_send:
 
             response = client.post("/api/testing/sse/task-event", json={
                 "request_id": "playwright-test-123",
@@ -744,7 +503,7 @@ class TestTaskEventEndpoint:
 
     def test_send_task_event_no_connection(self, client: FlaskClient, container: ServiceContainer):
         """Test 400 error when no connection exists for the request_id."""
-        # The connection_manager won't have any connections registered,
+        # The sse_connection_manager won't have any connections registered,
         # so any request_id should trigger the 400 response
         response = client.post("/api/testing/sse/task-event", json={
             "request_id": "nonexistent-connection",
@@ -759,7 +518,7 @@ class TestTaskEventEndpoint:
 
     def test_send_task_event_send_failure(self, client: FlaskClient, container: ServiceContainer):
         """Test 400 error when send_event fails (connection disappears during send)."""
-        connection_manager = container.connection_manager()
+        sse_connection_manager = container.sse_connection_manager()
 
         # Patch send_event to return True during on_connect (so connection isn't cleaned up)
         # then return False during the actual task event send
@@ -767,15 +526,15 @@ class TestTaskEventEndpoint:
 
         def mock_send_event(*args, **kwargs):
             call_count[0] += 1
-            # First call is from VersionService during on_connect - let it succeed
+            # First call is from FrontendVersionService during on_connect - let it succeed
             if call_count[0] == 1:
                 return True
             # Second call is from the actual test - make it fail
             return False
 
-        with patch.object(connection_manager, 'send_event', side_effect=mock_send_event):
-            # Register the connection - VersionService callback will use first send_event call
-            connection_manager.on_connect("test-connection", "test-token", "http://example.com")
+        with patch.object(sse_connection_manager, 'send_event', side_effect=mock_send_event):
+            # Register the connection - FrontendVersionService callback will use first send_event call
+            sse_connection_manager.on_connect("test-connection", "test-token", "http://example.com")
 
             response = client.post("/api/testing/sse/task-event", json={
                 "request_id": "test-connection",
@@ -790,11 +549,11 @@ class TestTaskEventEndpoint:
 
     def test_send_task_event_all_event_types(self, client: FlaskClient, container: ServiceContainer):
         """Test all supported event types."""
-        connection_manager = container.connection_manager()
+        sse_connection_manager = container.sse_connection_manager()
         event_types = ["task_started", "progress_update", "task_completed", "task_failed"]
 
-        with patch.object(connection_manager, 'has_connection', return_value=True), \
-             patch.object(connection_manager, 'send_event', return_value=True) as mock_send:
+        with patch.object(sse_connection_manager, 'has_connection', return_value=True), \
+             patch.object(sse_connection_manager, 'send_event', return_value=True) as mock_send:
 
             for event_type in event_types:
                 response = client.post("/api/testing/sse/task-event", json={
@@ -813,10 +572,10 @@ class TestTaskEventEndpoint:
 
     def test_send_task_event_with_null_data(self, client: FlaskClient, container: ServiceContainer):
         """Test task event with null/missing data field."""
-        connection_manager = container.connection_manager()
+        sse_connection_manager = container.sse_connection_manager()
 
-        with patch.object(connection_manager, 'has_connection', return_value=True), \
-             patch.object(connection_manager, 'send_event', return_value=True) as mock_send:
+        with patch.object(sse_connection_manager, 'has_connection', return_value=True), \
+             patch.object(sse_connection_manager, 'send_event', return_value=True) as mock_send:
 
             response = client.post("/api/testing/sse/task-event", json={
                 "request_id": "test-connection",

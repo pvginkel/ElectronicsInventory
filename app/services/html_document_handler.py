@@ -8,10 +8,10 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from PIL import Image
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.schemas.upload_document import DocumentContentSchema
+from app.services.cas_image_service import CasImageService
 from app.services.download_cache_service import DownloadCacheService
-from app.services.image_service import ImageService
 from app.utils.mime_handling import detect_mime_type
 
 logger = logging.getLogger(__name__)
@@ -28,10 +28,10 @@ class HtmlDocumentInfo:
 class HtmlDocumentHandler:
     """Service for processing HTML documents and extracting metadata."""
 
-    def __init__(self, download_cache_service: DownloadCacheService, settings: Settings, image_service: ImageService):
+    def __init__(self, download_cache_service: DownloadCacheService, app_settings: AppSettings, cas_image_service: CasImageService):
         self.download_cache_service = download_cache_service
-        self.settings = settings
-        self.image_service = image_service
+        self.app_settings = app_settings
+        self.cas_image_service = cas_image_service
 
     def process_html_content(self, content: bytes, url: str) -> HtmlDocumentInfo:
         """Process HTML content and extract metadata.
@@ -197,11 +197,11 @@ class HtmlDocumentHandler:
             content_type = detect_mime_type(content, download_result.content_type)
 
             # If it's not in allowed types but magic detected it as an image, try to convert it
-            if content_type not in self.settings.allowed_image_types:
+            if content_type not in self.app_settings.allowed_image_types:
                 # Only try conversion if magic detected it as an image
                 if content_type.startswith('image/'):
                     # Try to convert to PNG
-                    conversion_result = self.image_service.convert_image_to_png(content)
+                    conversion_result = self.cas_image_service.convert_image_to_png(content)
                     if conversion_result:
                         content = conversion_result.content
                         content_type = conversion_result.content_type

@@ -3,19 +3,21 @@
 from dependency_injector import containers, providers
 from sqlalchemy.orm import sessionmaker
 
+from app.app_config import AppSettings
 from app.config import Settings
 from app.services.ai_service import AIService
 from app.services.attachment_set_service import AttachmentSetService
 from app.services.auth_service import AuthService
 from app.services.box_service import BoxService
-from app.services.connection_manager import ConnectionManager
+from app.services.cas_image_service import CasImageService
 from app.services.dashboard_service import DashboardService
 from app.services.datasheet_extraction_service import DatasheetExtractionService
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.duplicate_search_service import DuplicateSearchService
+from app.services.frontend_version_service import FrontendVersionService
+from app.services.health_service import HealthService
 from app.services.html_document_handler import HtmlDocumentHandler
-from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.kit_pick_list_service import KitPickListService
 from app.services.kit_reservation_service import KitReservationService
@@ -31,12 +33,12 @@ from app.services.seller_service import SellerService
 from app.services.setup_service import SetupService
 from app.services.shopping_list_line_service import ShoppingListLineService
 from app.services.shopping_list_service import ShoppingListService
+from app.services.sse_connection_manager import SSEConnectionManager
 from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.testing_service import TestingService
 from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
-from app.services.version_service import VersionService
 from app.utils.ai.ai_runner import AIRunner
 from app.utils.ai.datasheet_extraction import ExtractSpecsFromDatasheetFunction
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
@@ -46,15 +48,14 @@ from app.utils.ai.mouser_search import (
 )
 from app.utils.ai.openai.openai_runner import OpenAIRunner
 from app.utils.lifecycle_coordinator import LifecycleCoordinator
-from app.utils.reset_lock import ResetLock
 from app.utils.temp_file_manager import TempFileManager
 
 
-def _create_ai_runner(cfg: Settings) -> AIRunner | None:
+def _create_ai_runner(app_cfg: AppSettings) -> AIRunner | None:
     """Factory function to create AI runner based on configuration.
 
     Args:
-        cfg: Application settings
+        app_cfg: Application-specific settings
 
     Returns:
         OpenAIRunner instance, or None if AI is disabled
@@ -62,19 +63,19 @@ def _create_ai_runner(cfg: Settings) -> AIRunner | None:
     Raises:
         ValueError: If AI_PROVIDER doesn't match configured API keys
     """
-    if not cfg.real_ai_allowed:
+    if not app_cfg.real_ai_allowed:
         return None
 
-    if cfg.ai_provider == "openai":
-        if not cfg.openai_api_key:
+    if app_cfg.ai_provider == "openai":
+        if not app_cfg.openai_api_key:
             raise ValueError(
                 "OPENAI_API_KEY is required when AI_PROVIDER is set to 'openai'"
             )
-        return OpenAIRunner(cfg.openai_api_key)
+        return OpenAIRunner(app_cfg.openai_api_key)
 
     else:
         raise ValueError(
-            f"Invalid AI_PROVIDER: {cfg.ai_provider}. Must be 'openai'"
+            f"Invalid AI_PROVIDER: {app_cfg.ai_provider}. Must be 'openai'"
         )
 
 
@@ -83,6 +84,7 @@ class ServiceContainer(containers.DeclarativeContainer):
 
     # Configuration and database session providers
     config = providers.Dependency(instance_of=Settings)
+    app_config = providers.Dependency(instance_of=AppSettings)
     session_maker = providers.Dependency(instance_of=sessionmaker)
     db_session = providers.ContextLocalSingleton(
         session_maker.provided.call()
@@ -91,10 +93,10 @@ class ServiceContainer(containers.DeclarativeContainer):
     # Document management services - defined early for service dependencies
     s3_service = providers.Factory(S3Service, settings=config)
 
-    image_service = providers.Factory(
-        ImageService,
+    cas_image_service = providers.Factory(
+        CasImageService,
         s3_service=s3_service,
-        settings=config
+        app_settings=app_config
     )
 
     # AttachmentSet service - manages attachments for Parts and Kits
@@ -102,7 +104,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         AttachmentSetService,
         db=db_session,
         s3_service=s3_service,
-        image_service=image_service,
+        cas_image_service=cas_image_service,
         settings=config
     )
 
@@ -128,17 +130,24 @@ class ServiceContainer(containers.DeclarativeContainer):
         graceful_shutdown_timeout=config.provided.graceful_shutdown_timeout,
     )
 
+    # Health service - Singleton with callback registry for health checks
+    health_service = providers.Singleton(
+        HealthService,
+        lifecycle_coordinator=lifecycle_coordinator,
+        settings=config,
+    )
+
     # Utility services
     temp_file_manager = providers.Singleton(
         TempFileManager,
-        base_path=config.provided.download_cache_base_path,
-        cleanup_age_hours=config.provided.download_cache_cleanup_hours,
+        base_path=app_config.provided.download_cache_base_path,
+        cleanup_age_hours=app_config.provided.download_cache_cleanup_hours,
         lifecycle_coordinator=lifecycle_coordinator
     )
     download_cache_service = providers.Factory(
         DownloadCacheService,
         temp_file_manager=temp_file_manager,
-        max_download_size=config.provided.max_file_size,
+        max_download_size=app_config.provided.max_file_size,
         download_timeout=30
     )
 
@@ -148,8 +157,8 @@ class ServiceContainer(containers.DeclarativeContainer):
     html_handler = providers.Factory(
         HtmlDocumentHandler,
         download_cache_service=download_cache_service,
-        settings=config,
-        image_service=image_service
+        app_settings=app_config,
+        cas_image_service=cas_image_service
     )
 
     # Metrics service - Singleton for background thread management
@@ -169,9 +178,9 @@ class ServiceContainer(containers.DeclarativeContainer):
         config=config,
     )
 
-    # ConnectionManager - Singleton for SSE Gateway token mapping
-    connection_manager = providers.Singleton(
-        ConnectionManager,
+    # SSEConnectionManager - Singleton for SSE Gateway token mapping
+    sse_connection_manager = providers.Singleton(
+        SSEConnectionManager,
         gateway_url=config.provided.sse_gateway_url,
         http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
     )
@@ -228,10 +237,10 @@ class ServiceContainer(containers.DeclarativeContainer):
         DocumentService,
         db=db_session,
         s3_service=s3_service,
-        image_service=image_service,
+        cas_image_service=cas_image_service,
         html_handler=html_handler,
         download_cache_service=download_cache_service,
-        settings=config,
+        app_settings=app_config,
         url_interceptor_registry=url_interceptor_registry
     )
 
@@ -239,7 +248,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     task_service = providers.Singleton(
         TaskService,
         lifecycle_coordinator=lifecycle_coordinator,
-        connection_manager=connection_manager,
+        sse_connection_manager=sse_connection_manager,
         max_workers=config.provided.task_max_workers,
         task_timeout=config.provided.task_timeout_seconds,
         cleanup_interval=config.provided.task_cleanup_interval_seconds
@@ -248,13 +257,13 @@ class ServiceContainer(containers.DeclarativeContainer):
     # AI runner - conditional singleton (only when real AI is enabled)
     ai_runner = providers.Singleton(
         _create_ai_runner,
-        cfg=config,
+        app_cfg=app_config,
     )
 
     # Duplicate search service
     duplicate_search_service = providers.Factory(
         DuplicateSearchService,
-        config=config,
+        app_config=app_config,
         part_service=part_service,
         ai_runner=ai_runner,
     )
@@ -268,7 +277,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     # Mouser service and functions
     mouser_service = providers.Factory(
         MouserService,
-        config=config,
+        app_config=app_config,
         download_cache_service=download_cache_service,
     )
 
@@ -285,7 +294,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     # Datasheet extraction service and function
     datasheet_extraction_service = providers.Factory(
         DatasheetExtractionService,
-        config=config,
+        app_config=app_config,
         document_service=document_service,
         type_service=type_service,
         ai_runner=ai_runner,
@@ -301,7 +310,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     ai_service = providers.Factory(
         AIService,
         db=db_session,
-        config=config,
+        app_config=app_config,
         temp_file_manager=temp_file_manager,
         type_service=type_service,
         seller_service=seller_service,
@@ -314,21 +323,13 @@ class ServiceContainer(containers.DeclarativeContainer):
         ai_runner=ai_runner
     )
 
-    # Version service - Singleton managing SSE subscribers
-    version_service = providers.Singleton(
-        VersionService,
+    # Frontend version service - Singleton managing SSE subscribers
+    frontend_version_service = providers.Singleton(
+        FrontendVersionService,
         settings=config,
         lifecycle_coordinator=lifecycle_coordinator,
-        connection_manager=connection_manager
+        sse_connection_manager=sse_connection_manager
     )
 
-    # Testing utilities - Singleton reset lock for concurrency control
-    reset_lock = providers.Singleton(ResetLock)
-
-    # Testing service - Factory for database reset operations
-    testing_service = providers.Factory(
-        TestingService,
-        db=db_session,
-        reset_lock=reset_lock,
-        test_data_service=test_data_service
-    )
+    # Testing service - Factory for deterministic content generation
+    testing_service = providers.Factory(TestingService)

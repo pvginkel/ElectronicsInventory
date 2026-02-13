@@ -19,7 +19,7 @@ from app.schemas.task_schema import (
     TaskStatus,
 )
 from app.services.base_task import BaseTask
-from app.services.connection_manager import ConnectionManager
+from app.services.sse_connection_manager import SSEConnectionManager
 from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol, LifecycleEvent
 
 # Task shutdown metric -- owned by TaskService because it knows the
@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 class TaskProgressHandle:
     """Implementation of ProgressHandle for sending updates via SSE."""
 
-    def __init__(self, task_id: str, connection_manager: ConnectionManager):
+    def __init__(self, task_id: str, sse_connection_manager: SSEConnectionManager):
         self.task_id = task_id
-        self.connection_manager = connection_manager
+        self.sse_connection_manager = sse_connection_manager
         self.progress = 0.0
         self.progress_text = ""
 
@@ -67,7 +67,7 @@ class TaskProgressHandle:
         try:
             # Broadcast to all connections
             # Use mode='json' to serialize datetime to ISO format string
-            self.connection_manager.send_event(
+            self.sse_connection_manager.send_event(
                 None,  # None = broadcast
                 event.model_dump(mode='json'),
                 event_name="task_event",
@@ -84,7 +84,7 @@ class TaskService:
     def __init__(
         self,
         lifecycle_coordinator: LifecycleCoordinatorProtocol,
-        connection_manager: ConnectionManager,
+        sse_connection_manager: SSEConnectionManager,
         max_workers: int = 4,
         task_timeout: int = 300,
         cleanup_interval: int = 600
@@ -93,7 +93,7 @@ class TaskService:
 
         Args:
             lifecycle_coordinator: Coordinator for lifecycle events and graceful shutdown
-            connection_manager: ConnectionManager for SSE Gateway integration
+            sse_connection_manager: SSEConnectionManager for SSE Gateway integration
             max_workers: Maximum number of concurrent tasks
             task_timeout: Task execution timeout in seconds
             cleanup_interval: How often to clean up completed tasks in seconds
@@ -102,7 +102,7 @@ class TaskService:
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
         self.lifecycle_coordinator = lifecycle_coordinator
-        self.connection_manager = connection_manager
+        self.sse_connection_manager = sse_connection_manager
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -174,7 +174,7 @@ class TaskService:
         """
         # Broadcast event to all connections
         # Use mode='json' to serialize datetime to ISO format string
-        success = self.connection_manager.send_event(
+        success = self.sse_connection_manager.send_event(
             None,  # None = broadcast
             event.model_dump(mode='json'),
             event_name="task_event",
@@ -251,7 +251,7 @@ class TaskService:
             self._broadcast_task_event(start_event)
 
             # Create progress handle
-            progress_handle = TaskProgressHandle(task_id, self.connection_manager)
+            progress_handle = TaskProgressHandle(task_id, self.sse_connection_manager)
 
             # Execute the task
             result = task.execute(progress_handle, **kwargs)

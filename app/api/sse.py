@@ -12,8 +12,8 @@ from app.schemas.sse_gateway_schema import (
     SSEGatewayConnectCallback,
     SSEGatewayDisconnectCallback,
 )
-from app.services.connection_manager import ConnectionManager
 from app.services.container import ServiceContainer
+from app.services.sse_connection_manager import SSEConnectionManager
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +45,14 @@ def _authenticate_callback(secret_from_query: str | None, settings: Settings) ->
 @sse_bp.route("/callback", methods=["POST"])
 @inject
 def handle_callback(
-    connection_manager: ConnectionManager = Provide[ServiceContainer.connection_manager],
+    sse_connection_manager: SSEConnectionManager = Provide[ServiceContainer.sse_connection_manager],
     settings: Settings = Provide[ServiceContainer.config],
 ) -> tuple[Response, int] | Response:
     """Handle SSE Gateway connect/disconnect callbacks.
 
     This endpoint receives callbacks from the SSE Gateway when clients connect
     or disconnect. It extracts the request_id from the callback URL and calls
-    ConnectionManager, which then notifies observers.
+    SSEConnectionManager, which then notifies observers.
 
     Returns:
         200 on success
@@ -102,8 +102,8 @@ def handle_callback(
                 logger.error(f"Invalid request_id contains colon: {request_id}")
                 return jsonify({"error": "Invalid request_id format"}), 400
 
-            # Register connection with ConnectionManager (observers will be notified)
-            connection_manager.on_connect(
+            # Register connection with SSEConnectionManager (observers will be notified)
+            sse_connection_manager.on_connect(
                 request_id,
                 connect_callback.token,
                 connect_callback.request.url
@@ -116,8 +116,8 @@ def handle_callback(
             # Validate as disconnect callback
             disconnect_callback = SSEGatewayDisconnectCallback.model_validate(payload)
 
-            # Notify ConnectionManager of disconnect
-            connection_manager.on_disconnect(disconnect_callback.token)
+            # Notify SSEConnectionManager of disconnect
+            sse_connection_manager.on_disconnect(disconnect_callback.token)
 
             # Return empty success
             return jsonify({}), 200

@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "app"}]
 
 [tool.poetry.scripts]
-inventory-cli = "app.cli:main"
+cli = "app.cli:main"
 dev = "run:main"
 
 [tool.poetry.dependencies]
@@ -33,7 +33,6 @@ requests = "^2.31.0"
 python-magic = "^0.4.27"
 validators = "^0.35.0"
 prometheus-flask-exporter = "^0.23.0"
-flask-log-request-id = "^0.10.1"
 reportlab = "^4.0.0"
 httpx = "^0.28.1"
 pyjwt = "^2.11.0"
@@ -95,10 +94,6 @@ strict_equality = true
 module = "tests.*"
 disallow_untyped_defs = false
 ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "flask_log_request_id.*"
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "alembic.*"

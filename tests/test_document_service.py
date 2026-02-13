@@ -29,8 +29,8 @@ def mock_s3_service():
 
 
 @pytest.fixture
-def mock_image_service():
-    """Create mock ImageService."""
+def mock_cas_image_service():
+    """Create mock CasImageService."""
     mock = MagicMock()
     mock.get_thumbnail_path.return_value = "/tmp/thumbnail.jpg"
     return mock
@@ -66,13 +66,13 @@ def mock_download_cache():
 
 
 @pytest.fixture
-def document_service(app, session, mock_s3_service, mock_image_service, mock_html_handler, mock_download_cache, test_settings):
+def document_service(app, session, mock_s3_service, mock_cas_image_service, mock_html_handler, mock_download_cache, test_app_settings):
     """Create DocumentService with mocked dependencies."""
     with app.app_context():
         from app.services.document_service import DocumentService
         # Create empty URL interceptor registry for testing
         url_interceptor_registry = URLInterceptorRegistry()
-        return DocumentService(session, mock_s3_service, mock_image_service, mock_html_handler, mock_download_cache, test_settings, url_interceptor_registry)
+        return DocumentService(session, mock_s3_service, mock_cas_image_service, mock_html_handler, mock_download_cache, test_app_settings, url_interceptor_registry)
 
 
 class TestDocumentService:

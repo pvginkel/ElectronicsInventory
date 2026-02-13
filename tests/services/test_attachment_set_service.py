@@ -26,20 +26,20 @@ def mock_s3_service():
 
 
 @pytest.fixture
-def mock_image_service():
-    """Create mock ImageService."""
+def mock_cas_image_service():
+    """Create mock CasImageService."""
     mock = MagicMock()
     return mock
 
 
 @pytest.fixture
 def attachment_set_service(
-    app: Flask, session: Session, mock_s3_service, mock_image_service, test_settings: Settings
+    app: Flask, session: Session, mock_s3_service, mock_cas_image_service, test_settings: Settings
 ):
     """Create AttachmentSetService with mocked dependencies."""
     with app.app_context():
         return AttachmentSetService(
-            session, mock_s3_service, mock_image_service, test_settings
+            session, mock_s3_service, mock_cas_image_service, test_settings
         )
 
 

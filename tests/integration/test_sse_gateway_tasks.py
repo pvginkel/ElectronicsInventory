@@ -177,7 +177,7 @@ class TestSSEGatewayTasks:
         time.sleep(0.5)
 
         # Verify Python backend processed the disconnect
-        # (ConnectionManager should have removed the token mapping)
+        # (SSEConnectionManager should have removed the token mapping)
         # This is validated implicitly by the fact that the task continues
         # to run without errors even though the connection is gone
 
