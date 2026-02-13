@@ -1228,24 +1228,6 @@ files = [
 Flask = ">=0.9"
 
 [[package]]
-name = "flask-log-request-id"
-version = "0.10.1"
-description = "Flask extension that can parse and handle multiple types of request-id sent by request processors like Amazon ELB, Heroku or any multi-tier infrastructure as the one used for microservices."
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "Flask-Log-Request-ID-0.10.1.tar.gz", hash = "sha256:d537a1af3776308e69435ea609230f4fb7ef162fbc4bf268d7089f0b0e1851f4"},
-    {file = "Flask_Log_Request_ID-0.10.1-py3-none-any.whl", hash = "sha256:04b2ab0d7eca13a816155d16dc5e5dee6a0b285c62ec2c2330394c946ff418ce"},
-]
-
-[package.dependencies]
-Flask = ">=0.8"
-
-[package.extras]
-test = ["celery (>=4.3.0,<4.4.0)", "coverage (>=4.5.4,<4.6.0)", "flake8", "mock (==2.0.0)", "nose"]
-
-[[package]]
 name = "flask-sqlalchemy"
 version = "3.1.1"
 description = "Add SQLAlchemy support to your Flask application."
@@ -2967,4 +2949,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "5f2ce6a73efa83b66262faad0654b72aefb99edeffd2d87a7ef17049720fb3ec"
+content-hash = "4e25f2f7a4aacf7f95b7206e97ba0bbf6eb27d011fabab1093304d8ea4f7797e"
