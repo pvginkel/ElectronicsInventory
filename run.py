@@ -9,6 +9,7 @@ from waitress import serve
 
 from app import create_app
 from app.config import Settings
+from app.consts import DEFAULT_BACKEND_PORT
 from app.utils.lifecycle_coordinator import LifecycleEvent
 
 
@@ -22,7 +23,7 @@ def main() -> None:
     app = create_app(settings)
 
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", DEFAULT_BACKEND_PORT))
 
     # Get and initialize the lifecycle coordinator
     lifecycle_coordinator = app.container.lifecycle_coordinator()

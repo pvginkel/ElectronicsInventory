@@ -10,6 +10,9 @@ BACKEND_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo $BACKEND_DIR
 
+# Load shared variables
+. "$SCRIPT_DIR/args.sh"
+
 # Change to backend directory
 cd "$BACKEND_DIR" || {
     echo "Error: Could not change to backend directory: $BACKEND_DIR" >&2
@@ -18,7 +21,7 @@ cd "$BACKEND_DIR" || {
 
 # Default server configuration
 HOST="0.0.0.0"
-PORT="5100"
+PORT="$TESTING_BACKEND_PORT"
 SQLITE_DB_PATH=""
 
 print_usage() {

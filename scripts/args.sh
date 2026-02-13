@@ -1,6 +1,8 @@
 mkdir -p $(pwd)/tmp
 
 NAME=electronics-inventory
+BACKEND_PORT=5000
+TESTING_BACKEND_PORT=5100
 ARGS="
-    -p 5000:5000
+    -p ${BACKEND_PORT}:${BACKEND_PORT}
 "
