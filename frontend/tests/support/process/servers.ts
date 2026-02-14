@@ -5,7 +5,7 @@ import getPort from 'get-port';
 import type { Readable } from 'node:stream';
 import split2 from 'split2';
 
-const BACKEND_READY_PATH = '/api/health/readyz';
+const BACKEND_READY_PATH = '/health/readyz';
 const FRONTEND_READY_PATH = '/';
 const GATEWAY_READY_PATH = '/readyz';
 const BACKEND_STARTUP_TIMEOUT_MS = 30_000;

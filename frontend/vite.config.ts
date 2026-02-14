@@ -41,7 +41,7 @@ function versionPlugin(): Plugin {
 }
 
 function backendProxyStatusPlugin(target: string): Plugin {
-  const probeUrl = new URL('/api/health/readyz', target).toString()
+  const probeUrl = new URL('/health/readyz', target).toString()
 
   const checkBackend = async () => {
     const controller = new AbortController()

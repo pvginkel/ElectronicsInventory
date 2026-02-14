@@ -31,7 +31,7 @@ test.describe('Smoke Tests', () => {
   });
 
   test('should verify backend health endpoint', async ({ page, backendUrl }) => {
-    const response = await page.request.get(`${backendUrl}/api/health/readyz`);
+    const response = await page.request.get(`${backendUrl}/health/readyz`);
     const status = response.status();
     const responseText = await response.text();
 
