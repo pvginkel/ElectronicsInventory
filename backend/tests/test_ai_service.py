@@ -40,7 +40,7 @@ def ai_test_settings() -> AppSettings:
 
 
 @pytest.fixture
-def temp_file_manager() -> Generator[TempFileManager, None, None]:
+def temp_file_manager() -> Generator[TempFileManager]:
     """Create temporary file manager for testing."""
     with tempfile.TemporaryDirectory() as temp_dir:
         yield TempFileManager(

@@ -1,7 +1,7 @@
 """Attachment model for managing files and URLs across entities."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SQLEnum
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from app.models.attachment_set import AttachmentSet
 
 
-class AttachmentType(str, Enum):
+class AttachmentType(StrEnum):
     """Enum for attachment types."""
 
     URL = "url"

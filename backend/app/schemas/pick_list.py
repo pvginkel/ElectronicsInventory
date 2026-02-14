@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -11,7 +11,7 @@ from app.models.kit_pick_list import KitPickListStatus
 from app.models.kit_pick_list_line import PickListLineStatus
 
 
-class ShortfallAction(str, Enum):
+class ShortfallAction(StrEnum):
     """Actions for handling part shortfall during pick list creation."""
 
     REJECT = "reject"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 
 
-class ShoppingListLineStatus(str, Enum):
+class ShoppingListLineStatus(StrEnum):
     """Lifecycle states for an individual shopping list line."""
 
     NEW = "new"
@@ -110,13 +110,8 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
 
     def __repr__(self) -> str:
         return (
-            "<ShoppingListLine id={id} list_id={list_id} part_id={part_id} "
-            "status={status}>"
-        ).format(
-            id=self.id,
-            list_id=self.shopping_list_id,
-            part_id=self.part_id,
-            status=self.status.value,
+            f"<ShoppingListLine id={self.id} list_id={self.shopping_list_id} part_id={self.part_id} "
+            f"status={self.status.value}>"
         )
 
     @property

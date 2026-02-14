@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from app.models.kit_shopping_list_link import KitShoppingListLink
 
 
-class KitStatus(str, Enum):
+class KitStatus(StrEnum):
     """Lifecycle status for a kit."""
 
     ACTIVE = "active"

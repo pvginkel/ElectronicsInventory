@@ -432,7 +432,7 @@ class InventoryService:
             .group_by(Part.key)
         )
 
-        totals = {key: 0 for key in part_keys}
+        totals = dict.fromkeys(part_keys, 0)
         for key, total in self.db.execute(stmt).all():
             totals[str(key)] = int(total or 0)
 

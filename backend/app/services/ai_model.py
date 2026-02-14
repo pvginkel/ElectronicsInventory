@@ -1,10 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class MountingTypeEnum(str, Enum):
+class MountingTypeEnum(StrEnum):
     THROUGH_HOLE = "Through-Hole"
     SURFACE_MOUNT = "Surface-Mount"
     PANEL_MOUNT = "Panel Mount"

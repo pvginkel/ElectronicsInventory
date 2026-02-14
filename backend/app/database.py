@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData, text
 from sqlalchemy.engine import Engine
 
@@ -12,8 +14,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 from alembic import command
-from alembic.config import Config
-from alembic.script import ScriptDirectory
 from app.config import Settings
 from app.extensions import db
 

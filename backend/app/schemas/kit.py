@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import (
     BaseModel,
@@ -22,7 +22,7 @@ from app.schemas.pick_list import KitPickListSummarySchema
 from app.schemas.shopping_list import ShoppingListResponseSchema
 
 
-class KitStatusSchema(str, Enum):
+class KitStatusSchema(StrEnum):
     """Pydantic enum mirroring the KitStatus model enum."""
 
     ACTIVE = KitStatus.ACTIVE.value
