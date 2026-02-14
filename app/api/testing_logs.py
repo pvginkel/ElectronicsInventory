@@ -25,8 +25,7 @@ def check_testing_mode() -> Any:
 
 @testing_logs_bp.route("/stream", methods=["GET"])
 def stream_logs() -> Any:
-    """
-    SSE endpoint for streaming backend application logs in real-time.
+    """SSE endpoint for streaming backend application logs in real-time.
 
     Streams logs from all loggers at INFO level and above.
     Each log entry is formatted as structured JSON with correlation ID when available.
@@ -36,50 +35,39 @@ def stream_logs() -> Any:
         - connection_open: Sent when client connects
         - heartbeat: Sent every 30 seconds for keepalive
         - connection_close: Sent when server shuts down
-
-    Returns:
-        SSE stream of log events
     """
     ensure_request_id_from_query(request.args.get("request_id"))
 
     def log_stream() -> Any:
-        # Get correlation ID for this request
         correlation_id = get_current_correlation_id()
 
-        # Set up event queue for receiving log events
         event_queue: Queue[tuple[str, dict[str, Any]]] = Queue()
 
-        # Custom client class that works with queue
         class QueueLogClient:
             def __init__(self, queue: Queue[tuple[str, dict[str, Any]]]):
                 self.queue = queue
 
             def put(self, event_data: tuple[str, dict[str, Any]]) -> None:
-                """Receive event from log handler."""
                 self.queue.put(event_data)
 
         client = QueueLogClient(event_queue)
 
-        # Register with log capture handler
         log_handler = LogCaptureHandler.get_instance()
         log_handler.register_client(client)
 
         shutdown_requested = False
 
         try:
-            # Send connection_open event
             yield format_sse_event("connection_open", {"status": "connected"}, correlation_id)
 
             last_heartbeat = time.perf_counter()
-            heartbeat_interval = 30.0  # 30 seconds
+            heartbeat_interval = 30.0
 
             while True:
                 try:
                     timeout = 0.25 if shutdown_requested else 1.0
-                    # Check for log events with timeout
                     event_type, event_data = event_queue.get(timeout=timeout)
 
-                    # Add correlation ID to event if available
                     if correlation_id and "correlation_id" not in event_data:
                         event_data["correlation_id"] = correlation_id
 
@@ -87,26 +75,21 @@ def stream_logs() -> Any:
 
                     if event_type == "connection_close":
                         shutdown_requested = True
-                        # Allow loop to drain any buffered close events before exiting
                         continue
 
                 except Empty:
                     if shutdown_requested:
-                        # All close events processed; exit generator cleanly
                         break
 
-                    # No log events, check if we need to send heartbeat
                     current_time = time.perf_counter()
                     if current_time - last_heartbeat >= heartbeat_interval:
                         yield format_sse_event("heartbeat", {"timestamp": time.time()}, correlation_id)
                         last_heartbeat = current_time
 
         except GeneratorExit:
-            # Client disconnected; mark shutdown so loop doesn't wait for more events
             shutdown_requested = True
             logger.info("Log stream client disconnected", extra={"correlation_id": correlation_id})
         finally:
-            # Cleanup
             log_handler.unregister_client(client)
 
     return create_sse_response(log_stream())

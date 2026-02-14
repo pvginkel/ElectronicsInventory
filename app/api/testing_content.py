@@ -17,6 +17,7 @@ testing_content_bp = Blueprint("testing_content", __name__, url_prefix="/api/tes
 def check_testing_mode() -> Any:
     """Reject requests when the server is not running in testing mode."""
     from app.api.testing_guard import reject_if_not_testing
+
     return reject_if_not_testing()
 
 
@@ -24,7 +25,7 @@ def check_testing_mode() -> Any:
 @api.validate(query=ContentImageQuerySchema)
 @inject
 def generate_content_image(
-    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+    testing_service: TestingService = Provide[ServiceContainer.testing_service],
 ) -> Any:
     """Return a deterministic PNG image for Playwright fixtures."""
     query = ContentImageQuerySchema.model_validate(request.args.to_dict())
@@ -41,7 +42,7 @@ def generate_content_image(
 @testing_content_bp.route("/pdf", methods=["GET"])
 @inject
 def generate_content_pdf(
-    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+    testing_service: TestingService = Provide[ServiceContainer.testing_service],
 ) -> Any:
     """Return the bundled deterministic PDF asset."""
     pdf_bytes = testing_service.get_pdf_fixture()
@@ -58,7 +59,7 @@ def generate_content_pdf(
 @api.validate(query=ContentHtmlQuerySchema)
 @inject
 def generate_content_html(
-    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+    testing_service: TestingService = Provide[ServiceContainer.testing_service],
 ) -> Any:
     """Return deterministic HTML content without deployment banner."""
     query = ContentHtmlQuerySchema.model_validate(request.args.to_dict())
@@ -77,7 +78,7 @@ def generate_content_html(
 @api.validate(query=ContentHtmlQuerySchema)
 @inject
 def generate_content_html_with_banner(
-    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+    testing_service: TestingService = Provide[ServiceContainer.testing_service],
 ) -> Any:
     """Return deterministic HTML content that includes a deployment banner wrapper."""
     query = ContentHtmlQuerySchema.model_validate(request.args.to_dict())

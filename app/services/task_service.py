@@ -1,6 +1,5 @@
 import logging
 import threading
-import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -232,9 +231,6 @@ class TaskService:
 
     def _execute_task(self, task_id: str, task: BaseTask, kwargs: dict[str, Any]) -> None:
         """Execute a task in a background thread."""
-        # Track timing from the start
-        start_time = time.perf_counter()
-
         try:
             # Update status to running
             with self._lock:
@@ -255,7 +251,6 @@ class TaskService:
 
             # Execute the task
             result = task.execute(progress_handle, **kwargs)
-            duration = time.perf_counter() - start_time
 
             # Task completed successfully - but check if it wasn't cancelled first
             with self._lock:
@@ -265,8 +260,6 @@ class TaskService:
                     task_info.end_time = datetime.now(UTC)
                     # Convert BaseModel to dict for storage
                     task_info.result = result.model_dump() if result else None
-
-                    # TODO: Add task execution metrics (Counter/Histogram) when needed
 
                     # Broadcast completion event
                     completion_event = TaskEvent(
@@ -289,17 +282,12 @@ class TaskService:
             logger.error(f"Task {task_id} failed: {error_msg}")
             logger.debug(f"Task {task_id} error traceback: {error_trace}")
 
-            # Calculate duration for failed tasks
-            duration = time.perf_counter() - start_time
-
             with self._lock:
                 task_info = self._tasks.get(task_id)
                 if task_info:
                     task_info.status = TaskStatus.FAILED
                     task_info.end_time = datetime.now(UTC)
                     task_info.error = error_msg
-
-                    # TODO: Add task execution metrics (Counter/Histogram) when needed
 
             # Broadcast failure event
             failure_event = TaskEvent(

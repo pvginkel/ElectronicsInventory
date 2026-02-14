@@ -31,17 +31,17 @@ class TempFileManager:
 
     def __init__(
         self,
-        base_path: str,
-        cleanup_age_hours: float,
-        lifecycle_coordinator: LifecycleCoordinatorProtocol
+        lifecycle_coordinator: LifecycleCoordinatorProtocol,
+        base_path: str = "/tmp/app-temp",
+        cleanup_age_hours: float = 24.0,
     ):
         """
         Initialize the temporary file manager.
 
         Args:
+            lifecycle_coordinator: Coordinator for lifecycle events
             base_path: Base directory for temporary file storage
             cleanup_age_hours: Age in hours after which files are cleaned up
-            lifecycle_coordinator: Coordinator for lifecycle events
         """
         self.base_path = Path(base_path)
         self.cleanup_age_hours = cleanup_age_hours

@@ -1,4 +1,8 @@
-"""Testing service for test utilities like content generation."""
+"""Testing service for deterministic content generation.
+
+Generates predictable PNG images, PDF fixtures, and HTML pages for
+Playwright tests. Protected by reject_if_not_testing() in the endpoints.
+"""
 
 import html
 import io
@@ -25,20 +29,13 @@ class TestingService:
         self._cached_pdf_bytes: bytes | None = None
 
     def create_fake_image(self, text: str) -> bytes:
-        """Create a 400x100 PNG with centered text on a light blue background.
-
-        Args:
-            text: Text to render on the generated image.
-
-        Returns:
-            PNG image bytes containing the rendered text.
-        """
+        """Create a 400x100 PNG with centered text on a light blue background."""
         font = ImageFont.load_default()
 
         image = Image.new(
             "RGB",
             (self.IMAGE_WIDTH, self.IMAGE_HEIGHT),
-            color=self.IMAGE_BACKGROUND_COLOR
+            color=self.IMAGE_BACKGROUND_COLOR,
         )
 
         if text:
@@ -48,7 +45,7 @@ class TestingService:
                 text,
                 font=font,
                 fill=self.IMAGE_TEXT_COLOR,
-                anchor="mm"
+                anchor="mm",
             )
 
         buffer = io.BytesIO()
@@ -144,7 +141,7 @@ class TestingService:
                     <h1>{safe_title}</h1>
                     <div class="meta">Fixture generated for deterministic Playwright document ingestion.</div>
                     <p>
-                      This page is served by the Electronics Inventory backend testing utilities. It exposes
+                      This page is served by the backend testing utilities. It exposes
                       predictable content for validating document ingestion, HTML metadata extraction, and banner
                       detection flows without relying on external services.
                     </p>

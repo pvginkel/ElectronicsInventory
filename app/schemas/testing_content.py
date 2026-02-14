@@ -9,7 +9,7 @@ class ContentImageQuerySchema(BaseModel):
     text: str = Field(
         ...,
         description="Text to render on the generated PNG image",
-        examples=["Playwright Test Image"]
+        examples=["Playwright Test Image"],
     )
 
 
@@ -19,5 +19,5 @@ class ContentHtmlQuerySchema(BaseModel):
     title: str = Field(
         ...,
         description="Title to embed in the rendered HTML fixture",
-        examples=["Playwright Fixture Page"]
+        examples=["Playwright Fixture Page"],
     )

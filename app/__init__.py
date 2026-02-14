@@ -1,4 +1,5 @@
-"""Flask application factory for Electronics Inventory backend."""
+"""Flask application factory."""
+
 
 import logging
 
@@ -31,6 +32,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
     app.config.from_object(settings.to_flask_config())
 
+
     # Initialize extensions
     db.init_app(app)
 
@@ -59,6 +61,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
             setup_pool_logging(db.engine)
 
+
     # Initialize SpecTree for OpenAPI docs
     from app.utils.spectree_config import configure_spectree
 
@@ -74,7 +77,9 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     container = create_container()
     container.config.override(settings)
     container.app_config.override(app_settings)
+
     container.session_maker.override(SessionLocal)
+
 
     # Wire container to all API modules via package scanning
     container.wire(packages=['app.api'])
@@ -87,6 +92,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     # Initialize correlation ID tracking
     from app.utils import _init_request_id
     _init_request_id(app)
+
 
     # Set up log capture handler in testing mode
     if settings.is_testing:
@@ -104,6 +110,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
         app.logger.info("Log capture handler initialized for testing mode")
 
+
     # Register error handlers: core + business (template), then app-specific hook
     from app.utils.flask_error_handlers import (
         register_business_error_handlers,
@@ -117,6 +124,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     from app.startup import register_error_handlers
 
     register_error_handlers(app)
+
 
     # Register database health checks with HealthService
     from app import database as _database_module
@@ -137,6 +145,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
     health_service.register_readyz("database", _check_db_readiness)
 
+
     # Register main API blueprint (includes auth hooks and auth_bp)
     from app.api import api_bp
 
@@ -155,17 +164,29 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     app.register_blueprint(health_bp)
     app.register_blueprint(metrics_bp)
 
+
     # Always register testing blueprints (runtime check handles access control)
     from app.api.testing_logs import testing_logs_bp
     app.register_blueprint(testing_logs_bp)
+
+    from app.api.testing_sse import testing_sse_bp
+    app.register_blueprint(testing_sse_bp)
 
     # Register SSE Gateway callback blueprint
     from app.api.sse import sse_bp
     app.register_blueprint(sse_bp)
 
+
+
     # Register CAS (Content-Addressable Storage) blueprint
     from app.api.cas import cas_bp
     app.register_blueprint(cas_bp)
+
+    # Register testing content endpoints (runtime check handles access control)
+    from app.api.testing_content import testing_content_bp
+    app.register_blueprint(testing_content_bp)
+
+
 
     @app.teardown_request
     def close_session(exc: Exception | None) -> None:
@@ -193,11 +214,13 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
             # Ensure the scoped session is removed after each request
             container.db_session.reset()
 
+
     # Start background services only when not in CLI mode
     if not skip_background_services:
         # Start temp file manager cleanup thread during app creation
         temp_file_manager = container.temp_file_manager()
         temp_file_manager.start_cleanup_thread()
+
 
         # Ensure S3 bucket exists during startup
         try:
@@ -207,19 +230,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
             # Log warning but don't fail startup - S3 might be optional
             app.logger.warning(f"Failed to ensure S3 bucket exists: {e}")
 
-        # Initialize metrics polling: register dashboard callback and start thread
-        try:
-            from app.services.metrics.dashboard_metrics import (
-                create_dashboard_polling_callback,
-            )
 
-            metrics_service = container.metrics_service()
-            dashboard_callback = create_dashboard_polling_callback(container)
-            metrics_service.register_for_polling("dashboard", dashboard_callback)
-            metrics_service.start_background_updater(settings.metrics_update_interval)
-            app.logger.info("Prometheus metrics polling started")
-        except Exception as e:
-            app.logger.warning(f"Failed to start metrics polling: {e}")
 
         # Initialize request diagnostics if enabled
         from app.services.diagnostics_service import DiagnosticsService
@@ -228,9 +239,12 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
             diagnostics_service.init_app(app, db.engine)
         app.diagnostics_service = diagnostics_service
 
+
+
         # Initialize FrontendVersionService singleton to register its observer callback
         # with SSEConnectionManager. Must happen before fire_startup().
         container.frontend_version_service()
+
 
         # Signal that application startup is complete. Services that registered
         # for STARTUP notifications will be invoked here.

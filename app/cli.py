@@ -1,4 +1,5 @@
-"""CLI commands for database operations."""
+"""CLI commands for application operations."""
+
 
 import sys
 
@@ -19,9 +20,10 @@ from app.startup import load_test_data_hook, post_migration_hook
 @click.group()
 @click.pass_context
 def cli(ctx: click.Context) -> None:
-    """Electronics Inventory CLI."""
+    """electronics-inventory CLI."""
     ctx.ensure_object(dict)
     ctx.obj["app"] = create_app(skip_background_services=True)
+
 
 
 @cli.command()
@@ -160,6 +162,7 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
         except Exception as e:
             print(f"Failed to load test data: {e}", file=sys.stderr)
             sys.exit(1)
+
 
 
 def main() -> None:

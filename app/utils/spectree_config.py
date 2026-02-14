@@ -47,4 +47,3 @@ def configure_spectree(app: Flask) -> SpecTree:
 
     return api
 
-

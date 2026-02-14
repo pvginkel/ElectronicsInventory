@@ -415,7 +415,6 @@ class KitService:
         self._ensure_active_kit(kit, "delete kit content")
 
         content = self._load_content_for_update(kit_id, content_id)
-        part_id = content.part_id
 
         self.db.delete(content)
         self._touch_kit(kit)

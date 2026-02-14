@@ -1,6 +1,5 @@
-"""
-Common response schemas for consistent API structure.
-"""
+"""Common response schemas for consistent API structure."""
+
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ErrorDetailsSchema(BaseModel):
     """Error details object."""
+
     model_config = ConfigDict(from_attributes=True)
 
     message: str = Field(..., description="Additional error context")
@@ -16,6 +16,7 @@ class ErrorDetailsSchema(BaseModel):
 
 class ErrorResponseSchema(BaseModel):
     """Standard error response format."""
+
     model_config = ConfigDict(from_attributes=True)
 
     error: str = Field(..., description="Error message", json_schema_extra={"example": "Validation failed"})
@@ -24,6 +25,7 @@ class ErrorResponseSchema(BaseModel):
 
 class SuccessResponseSchema(BaseModel):
     """Standard success response format."""
+
     model_config = ConfigDict(from_attributes=True)
 
     message: str = Field(..., description="Success message", json_schema_extra={"example": "Operation completed successfully"})
@@ -32,13 +34,15 @@ class SuccessResponseSchema(BaseModel):
 
 class MessageResponseSchema(BaseModel):
     """Simple message response format."""
+
     model_config = ConfigDict(from_attributes=True)
 
-    message: str = Field(..., description="Response message", json_schema_extra={"example": "Box deleted successfully"})
+    message: str = Field(..., description="Response message", json_schema_extra={"example": "Record deleted successfully"})
 
 
 class PaginationMetaSchema(BaseModel):
-    """Pagination metadata for future use."""
+    """Pagination metadata."""
+
     model_config = ConfigDict(from_attributes=True)
 
     page: int = Field(..., description="Current page number", json_schema_extra={"example": 1})
@@ -48,7 +52,8 @@ class PaginationMetaSchema(BaseModel):
 
 
 class PaginatedResponseSchema(BaseModel):
-    """Paginated response format for future use."""
+    """Paginated response format."""
+
     model_config = ConfigDict(from_attributes=True)
 
     data: list[Any] = Field(..., description="Response data items")
