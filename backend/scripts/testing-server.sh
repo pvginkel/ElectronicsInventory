@@ -82,7 +82,7 @@ export FLASK_ENV=testing
 
 # Run the Flask server
 echo
-echo "Starting Electronics Inventory backend in testing mode..."
+echo "Starting backend in testing mode..."
 echo "Server will run on http://$HOST:$PORT"
 echo "Press Ctrl+C to stop"
 echo

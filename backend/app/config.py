@@ -11,16 +11,14 @@ Usage:
     # Tests: Construct directly with test values
     settings = Settings(database_url="sqlite://", secret_key="test", ...)
 
-Fields are organized by Copier feature flag so each group can be wrapped in
-{% if use_X %} blocks during template extraction:
+Fields are organized by feature flag so each group can be independently enabled:
 - Core (always present): Flask, CORS, tasks, metrics, shutdown
 - use_database: DATABASE_URL, pool settings, diagnostics, engine options
 - use_oidc: BASEURL, all OIDC_* settings
 - use_s3: all S3_* settings
 - use_sse: SSE_*, FRONTEND_VERSION_URL
 
-App-specific fields (document processing, download cache, AI, Mouser) live in
-app/app_config.py as AppSettings.
+App-specific fields live in app/app_config.py as AppSettings.
 """
 
 from pathlib import Path
@@ -83,6 +81,7 @@ class Environment(BaseSettings):
         description="Bearer token for authenticating drain endpoint access"
     )
 
+
     # ── use_database ───────────────────────────────────────────────────
 
     DATABASE_URL: str = Field(
@@ -122,6 +121,8 @@ class Environment(BaseSettings):
         description="Log all queries (verbose, use for debugging only)"
     )
 
+
+
     # ── use_oidc ───────────────────────────────────────────────────────
 
     BASEURL: str = Field(
@@ -134,7 +135,7 @@ class Environment(BaseSettings):
     )
     OIDC_ISSUER_URL: str | None = Field(
         default=None,
-        description="OIDC issuer URL (e.g., https://auth.example.com/realms/ei)"
+        description="OIDC issuer URL (e.g., https://auth.example.com/realms/myapp)"
     )
     OIDC_CLIENT_ID: str | None = Field(
         default=None,
@@ -173,6 +174,8 @@ class Environment(BaseSettings):
         description="Cookie name for storing refresh token"
     )
 
+
+
     # ── use_s3 ─────────────────────────────────────────────────────────
 
     S3_ENDPOINT_URL: str = Field(
@@ -200,6 +203,8 @@ class Environment(BaseSettings):
         description="SSL for S3 connections (False for local Ceph)"
     )
 
+
+
     # ── use_sse ────────────────────────────────────────────────────────
 
     FRONTEND_VERSION_URL: str = Field(
@@ -220,6 +225,7 @@ class Environment(BaseSettings):
     )
 
 
+
 class Settings(BaseModel):
     """Application settings with lowercase fields and derived values.
 
@@ -229,7 +235,7 @@ class Settings(BaseModel):
     For production, use Settings.load() to load from environment.
     For tests, construct directly with test values (defaults provided for convenience).
 
-    Fields are grouped by Copier feature flag (see Environment docstring).
+    Fields are grouped by feature flag (see Environment docstring).
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -247,6 +253,7 @@ class Settings(BaseModel):
     graceful_shutdown_timeout: int = 600
     drain_auth_key: str = ""
 
+
     # ── use_database ───────────────────────────────────────────────────
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory"
@@ -259,6 +266,8 @@ class Settings(BaseModel):
     diagnostics_slow_request_threshold_ms: int = 500
     diagnostics_log_all_queries: bool = False
     sqlalchemy_engine_options: dict[str, Any] = Field(default_factory=dict)
+
+
 
     # ── use_oidc ───────────────────────────────────────────────────────
 
@@ -275,6 +284,8 @@ class Settings(BaseModel):
     oidc_cookie_samesite: str = "Lax"
     oidc_refresh_cookie_name: str = "refresh_token"
 
+
+
     # ── use_s3 ─────────────────────────────────────────────────────────
 
     s3_endpoint_url: str = "http://localhost:9000"
@@ -284,12 +295,15 @@ class Settings(BaseModel):
     s3_region: str = "us-east-1"
     s3_use_ssl: bool = False
 
+
+
     # ── use_sse ────────────────────────────────────────────────────────
 
     frontend_version_url: str = "http://localhost:3000/version.json"
     sse_heartbeat_interval: int = 5  # Resolved: 30 for production via load()
     sse_gateway_url: str = "http://localhost:3001"
     sse_callback_secret: str = ""
+
 
     @property
     def is_testing(self) -> bool:
@@ -301,13 +315,21 @@ class Settings(BaseModel):
         """Check if running in production environment."""
         return self.flask_env == "production"
 
+    def set_engine_options_override(self, options: dict[str, Any]) -> None:
+        """Override SQLAlchemy engine options (used for testing with SQLite)."""
+
+        self.sqlalchemy_engine_options = options
+
+
     def to_flask_config(self) -> "FlaskConfig":
         """Create Flask configuration object from settings."""
         return FlaskConfig(
             SECRET_KEY=self.secret_key,
+
             SQLALCHEMY_DATABASE_URI=self.database_url,
             SQLALCHEMY_TRACK_MODIFICATIONS=False,
             SQLALCHEMY_ENGINE_OPTIONS=self.sqlalchemy_engine_options,
+
         )
 
     def validate_production_config(self) -> None:
@@ -327,6 +349,7 @@ class Settings(BaseModel):
                 "(current value is the insecure default)"
             )
 
+
         # OIDC settings required when OIDC is enabled (any environment)
         if self.oidc_enabled:
             if not self.oidc_issuer_url:
@@ -341,6 +364,7 @@ class Settings(BaseModel):
                 errors.append(
                     "OIDC_CLIENT_SECRET is required when OIDC_ENABLED=True"
                 )
+
 
         if errors:
             raise ConfigurationError(
@@ -366,10 +390,13 @@ class Settings(BaseModel):
         if env is None:
             env = Environment()
 
+
         # Compute sse_heartbeat_interval: 30 for production, else use env value
         sse_heartbeat_interval = (
             30 if env.FLASK_ENV == "production" else env.SSE_HEARTBEAT_INTERVAL
         )
+
+
 
         # Resolve OIDC audience: fall back to client_id if not explicitly set
         oidc_audience = env.OIDC_AUDIENCE or env.OIDC_CLIENT_ID
@@ -380,6 +407,8 @@ class Settings(BaseModel):
         else:
             oidc_cookie_secure = env.BASEURL.startswith("https://")
 
+
+
         # Build default SQLAlchemy engine options
         sqlalchemy_engine_options = {
             "pool_size": env.DB_POOL_SIZE,
@@ -388,6 +417,7 @@ class Settings(BaseModel):
             "pool_pre_ping": True,  # Verify connections before use
             "echo_pool": env.DB_POOL_ECHO,
         }
+
 
         return cls(
             # Core (always present)
@@ -401,6 +431,7 @@ class Settings(BaseModel):
             metrics_update_interval=env.METRICS_UPDATE_INTERVAL,
             graceful_shutdown_timeout=env.GRACEFUL_SHUTDOWN_TIMEOUT,
             drain_auth_key=env.DRAIN_AUTH_KEY,
+
             # use_database
             database_url=env.DATABASE_URL,
             db_pool_size=env.DB_POOL_SIZE,
@@ -412,6 +443,8 @@ class Settings(BaseModel):
             diagnostics_slow_request_threshold_ms=env.DIAGNOSTICS_SLOW_REQUEST_THRESHOLD_MS,
             diagnostics_log_all_queries=env.DIAGNOSTICS_LOG_ALL_QUERIES,
             sqlalchemy_engine_options=sqlalchemy_engine_options,
+
+
             # use_oidc
             baseurl=env.BASEURL,
             oidc_enabled=env.OIDC_ENABLED,
@@ -425,6 +458,8 @@ class Settings(BaseModel):
             oidc_cookie_secure=oidc_cookie_secure,
             oidc_cookie_samesite=env.OIDC_COOKIE_SAMESITE,
             oidc_refresh_cookie_name=env.OIDC_REFRESH_COOKIE_NAME,
+
+
             # use_s3
             s3_endpoint_url=env.S3_ENDPOINT_URL,
             s3_access_key_id=env.S3_ACCESS_KEY_ID,
@@ -432,11 +467,14 @@ class Settings(BaseModel):
             s3_bucket_name=env.S3_BUCKET_NAME,
             s3_region=env.S3_REGION,
             s3_use_ssl=env.S3_USE_SSL,
+
+
             # use_sse
             frontend_version_url=env.FRONTEND_VERSION_URL,
             sse_heartbeat_interval=sse_heartbeat_interval,
             sse_gateway_url=env.SSE_GATEWAY_URL,
             sse_callback_secret=env.SSE_CALLBACK_SECRET,
+
         )
 
 
@@ -450,11 +488,15 @@ class FlaskConfig:
     def __init__(
         self,
         SECRET_KEY: str,
+
         SQLALCHEMY_DATABASE_URI: str,
         SQLALCHEMY_TRACK_MODIFICATIONS: bool,
         SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any],
+
     ) -> None:
         self.SECRET_KEY = SECRET_KEY
+
         self.SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI
         self.SQLALCHEMY_TRACK_MODIFICATIONS = SQLALCHEMY_TRACK_MODIFICATIONS
         self.SQLALCHEMY_ENGINE_OPTIONS = SQLALCHEMY_ENGINE_OPTIONS
+

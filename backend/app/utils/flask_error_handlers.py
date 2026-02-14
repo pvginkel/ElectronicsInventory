@@ -22,9 +22,6 @@ from app.exceptions import (
     AuthenticationException,
     AuthorizationException,
     BusinessLogicException,
-    CapacityExceededException,
-    DependencyException,
-    InsufficientQuantityException,
     InvalidOperationException,
     RecordNotFoundException,
     ResourceConflictException,
@@ -226,17 +223,6 @@ def register_business_error_handlers(app: Flask) -> None:
             status_code=404,
         )
 
-    @app.errorhandler(DependencyException)
-    def handle_dependency_exception(error: DependencyException) -> tuple[Response, int]:
-        _mark_request_failed()
-        logger.warning("Dependency conflict: %s", error.message)
-        return build_error_response(
-            error.message,
-            {"message": "The resource cannot be deleted due to dependencies"},
-            code=error.error_code,
-            status_code=409,
-        )
-
     @app.errorhandler(ResourceConflictException)
     def handle_resource_conflict(error: ResourceConflictException) -> tuple[Response, int]:
         _mark_request_failed()
@@ -244,28 +230,6 @@ def register_business_error_handlers(app: Flask) -> None:
         return build_error_response(
             error.message,
             {"message": "A resource with those details already exists"},
-            code=error.error_code,
-            status_code=409,
-        )
-
-    @app.errorhandler(InsufficientQuantityException)
-    def handle_insufficient_quantity(error: InsufficientQuantityException) -> tuple[Response, int]:
-        _mark_request_failed()
-        logger.warning("Insufficient quantity: %s", error.message)
-        return build_error_response(
-            error.message,
-            {"message": "The requested quantity is not available"},
-            code=error.error_code,
-            status_code=409,
-        )
-
-    @app.errorhandler(CapacityExceededException)
-    def handle_capacity_exceeded(error: CapacityExceededException) -> tuple[Response, int]:
-        _mark_request_failed()
-        logger.warning("Capacity exceeded: %s", error.message)
-        return build_error_response(
-            error.message,
-            {"message": "The operation would exceed storage capacity"},
             code=error.error_code,
             status_code=409,
         )

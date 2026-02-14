@@ -2,8 +2,6 @@
 
 from pydantic import BaseModel, Field
 
-from app.models.attachment import AttachmentType
-
 
 class DocumentContentSchema(BaseModel):
     """Schema for document content."""
@@ -17,7 +15,7 @@ class UploadDocumentSchema(BaseModel):
 
     title: str = Field(description="HTML title or detected filename")
     content: DocumentContentSchema = Field(description="Raw content from URL")
-    detected_type: AttachmentType | None = Field(description="Attachment type detected from content")
+    detected_type: str | None = Field(description="Attachment type detected from content (e.g., 'image', 'pdf', 'url')")
     preview_image: DocumentContentSchema | None = Field(
         default=None,
         description="Preview image for websites (what goes in S3)"

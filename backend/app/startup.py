@@ -97,7 +97,6 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
         from app.api.sellers import sellers_bp
         from app.api.shopping_list_lines import shopping_list_lines_bp
         from app.api.shopping_lists import shopping_lists_bp
-        from app.api.tasks import tasks_bp
         from app.api.types import types_bp
         from app.api.utils import utils_bp
 
@@ -116,7 +115,6 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
         api_bp.register_blueprint(sellers_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(shopping_lists_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(shopping_list_lines_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(tasks_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(types_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(utils_bp)  # type: ignore[attr-defined]
 
@@ -126,26 +124,56 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
 
     app.register_blueprint(icons_bp)
 
-    # Testing blueprints registered directly on app (not on api_bp).
-    # Runtime before_request checks restrict these to testing mode.
-    from app.api.testing_content import testing_content_bp
-    from app.api.testing_sse import testing_sse_bp
-
-    app.register_blueprint(testing_content_bp)
-    app.register_blueprint(testing_sse_bp)
 
 
 def register_error_handlers(app: Flask) -> None:
     """Register app-specific error handlers.
 
-    Currently no app-specific error handlers exist beyond those in
-    flask_error_handlers.py (core + business). This hook exists as a
-    stable extension point for future app-specific error handling.
+    EI has additional BusinessLogicException subclasses that need specific
+    HTTP status codes beyond what the template's base handlers provide.
 
     Args:
         app: The Flask application instance
     """
-    pass
+    from app.exceptions import (
+        CapacityExceededException,
+        DependencyException,
+        InsufficientQuantityException,
+    )
+    from app.utils.flask_error_handlers import (
+        _mark_request_failed,
+        build_error_response,
+    )
+
+    @app.errorhandler(DependencyException)
+    def handle_dependency_exception(error: DependencyException):
+        _mark_request_failed()
+        return build_error_response(
+            error.message,
+            {"message": "Cannot delete resource due to dependencies"},
+            code=error.error_code,
+            status_code=409,
+        )
+
+    @app.errorhandler(InsufficientQuantityException)
+    def handle_insufficient_quantity(error: InsufficientQuantityException):
+        _mark_request_failed()
+        return build_error_response(
+            error.message,
+            {"message": "Insufficient quantity available"},
+            code=error.error_code,
+            status_code=409,
+        )
+
+    @app.errorhandler(CapacityExceededException)
+    def handle_capacity_exceeded(error: CapacityExceededException):
+        _mark_request_failed()
+        return build_error_response(
+            error.message,
+            {"message": "Capacity would be exceeded"},
+            code=error.error_code,
+            status_code=409,
+        )
 
 
 def register_cli_commands(cli: click.Group) -> None:

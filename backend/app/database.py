@@ -16,7 +16,6 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from app.config import Settings
 from app.extensions import db
-from app.services.setup_service import SetupService
 
 logger = logging.getLogger(__name__)
 
@@ -174,21 +173,6 @@ def _get_migration_info(script_dir: ScriptDirectory, revision: str) -> tuple[str
         return revision[:7], "Migration"
 
 
-def sync_master_data_from_setup(session: "Session") -> None:
-    """Sync master data (types) from setup file to database.
-
-    Args:
-        session: SQLAlchemy session to use for database operations.
-    """
-    setup_service = SetupService(session)
-    added_count = setup_service.sync_types_from_setup()
-
-    if added_count > 0:
-        print(f"📦 Added {added_count} new types from setup file")
-    else:
-        print("📦 Types already up to date")
-
-
 def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
     """Upgrade database with progress reporting.
 
@@ -204,16 +188,16 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
     if recreate and is_sqlite:
         # SQLite does not support many ALTER operations required by Alembic migrations.
         # Instead, drop and recreate the schema using SQLAlchemy metadata directly.
-        print("🛠️  SQLite detected - rebuilding schema using SQLAlchemy metadata")
+        print("SQLite detected - rebuilding schema using SQLAlchemy metadata")
         metadata = MetaData()
         metadata.reflect(bind=engine)
 
         if metadata.tables:
-            print("🗑️  Dropping all existing tables...")
+            print("Dropping all existing tables...")
             metadata.drop_all(bind=engine)
-            print("✅ All tables dropped")
+            print("All tables dropped")
         else:
-            print("ℹ️  No existing tables found to drop")
+            print("No existing tables found to drop")
 
         # Ensure models are registered before create_all (create_app imports them already).
         db.create_all()
@@ -221,8 +205,8 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
         with engine.connect() as connection:
             config.attributes["connection"] = connection
             command.stamp(config, "head")
-        print("✅ Alembic version stamped to head")
-        print("✅ Database schema created with SQLAlchemy metadata")
+        print("Alembic version stamped to head")
+        print("Database schema created with SQLAlchemy metadata")
         return []
 
     config = _get_alembic_config()
@@ -233,9 +217,9 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
         script = ScriptDirectory.from_config(config)
 
         if recreate:
-            print("🗑️  Dropping all tables...")
+            print("Dropping all tables...")
             drop_all_tables()
-            print("✅ All tables dropped")
+            print("All tables dropped")
 
         # Get list of migrations to apply
         pending = get_pending_migrations()
@@ -246,7 +230,7 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
         # Apply migrations one by one with progress reporting
         for revision in pending:
             rev_short, description = _get_migration_info(script, revision)
-            print(f"⚡ Applying schema {rev_short} - {description}")
+            print(f"Applying schema {rev_short} - {description}")
 
             try:
                 # Apply single migration
@@ -254,7 +238,24 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
                 applied_migrations.append((rev_short, description))
 
             except Exception as e:
-                print(f"❌ Failed to apply migration {rev_short}: {e}")
+                print(f"Failed to apply migration {rev_short}: {e}")
                 raise
 
         return applied_migrations
+
+
+def sync_master_data_from_setup(session: "Session") -> None:
+    """Sync master data (types) from setup file to database.
+
+    Args:
+        session: SQLAlchemy session to use for database operations.
+    """
+    from app.services.setup_service import SetupService
+
+    setup_service = SetupService(session)
+    added_count = setup_service.sync_types_from_setup()
+
+    if added_count > 0:
+        print(f"Added {added_count} new types from setup file")
+    else:
+        print("Types already up to date")

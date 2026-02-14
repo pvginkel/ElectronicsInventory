@@ -1,16 +1,14 @@
 """Infrastructure test fixtures for the test suite.
 
 This module contains all infrastructure fixtures (app factory, database,
-client, session, OIDC, SSE) that the template owns. App-specific fixtures
+client, session, OIDC) that the template owns. App-specific fixtures
 (domain objects, domain builders) live in conftest.py.
 """
 
+
 import os
-import socket
 import sqlite3
-import threading
-import time
-from collections.abc import Callable, Generator
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -35,10 +33,11 @@ if _TEST_ENV_FILE.exists():
     load_dotenv(_TEST_ENV_FILE, override=True)
 
 
+
 def pytest_configure(config: pytest.Config) -> None:
     """Verify required infrastructure is available before running any tests.
 
-    Checks S3/MinIO connectivity at session start and aborts with a clear
+    Checks S3 connectivity at session start and aborts with a clear
     message if the service is unreachable. This prevents confusing scattered
     errors throughout the suite.
     """
@@ -50,10 +49,11 @@ def pytest_configure(config: pytest.Config) -> None:
         urllib.request.urlopen(endpoint, timeout=3)
     except (urllib.error.URLError, OSError, TimeoutError):
         pytest.exit(
-            f"S3/MinIO is not reachable at {endpoint}. "
-            "Start the MinIO container or set S3_ENDPOINT_URL before running tests.",
+            f"S3 is not reachable at {endpoint}. "
+            "Ensure S3_ENDPOINT_URL is configured before running tests.",
             returncode=1,
         )
+
 
 
 @pytest.fixture(autouse=True)
@@ -85,19 +85,21 @@ def clear_prometheus_registry():
 def _build_test_settings() -> Settings:
     """Construct base Settings object for tests."""
     return Settings(
+
         database_url="sqlite:///:memory:",
+        db_pool_size=20,
+        db_pool_max_overflow=30,
+        db_pool_timeout=10,
+        db_pool_echo=False,
+        diagnostics_enabled=False,
+        diagnostics_slow_query_threshold_ms=100,
+        diagnostics_slow_request_threshold_ms=500,
+        diagnostics_log_all_queries=False,
+
         secret_key="test-secret-key",
         debug=True,
         flask_env="testing",
         cors_origins=["http://localhost:3000"],
-        sse_heartbeat_interval=1,
-        # S3 configuration (from environment, see .env.test)
-        s3_endpoint_url=os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
-        s3_access_key_id=os.environ.get("S3_ACCESS_KEY_ID", "admin"),
-        s3_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY", "password"),
-        s3_bucket_name=os.environ.get("S3_BUCKET_NAME", "electronics-inventory-test-part-attachments"),
-        s3_region=os.environ.get("S3_REGION", "us-east-1"),
-        s3_use_ssl=os.environ.get("S3_USE_SSL", "false").lower() == "true",
         # Tasks
         task_max_workers=4,
         task_timeout_seconds=300,
@@ -107,61 +109,43 @@ def _build_test_settings() -> Settings:
         # Shutdown
         graceful_shutdown_timeout=600,
         drain_auth_key="",
+
+        # S3 configuration (from environment, see .env.test)
+        s3_endpoint_url=os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
+        s3_access_key_id=os.environ.get("S3_ACCESS_KEY_ID", "admin"),
+        s3_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY", "password"),
+        s3_bucket_name=os.environ.get("S3_BUCKET_NAME", "test-app-test-attachments"),
+        s3_region=os.environ.get("S3_REGION", "us-east-1"),
+        s3_use_ssl=os.environ.get("S3_USE_SSL", "false").lower() == "true",
+
+
         # SSE
+        sse_heartbeat_interval=1,
         frontend_version_url="http://localhost:3000/version.json",
         sse_gateway_url="http://localhost:3001",
         sse_callback_secret="",
-        # Database pool
-        db_pool_size=20,
-        db_pool_max_overflow=30,
-        db_pool_timeout=10,
-        db_pool_echo=False,
+
+
         # OIDC Authentication (disabled for most tests)
         baseurl="http://localhost:3000",
         oidc_enabled=False,
-        oidc_issuer_url="https://auth.example.com/realms/ei",
-        oidc_client_id="ei-backend",
+        oidc_issuer_url="https://auth.example.com/realms/test",
+        oidc_client_id="test-backend",
         oidc_client_secret=None,
         oidc_scopes="openid profile email",
-        oidc_audience="ei-backend",
+        oidc_audience="test-backend",
         oidc_clock_skew_seconds=30,
         oidc_cookie_name="access_token",
         oidc_cookie_secure=False,
         oidc_cookie_samesite="Lax",
         oidc_refresh_cookie_name="refresh_token",
-        # Diagnostics
-        diagnostics_enabled=False,
-        diagnostics_slow_query_threshold_ms=100,
-        diagnostics_slow_request_threshold_ms=500,
-        diagnostics_log_all_queries=False,
+
     )
 
 
 def _build_test_app_settings() -> AppSettings:
     """Construct base AppSettings object for tests."""
-    return AppSettings(
-        # Document service configuration
-        allowed_image_types=["image/jpeg", "image/png"],
-        allowed_file_types=["application/pdf"],
-        max_image_size=10 * 1024 * 1024,  # 10MB
-        max_file_size=100 * 1024 * 1024,  # 100MB
-        # Storage paths
-        thumbnail_storage_path="/tmp/thumbnails",
-        download_cache_base_path="/tmp/download_cache",
-        download_cache_cleanup_hours=24,
-        # AI provider
-        ai_provider="openai",
-        openai_api_key="",
-        openai_model="gpt-5-mini",
-        openai_reasoning_effort="low",
-        openai_verbosity="medium",
-        openai_max_output_tokens=None,
-        ai_testing_mode=True,
-        ai_analysis_cache_path=None,
-        ai_cleanup_cache_path=None,
-        # Mouser
-        mouser_search_api_key="",
-    )
+    return AppSettings()
 
 
 @pytest.fixture
@@ -174,6 +158,7 @@ def test_settings() -> Settings:
 def test_app_settings() -> AppSettings:
     """Create test app settings."""
     return _build_test_app_settings()
+
 
 
 def _assert_s3_available(app: Flask) -> None:
@@ -190,6 +175,8 @@ def _assert_s3_available(app: Flask) -> None:
             "Unexpected error while verifying S3 availability for tests: "
             f"{exc}"
         )
+
+
 
 
 @pytest.fixture(scope="session")
@@ -209,7 +196,9 @@ def template_connection() -> Generator[sqlite3.Connection, None, None]:
     template_app = create_app(settings, app_settings=app_settings, skip_background_services=True)
     with template_app.app_context():
         upgrade_database(recreate=True)
+
         _assert_s3_available(template_app)
+
 
     # Note: Prometheus registry cleanup is handled by the autouse
     # clear_prometheus_registry fixture, no need to do it here
@@ -276,6 +265,7 @@ def session(container: ServiceContainer) -> Generator[Session, None, None]:
     container.db_session.reset()
 
 
+
 @pytest.fixture
 def client(app: Flask):
     """Create test client."""
@@ -293,6 +283,7 @@ def container(app: Flask):
     """Access to the DI container for testing with session provided."""
     container = app.container
 
+
     with app.app_context():
         # Ensure SessionLocal is initialized for tests
         from sqlalchemy.orm import sessionmaker
@@ -309,7 +300,9 @@ def container(app: Flask):
 
     container.session_maker.override(SessionLocal)
 
+
     return container
+
 
 
 # ---------------------------------------------------------------------------
@@ -321,11 +314,11 @@ def container(app: Flask):
 def mock_oidc_discovery() -> dict[str, Any]:
     """Mock OIDC discovery document for authentication tests."""
     return {
-        "issuer": "https://auth.example.com/realms/ei",
-        "authorization_endpoint": "https://auth.example.com/realms/ei/protocol/openid-connect/auth",
-        "token_endpoint": "https://auth.example.com/realms/ei/protocol/openid-connect/token",
-        "end_session_endpoint": "https://auth.example.com/realms/ei/protocol/openid-connect/logout",
-        "jwks_uri": "https://auth.example.com/realms/ei/protocol/openid-connect/certs",
+        "issuer": "https://auth.example.com/realms/test",
+        "authorization_endpoint": "https://auth.example.com/realms/test/protocol/openid-connect/auth",
+        "token_endpoint": "https://auth.example.com/realms/test/protocol/openid-connect/token",
+        "end_session_endpoint": "https://auth.example.com/realms/test/protocol/openid-connect/logout",
+        "jwks_uri": "https://auth.example.com/realms/test/protocol/openid-connect/certs",
     }
 
 
@@ -352,6 +345,8 @@ def generate_test_jwt(test_settings: Settings) -> Any:
     Returns a callable that generates JWT tokens with configurable claims.
     The public_key and private_key are available as attributes on the returned callable.
     """
+    import time
+
     import jwt
     from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -421,7 +416,9 @@ def generate_test_jwt(test_settings: Settings) -> Any:
 def oidc_app(
     test_settings: Settings,
     test_app_settings: AppSettings,
+
     template_connection: sqlite3.Connection,
+
     mock_oidc_discovery: dict[str, Any],
     generate_test_jwt: Any,
 ) -> Generator[Flask, None, None]:
@@ -430,6 +427,7 @@ def oidc_app(
     Keeps httpx.get and PyJWKClient mocks active so that AuthService can
     discover endpoints and validate tokens throughout the test.
     """
+
     clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
     template_connection.backup(clone_conn)
 
@@ -442,6 +440,7 @@ def oidc_app(
         "oidc_enabled": True,
         "oidc_client_secret": "test-secret",
     })
+
 
     with patch("httpx.get") as mock_get:
         mock_response = MagicMock()
@@ -467,10 +466,12 @@ def oidc_app(
                 except Exception:
                     pass
 
+
                 with app.app_context():
                     from app.extensions import db as flask_db
                     flask_db.session.remove()
                 clone_conn.close()
+
 
 
 @pytest.fixture
@@ -479,219 +480,3 @@ def oidc_client(oidc_app: Flask) -> Any:
     return oidc_app.test_client()
 
 
-# ---------------------------------------------------------------------------
-# SSE Integration Test Fixtures
-# ---------------------------------------------------------------------------
-
-
-def _find_free_port() -> int:
-    """Find a free port on localhost."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("", 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-    return port
-
-
-@pytest.fixture(scope="session")
-def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, Any], None, None]:
-    """Start a real Flask development server for SSE integration tests.
-
-    Returns tuple of (base_url, app) where base_url is like http://localhost:5001.
-    The server runs in a background thread and is cleaned up after the session.
-    """
-    # Find a free port
-    port = _find_free_port()
-
-    # Create Flask app with template database clone for SSE tests
-    clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
-    template_connection.backup(clone_conn)
-
-    settings = _build_test_settings().model_copy(update={
-        "database_url": "sqlite://",
-        "flask_env": "testing",  # Enable testing API endpoints
-        "sqlalchemy_engine_options": {
-            "poolclass": StaticPool,
-            "creator": lambda: clone_conn,
-        },
-    })
-    app_settings = _build_test_app_settings()
-
-    app = create_app(settings, app_settings=app_settings)
-
-    # Mock frontend version service to avoid external frontend dependency
-    from unittest.mock import patch
-    version_json = '{"version": "test-1.0.0", "environment": "test", "git_commit": "abc123"}'
-    version_mock = patch.object(
-        app.container.frontend_version_service(),
-        'fetch_frontend_version',
-        return_value=version_json
-    )
-    version_mock.start()
-
-    # Start Flask development server in background thread
-    # Note: Using Flask dev server instead of waitress for simplicity in tests
-    def run_server() -> None:
-        """Run Flask development server."""
-        try:
-            app.run(host="127.0.0.1", port=port, threaded=True, use_reloader=False)
-        except Exception as e:
-            # Server stopped (expected during cleanup)
-            import logging
-            logging.getLogger(__name__).debug(f"Server thread stopped: {e}")
-
-    server_thread = threading.Thread(target=run_server, daemon=True)
-    server_thread.start()
-
-    # Give server time to start and bind to the port
-    time.sleep(1.5)
-
-    # Build base URL
-    base_url = f"http://127.0.0.1:{port}"
-
-    # Wait for server to be ready (poll health endpoint)
-    import requests
-
-    max_attempts = 20
-    for _ in range(max_attempts):
-        try:
-            resp = requests.get(f"{base_url}/health/healthz", timeout=1.0)
-            if resp.status_code == 200:
-                break
-        except requests.RequestException:
-            pass
-        time.sleep(0.5)
-    else:
-        pytest.fail(f"SSE test server did not become ready after {max_attempts} attempts")
-
-    try:
-        yield (base_url, app)
-    finally:
-        # Shut down all background services via the lifecycle coordinator
-        # before stopping mocks and cleaning up DB.
-        try:
-            app.container.lifecycle_coordinator().shutdown()
-        except Exception:
-            pass
-
-        # Stop version service mock after lifecycle shutdown
-        version_mock.stop()
-
-        # The daemon server thread will be terminated when the process exits.
-        # Clean up database connection.
-        with app.app_context():
-            from app.extensions import db as flask_db
-
-            flask_db.session.remove()
-
-        clone_conn.close()
-
-
-@pytest.fixture
-def background_task_runner() -> Generator[Callable[[Callable[[], Any]], Any], None, None]:
-    """Provide a helper to run background tasks concurrently with SSE tests.
-
-    Returns a function that takes a callable and runs it in a background thread.
-    The thread is joined automatically during teardown.
-
-    Example:
-        def test_sse_with_background_task(background_task_runner):
-            def my_task():
-                # Do work that generates SSE events
-                pass
-
-            background_task_runner(my_task)
-            # Now connect to SSE stream and receive events
-    """
-    threads: list[threading.Thread] = []
-
-    def run_in_background(func: Callable[[], Any]) -> threading.Thread:
-        """Run function in background thread."""
-        thread = threading.Thread(target=func, daemon=False)
-        threads.append(thread)
-        thread.start()
-        return thread
-
-    yield run_in_background
-
-    # Cleanup: join all background threads
-    for thread in threads:
-        thread.join(timeout=5.0)
-
-
-@pytest.fixture
-def sse_client_factory(sse_server: tuple[str, Any]):
-    """Factory for creating SSE client instances for testing.
-
-    Returns a function that creates configured SSEClient instances with the
-    SSE server base URL and strict mode enabled by default.
-
-    Example:
-        def test_sse_stream(sse_client_factory):
-            client = sse_client_factory("/api/tasks/123/stream")
-            for event in client.connect():
-                print(event)
-    """
-    from tests.integration.sse_client_helper import SSEClient
-
-    # Unpack sse_server tuple
-    server_url, _ = sse_server
-
-    def create_client(endpoint: str, strict: bool = True) -> SSEClient:
-        """Create SSE client for given endpoint.
-
-        Args:
-            endpoint: API endpoint path (e.g., "/api/tasks/123/stream")
-            strict: Enable strict parsing mode (default True for baseline tests)
-
-        Returns:
-            Configured SSEClient instance
-        """
-        url = f"{server_url}{endpoint}"
-        return SSEClient(url, strict=strict)
-
-    return create_client
-
-
-@pytest.fixture(scope="session")
-def sse_gateway_server(sse_server: tuple[str, Any]) -> Generator[str, None, None]:
-    """Start SSE Gateway subprocess for integration tests.
-
-    Returns the base URL for the gateway (e.g., http://localhost:3001).
-    The gateway routes SSE connections and makes callbacks to the Python backend
-    (sse_server) for connection lifecycle events.
-
-    The gateway runs in a subprocess and is cleaned up after the session.
-    """
-    from tests.integration.sse_gateway_helper import SSEGatewayProcess
-
-    # Unpack sse_server tuple
-    server_url, app = sse_server
-
-    # Find a free port for gateway
-    gateway_port = _find_free_port()
-
-    # Build callback URL with test secret
-    callback_url = f"{server_url}/api/sse/callback?secret=test-secret"
-
-    # Start gateway subprocess
-    gateway = SSEGatewayProcess(
-        callback_url=callback_url,
-        port=gateway_port,
-        startup_timeout=10.0,
-        health_check_interval=0.5,
-        shutdown_timeout=5.0,
-    )
-
-    try:
-        gateway.start()
-        gateway_url = gateway.get_base_url()
-
-        # Update Flask app's SSEConnectionManager with gateway URL
-        sse_connection_manager = app.container.sse_connection_manager()
-        sse_connection_manager.gateway_url = gateway_url
-
-        yield gateway_url
-    finally:
-        gateway.print_logs()  # Print logs before stopping for debugging
-        gateway.stop()
