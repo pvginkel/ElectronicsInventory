@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, Integer, func
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from app.models.kit_pick_list_line import KitPickListLine
 
 
-class KitPickListStatus(str, Enum):
+class KitPickListStatus(StrEnum):
     """Lifecycle status for a kit pick list."""
 
     OPEN = "open"

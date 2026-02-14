@@ -76,7 +76,7 @@ def _find_free_port() -> int:
 
 
 @pytest.fixture(scope="session")
-def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, Any], None, None]:
+def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, Any]]:
     """Start a real Flask development server for SSE integration tests.
 
     Returns tuple of (base_url, app) where base_url is like http://localhost:5001.
@@ -165,7 +165,7 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, 
 
 
 @pytest.fixture
-def background_task_runner() -> Generator[Callable[[Callable[[], Any]], Any], None, None]:
+def background_task_runner() -> Generator[Callable[[Callable[[], Any]], Any]]:
     """Provide a helper to run background tasks concurrently with SSE tests.
 
     Returns a function that takes a callable and runs it in a background thread.
@@ -202,7 +202,7 @@ def sse_client_factory(sse_server: tuple[str, Any]):
 
 
 @pytest.fixture(scope="session")
-def sse_gateway_server(sse_server: tuple[str, Any]) -> Generator[str, None, None]:
+def sse_gateway_server(sse_server: tuple[str, Any]) -> Generator[str]:
     """Start SSE Gateway subprocess for integration tests.
 
     Returns the base URL for the gateway (e.g., http://localhost:3001).

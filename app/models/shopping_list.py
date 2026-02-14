@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SQLEnum
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from app.models.shopping_list_seller_note import ShoppingListSellerNote
 
 
-class ShoppingListStatus(str, Enum):
+class ShoppingListStatus(StrEnum):
     """Possible lifecycle states for a shopping list."""
 
     CONCEPT = "concept"

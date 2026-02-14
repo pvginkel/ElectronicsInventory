@@ -62,5 +62,5 @@ class ShoppingListSellerNote(db.Model):  # type: ignore[name-defined]
 
     def __repr__(self) -> str:
         return (
-            "<ShoppingListSellerNote id={id} list_id={list_id} seller_id={seller}>"
-        ).format(id=self.id, list_id=self.shopping_list_id, seller=self.seller_id)
+            f"<ShoppingListSellerNote id={self.id} list_id={self.shopping_list_id} seller_id={self.seller_id}>"
+        )

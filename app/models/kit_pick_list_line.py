@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from app.models.quantity_history import QuantityHistory
 
 
-class PickListLineStatus(str, Enum):
+class PickListLineStatus(StrEnum):
     """Lifecycle status for an individual pick list line."""
 
     OPEN = "open"
