@@ -26,7 +26,6 @@ from flask import Blueprint, Flask
 if TYPE_CHECKING:
     import click
 
-from app.database import sync_master_data_from_setup
 from app.models.box import Box
 from app.models.kit import Kit
 from app.models.kit_content import KitContent
@@ -202,7 +201,14 @@ def post_migration_hook(app: Flask) -> None:
     """
     session = app.container.session_maker()()
     try:
-        sync_master_data_from_setup(session)
+        from app.services.setup_service import SetupService
+
+        setup_service = SetupService(session)
+        added_count = setup_service.sync_types_from_setup()
+        if added_count > 0:
+            print(f"Added {added_count} new types from setup file")
+        else:
+            print("Types already up to date")
         session.commit()
     except Exception as e:
         print(f"⚠️  Warning: Failed to sync master data: {e}")
@@ -229,7 +235,14 @@ def load_test_data_hook(app: Flask) -> None:
     session = app.container.session_maker()()
     try:
         # Sync master data (types) -- fatal on failure since test data depends on types
-        sync_master_data_from_setup(session)
+        from app.services.setup_service import SetupService
+
+        setup_service = SetupService(session)
+        added_count = setup_service.sync_types_from_setup()
+        if added_count > 0:
+            print(f"Added {added_count} new types from setup file")
+        else:
+            print("Types already up to date")
         session.commit()
 
         # Load test data using the container (provides S3 service for images)

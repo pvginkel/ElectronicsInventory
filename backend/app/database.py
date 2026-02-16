@@ -3,15 +3,11 @@
 import logging
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData, text
 from sqlalchemy.engine import Engine
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 from alembic import command
 from app.config import Settings
@@ -242,20 +238,3 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
                 raise
 
         return applied_migrations
-
-
-def sync_master_data_from_setup(session: "Session") -> None:
-    """Sync master data (types) from setup file to database.
-
-    Args:
-        session: SQLAlchemy session to use for database operations.
-    """
-    from app.services.setup_service import SetupService
-
-    setup_service = SetupService(session)
-    added_count = setup_service.sync_types_from_setup()
-
-    if added_count > 0:
-        print(f"Added {added_count} new types from setup file")
-    else:
-        print("Types already up to date")
