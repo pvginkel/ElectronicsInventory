@@ -1,9 +1,19 @@
-"""Testing SSE and task endpoints for Playwright test suite support."""
+"""Testing endpoints for SSE integration tests.
 
+Provides endpoints to start demo tasks, trigger version events, and send
+fake task events, enabling integration tests to exercise the SSE Gateway
+pipeline without requiring real domain logic.
+
+All endpoints are guarded by reject_if_not_testing() so they are
+only available when FLASK_ENV=testing.
+"""
+
+import time
 from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request
+from pydantic import BaseModel
 from spectree import Response as SpectreeResponse
 
 from app.schemas.task_schema import TaskEvent, TaskEventType
@@ -12,8 +22,10 @@ from app.schemas.testing_sse import (
     DeploymentTriggerResponseSchema,
     TaskEventRequestSchema,
     TaskEventResponseSchema,
-    TestErrorResponseSchema,
+    TaskStartRequestSchema,
+    TaskStartResponseSchema,
 )
+from app.services.base_task import BaseTask, ProgressHandle
 from app.services.container import ServiceContainer
 from app.services.frontend_version_service import FrontendVersionService
 from app.services.sse_connection_manager import SSEConnectionManager
@@ -27,76 +39,46 @@ testing_sse_bp = Blueprint("testing_sse", __name__, url_prefix="/api/testing")
 def check_testing_mode() -> Any:
     """Reject requests when the server is not running in testing mode."""
     from app.api.testing_guard import reject_if_not_testing
+
     return reject_if_not_testing()
 
 
-@testing_sse_bp.route("/deployments/version", methods=["POST"])
-@api.validate(json=DeploymentTriggerRequestSchema, resp=SpectreeResponse(HTTP_202=DeploymentTriggerResponseSchema))
-@inject
-def trigger_version_deployment(
-    version_service: FrontendVersionService = Provide[ServiceContainer.frontend_version_service]
-) -> Any:
-    """Trigger a deterministic version deployment notification for Playwright."""
-    payload = DeploymentTriggerRequestSchema.model_validate(request.get_json() or {})
-
-    delivered = version_service.queue_version_event(
-        request_id=payload.request_id,
-        version=payload.version,
-        changelog=payload.changelog,
-    )
-
-    status = "delivered" if delivered else "queued"
-    response_body = DeploymentTriggerResponseSchema(
-        requestId=payload.request_id,
-        delivered=delivered,
-        status=status,
-    )
-
-    return jsonify(response_body.model_dump(by_alias=True)), 202
+# ---------------------------------------------------------------------------
+# Demo tasks for integration testing
+# ---------------------------------------------------------------------------
 
 
-@testing_sse_bp.route("/tasks/start", methods=["POST"])
-@inject
-def start_test_task(
-    task_service: TaskService = Provide[ServiceContainer.task_service]
-) -> Any:
-    """Start a test task for SSE baseline testing.
-
-    Request body:
-        {
-            "task_type": "demo_task" | "failing_task",
-            "params": { ... task-specific parameters ... }
-        }
-
-    Returns:
-        200: Task started successfully with task_id and status
-    """
-    from app.services.base_task import BaseTask
-    from tests.test_tasks.test_task import DemoTask, FailingTask
-
-    data = request.get_json() or {}
-    task_type = data.get("task_type")
-    params = data.get("params", {})
-
-    # Create task instance based on type
-    task: BaseTask
-    if task_type == "demo_task":
-        task = DemoTask()
-    elif task_type == "failing_task":
-        task = FailingTask()
-    else:
-        return jsonify({"error": f"Unknown task type: {task_type}"}), 400
-
-    # Start the task
-    response = task_service.start_task(task, **params)
-
-    return jsonify({
-        "task_id": response.task_id,
-        "status": response.status.value
-    }), 200
+class _DemoTaskResult(BaseModel):
+    status: str = "success"
 
 
-# Map string event types to TaskEventType enum
+class _DemoTask(BaseTask):
+    """Simple task that sends progress updates and completes."""
+
+    def execute(self, progress_handle: ProgressHandle, **kwargs: Any) -> BaseModel:
+        steps: int = kwargs.get("steps", 3)
+        delay: float = kwargs.get("delay", 0.1)
+
+        for i in range(steps):
+            if self.is_cancelled:
+                return _DemoTaskResult(status="cancelled")
+            progress_handle.send_progress(f"Step {i + 1}/{steps}", (i + 1) / steps)
+            time.sleep(delay)
+
+        return _DemoTaskResult(status="success")
+
+
+class _FailingTask(BaseTask):
+    """Task that raises an exception after a delay."""
+
+    def execute(self, progress_handle: ProgressHandle, **kwargs: Any) -> BaseModel:
+        error_message: str = kwargs.get("error_message", "Task failed")
+        delay: float = kwargs.get("delay", 0.1)
+
+        time.sleep(delay)
+        raise RuntimeError(error_message)
+
+
 _EVENT_TYPE_MAP = {
     "task_started": TaskEventType.TASK_STARTED,
     "progress_update": TaskEventType.PROGRESS_UPDATE,
@@ -105,58 +87,109 @@ _EVENT_TYPE_MAP = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+
+@testing_sse_bp.route("/tasks/start", methods=["POST"])
+@api.validate(json=TaskStartRequestSchema, resp=SpectreeResponse(HTTP_200=TaskStartResponseSchema))
+@inject
+def start_test_task(
+    task_service: TaskService = Provide[ServiceContainer.task_service],
+) -> tuple[Any, int]:
+    """Start a demo or failing task for integration testing."""
+    payload = TaskStartRequestSchema.model_validate(request.get_json() or {})
+
+    if payload.task_type == "demo_task":
+        task = _DemoTask()
+    elif payload.task_type == "failing_task":
+        task = _FailingTask()
+    else:
+        return jsonify({"error": f"Unknown task_type: {payload.task_type}"}), 400
+
+    result = task_service.start_task(task, **payload.params)
+    response = TaskStartResponseSchema(task_id=result.task_id, status="started")
+    return jsonify(response.model_dump()), 200
+
+
+@testing_sse_bp.route("/deployments/version", methods=["POST"])
+@api.validate(
+    json=DeploymentTriggerRequestSchema,
+    resp=SpectreeResponse(HTTP_202=DeploymentTriggerResponseSchema),
+)
+@inject
+def trigger_version_event(
+    frontend_version_service: FrontendVersionService = Provide[
+        ServiceContainer.frontend_version_service
+    ],
+) -> tuple[Any, int]:
+    """Trigger a version event for integration testing."""
+    payload = DeploymentTriggerRequestSchema.model_validate(request.get_json() or {})
+
+    delivered = frontend_version_service.queue_version_event(
+        request_id=payload.request_id,
+        version=payload.version,
+        changelog=payload.changelog,
+    )
+
+    status = "delivered" if delivered else "queued"
+    response = DeploymentTriggerResponseSchema(
+        request_id=payload.request_id,
+        delivered=delivered,
+        status=status,
+    )
+    return jsonify(response.model_dump()), 202
+
+
 @testing_sse_bp.route("/sse/task-event", methods=["POST"])
-@api.validate(json=TaskEventRequestSchema, resp=SpectreeResponse(HTTP_200=TaskEventResponseSchema, HTTP_400=TestErrorResponseSchema))
+@api.validate(
+    json=TaskEventRequestSchema,
+    resp=SpectreeResponse(HTTP_200=TaskEventResponseSchema),
+)
 @inject
 def send_task_event(
-    sse_connection_manager: SSEConnectionManager = Provide[ServiceContainer.sse_connection_manager]
-) -> Any:
-    """Send a fake task event to a specific SSE connection for Playwright testing.
+    sse_connection_manager: SSEConnectionManager = Provide[
+        ServiceContainer.sse_connection_manager
+    ],
+) -> tuple[Any, int]:
+    """Send a fake task event to a specific SSE connection for testing.
 
-    This endpoint allows the Playwright test suite to simulate task events
-    without running actual background tasks. The event is sent directly to
-    the SSE connection identified by request_id.
-
-    Returns:
-        200: Event sent successfully
-        400: No connection exists for the given request_id
+    Allows integration tests to simulate task events without running actual
+    background tasks. The event is sent directly to the SSE connection
+    identified by request_id.
     """
     payload = TaskEventRequestSchema.model_validate(request.get_json() or {})
 
-    # Check if connection exists
     if not sse_connection_manager.has_connection(payload.request_id):
         return jsonify({
             "error": f"No SSE connection registered for request_id: {payload.request_id}",
-            "status": "not_found"
+            "status": "not_found",
         }), 400
 
-    # Build TaskEvent with proper format (same as TaskService sends)
     event = TaskEvent(
         event_type=_EVENT_TYPE_MAP[payload.event_type],
         task_id=payload.task_id,
-        data=payload.data
+        data=payload.data,
     )
 
-    # Send event to the specific connection
-    # Use mode='json' to serialize datetime to ISO format string
     success = sse_connection_manager.send_event(
         payload.request_id,
-        event.model_dump(mode='json'),
+        event.model_dump(mode="json"),
         event_name="task_event",
-        service_type="task"
+        service_type="task",
     )
 
     if not success:
         return jsonify({
             "error": f"Failed to send event to connection: {payload.request_id}",
-            "status": "send_failed"
+            "status": "send_failed",
         }), 400
 
-    response_body = TaskEventResponseSchema(
-        requestId=payload.request_id,
-        taskId=payload.task_id,
-        eventType=payload.event_type,
-        delivered=True
+    response = TaskEventResponseSchema(
+        request_id=payload.request_id,
+        task_id=payload.task_id,
+        event_type=payload.event_type,
+        delivered=True,
     )
-
-    return jsonify(response_body.model_dump(by_alias=True)), 200
+    return jsonify(response.model_dump()), 200
