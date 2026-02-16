@@ -188,7 +188,7 @@ class TestTestingEndpoints:
         assert response.status_code == 202
         payload = response.get_json()
         assert payload == {
-            "requestId": request_id,
+            "request_id": request_id,
             "delivered": True,  # Now always True after broadcast
             "status": "delivered"  # Status is "delivered" after broadcast
         }
@@ -230,7 +230,7 @@ class TestTestingEndpoints:
         assert response.status_code == 202
         payload = response.get_json()
         assert payload == {
-            "requestId": request_id,
+            "request_id": request_id,
             "delivered": True,
             "status": "delivered"
         }
@@ -482,9 +482,9 @@ class TestTaskEventEndpoint:
             assert response.status_code == 200
             payload = response.get_json()
             assert payload == {
-                "requestId": "playwright-test-123",
-                "taskId": "task-abc",
-                "eventType": "progress_update",
+                "request_id": "playwright-test-123",
+                "task_id": "task-abc",
+                "event_type": "progress_update",
                 "delivered": True
             }
 
@@ -564,7 +564,7 @@ class TestTaskEventEndpoint:
 
                 assert response.status_code == 200
                 payload = response.get_json()
-                assert payload["eventType"] == event_type
+                assert payload["event_type"] == event_type
                 assert payload["delivered"] is True
 
             # Verify send_event was called for each event type
