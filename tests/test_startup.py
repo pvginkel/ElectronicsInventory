@@ -80,6 +80,33 @@ def _make_app(
     return app
 
 
+def _mock_setup_service(sync_calls: list | None = None, return_count: int = 0):
+    """Create a mock SetupService class that tracks calls."""
+
+    class MockSetupService:
+        def __init__(self, session: Any) -> None:
+            if sync_calls is not None:
+                sync_calls.append(session)
+
+        def sync_types_from_setup(self) -> int:
+            return return_count
+
+    return MockSetupService
+
+
+def _failing_setup_service(error_message: str = "sync failed"):
+    """Create a mock SetupService that raises on sync."""
+
+    class FailingSetupService:
+        def __init__(self, session: Any) -> None:
+            pass
+
+        def sync_types_from_setup(self) -> int:
+            raise RuntimeError(error_message)
+
+    return FailingSetupService
+
+
 # ---------------------------------------------------------------------------
 # post_migration_hook
 # ---------------------------------------------------------------------------
@@ -95,7 +122,7 @@ class TestPostMigrationHook:
         sync_calls: list[Any] = []
 
         monkeypatch.setattr(
-            startup, "sync_master_data_from_setup", lambda s: sync_calls.append(s)
+            "app.services.setup_service.SetupService", _mock_setup_service(sync_calls)
         )
 
         startup.post_migration_hook(app)
@@ -108,14 +135,13 @@ class TestPostMigrationHook:
     def test_sync_failure_prints_warning_and_continues(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        """If sync_master_data_from_setup raises, a warning is printed (non-fatal)."""
+        """If SetupService.sync_types_from_setup raises, a warning is printed (non-fatal)."""
         session = _DummySession()
         app = _make_app(session=session)
 
-        def _failing_sync(s: Any) -> None:
-            raise RuntimeError("sync failed")
-
-        monkeypatch.setattr(startup, "sync_master_data_from_setup", _failing_sync)
+        monkeypatch.setattr(
+            "app.services.setup_service.SetupService", _failing_setup_service()
+        )
 
         # Should NOT raise
         startup.post_migration_hook(app)
@@ -136,7 +162,9 @@ class TestPostMigrationHook:
         session.commit = _exploding_commit  # type: ignore[assignment]
         app = _make_app(session=session)
 
-        monkeypatch.setattr(startup, "sync_master_data_from_setup", lambda s: None)
+        monkeypatch.setattr(
+            "app.services.setup_service.SetupService", _mock_setup_service()
+        )
 
         # Non-fatal -- should not raise
         startup.post_migration_hook(app)
@@ -162,7 +190,7 @@ class TestLoadTestDataHook:
         sync_calls: list[Any] = []
 
         monkeypatch.setattr(
-            startup, "sync_master_data_from_setup", lambda s: sync_calls.append(s)
+            "app.services.setup_service.SetupService", _mock_setup_service(sync_calls)
         )
 
         startup.load_test_data_hook(app)
@@ -192,7 +220,9 @@ class TestLoadTestDataHook:
         session = _DummySession(dialect_name="postgresql")
         app = _make_app(session=session)
 
-        monkeypatch.setattr(startup, "sync_master_data_from_setup", lambda s: None)
+        monkeypatch.setattr(
+            "app.services.setup_service.SetupService", _mock_setup_service()
+        )
 
         startup.load_test_data_hook(app)
 
@@ -207,7 +237,9 @@ class TestLoadTestDataHook:
         session = _DummySession(dialect_name="sqlite")
         app = _make_app(session=session)
 
-        monkeypatch.setattr(startup, "sync_master_data_from_setup", lambda s: None)
+        monkeypatch.setattr(
+            "app.services.setup_service.SetupService", _mock_setup_service()
+        )
 
         startup.load_test_data_hook(app)
 
@@ -215,14 +247,13 @@ class TestLoadTestDataHook:
         assert len(session.executed_statements) == 0
 
     def test_sync_failure_propagates(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """If sync_master_data_from_setup raises, the exception propagates (fatal)."""
+        """If SetupService.sync_types_from_setup raises, the exception propagates (fatal)."""
         session = _DummySession()
         app = _make_app(session=session)
 
-        def _failing_sync(s: Any) -> None:
-            raise RuntimeError("sync failed")
-
-        monkeypatch.setattr(startup, "sync_master_data_from_setup", _failing_sync)
+        monkeypatch.setattr(
+            "app.services.setup_service.SetupService", _failing_setup_service()
+        )
 
         with pytest.raises(RuntimeError, match="sync failed"):
             startup.load_test_data_hook(app)
@@ -241,7 +272,9 @@ class TestLoadTestDataHook:
         service.load_full_dataset = _exploding_load  # type: ignore[assignment]
         app = _make_app(session=session, test_data_service=service)
 
-        monkeypatch.setattr(startup, "sync_master_data_from_setup", lambda s: None)
+        monkeypatch.setattr(
+            "app.services.setup_service.SetupService", _mock_setup_service()
+        )
 
         with pytest.raises(RuntimeError, match="load failed"):
             startup.load_test_data_hook(app)
@@ -258,7 +291,9 @@ class TestLoadTestDataHook:
         session.query = _exploding_query  # type: ignore[assignment]
         app = _make_app(session=session)
 
-        monkeypatch.setattr(startup, "sync_master_data_from_setup", lambda s: None)
+        monkeypatch.setattr(
+            "app.services.setup_service.SetupService", _mock_setup_service()
+        )
 
         with pytest.raises(RuntimeError, match="query failed"):
             startup.load_test_data_hook(app)
