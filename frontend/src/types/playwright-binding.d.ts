@@ -1,4 +1,4 @@
-import type { TestEvent } from '@/types/test-events';
+import type { TestEvent } from '@/lib/test/test-events';
 
 declare global {
   interface ImportMetaEnv {

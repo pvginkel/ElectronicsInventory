@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, waitTestEvent, waitForListLoading, waitForUiState } from '../../support/helpers';
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/generated/hooks';
 
 test.describe('Shopping List Detail Phase 2', () => {
@@ -183,8 +183,10 @@ test.describe('Shopping List Detail Phase 2', () => {
     expect(filteredObserved).toEqual(expectedModuleOrder);
 
     await listbox.getByRole('option', { name: new RegExp(`^Module Alpha \\(${alphaPart.key}\\)`) }).first().click();
-    await expect(dialog.getByTestId('parts.selector.selected')).toBeVisible();
-    await expect(dialog.getByTestId('parts.selector.selected').locator('div').first()).toHaveText(`Module Alpha (${alphaPart.key})`);
+    const selectedDisplay = dialog.getByTestId('parts.selector.selected');
+    await expect(selectedDisplay).toBeVisible();
+    await expect(selectedDisplay).toContainText('Module Alpha');
+    await expect(selectedDisplay).toContainText(alphaPart.key);
   });
 
   test('concept detail header and toolbar stay pinned while lines scroll', async ({ shoppingLists, testData }) => {

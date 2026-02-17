@@ -1,6 +1,6 @@
 import { test, expect } from './support/fixtures';
 import { selectors } from './support/selectors';
-import type { TestEvent, UiStateTestEvent } from '../src/types/test-events';
+import type { TestEvent, UiStateTestEvent } from '@/lib/test/test-events';
 
 function getWorkerServiceEvent(events: TestEvent[]): UiStateTestEvent | undefined {
   return events.find(event => {

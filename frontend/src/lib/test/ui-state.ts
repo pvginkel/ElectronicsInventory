@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { UiStateTestEvent } from '@/types/test-events';
+import type { UiStateTestEvent } from '@/lib/test/test-events';
 import { isTestMode } from '@/lib/config/test-mode';
 import { emitTestEvent } from './event-emitter';
 

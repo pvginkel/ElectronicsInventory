@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { isTestMode } from '@/lib/config/test-mode';
 import { emitTestEvent } from '@/lib/test/event-emitter';
-import type { SseTestEvent } from '@/types/test-events';
+import type { SseTestEvent } from '@/lib/test/test-events';
 import { SseContext } from './sse-context-base';
 import type { SseContextValue, VersionEventData, TaskEventData } from './sse-context-base';
 // Import to ensure test bridge registration (even though module is not used in production)

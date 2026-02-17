@@ -43,7 +43,7 @@ import { useShoppingListDetailHeaderSlots } from '@/components/shopping-lists/de
 import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { ApiError } from '@/lib/api/api-error';
-import type { UiStateTestEvent } from '@/types/test-events';
+import type { UiStateTestEvent } from '@/lib/test/test-events';
 
 const SORT_KEYS: ShoppingListLineSortKey[] = ['description', 'mpn', 'createdAt'];
 const KIT_UNLINK_FLOW_SCOPE = 'shoppingLists.detail.kitUnlinkFlow';

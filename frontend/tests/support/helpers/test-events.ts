@@ -1,4 +1,4 @@
-import type { TestEvent, SseTestEvent } from '@/types/test-events';
+import type { TestEvent, SseTestEvent } from '@/lib/test/test-events';
 import { Page } from '@playwright/test';
 
 const DEFAULT_BUFFER_CAPACITY = 500;

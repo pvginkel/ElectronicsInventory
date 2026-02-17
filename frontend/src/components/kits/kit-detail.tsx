@@ -33,7 +33,7 @@ import {
   usePostKitsUnarchiveByKitId,
   useDeleteKitsByKitId,
 } from '@/lib/api/generated/hooks';
-import type { UiStateTestEvent } from '@/types/test-events';
+import type { UiStateTestEvent } from '@/lib/test/test-events';
 import type {
   KitContentAggregates,
   KitContentRow,

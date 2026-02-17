@@ -1,0 +1,84 @@
+/**
+ * App-specific theme overrides for Electronics Inventory.
+ * Contains EI brand colors, component category colors, and domain-specific utilities.
+ * App-owned — not overwritten by template updates.
+ */
+
+@layer base {
+  :root {
+    /* Component category colors */
+    --electronics-resistor: 45 93% 47%;
+    --electronics-capacitor: 262 83% 58%;
+    --electronics-ic: 217 91% 60%;
+    --electronics-mechanical: 142 71% 45%;
+    --electronics-connector: 24 70% 50%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* Electronics category colors for dark mode */
+      --electronics-resistor: 45 60% 50%;
+      --electronics-capacitor: 262 55% 55%;
+      --electronics-ic: 217 55% 55%;
+      --electronics-mechanical: 142 50% 46%;
+      --electronics-connector: 24 55% 52%;
+    }
+  }
+}
+
+/* EI-specific category border utilities */
+@utility category-resistor {
+  border-left: 3px solid hsl(var(--electronics-resistor));
+}
+
+@utility category-capacitor {
+  border-left: 3px solid hsl(var(--electronics-capacitor));
+}
+
+@utility category-ic {
+  border-left: 3px solid hsl(var(--electronics-ic));
+}
+
+@utility category-mechanical {
+  border-left: 3px solid hsl(var(--electronics-mechanical));
+}
+
+@utility category-connector {
+  border-left: 3px solid hsl(var(--electronics-connector));
+}
+
+/* AI-assisted button glare effect */
+@utility ai-glare {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
+    width: 50%;
+    transform: translateX(-200%) skewX(-10deg);
+    z-index: 1;
+  }
+
+  &:hover::before {
+    transform: translateX(400%) skewX(-10deg);
+    transition: transform 1s ease-out;
+  }
+}
+
+@layer components {
+  /* AI Assisted Button Glare Animation keyframes */
+  @keyframes glare-sweep {
+    0% {
+      transform: translateX(-100%) skewX(-15deg);
+    }
+    100% {
+      transform: translateX(200%) skewX(-15deg);
+    }
+  }
+}

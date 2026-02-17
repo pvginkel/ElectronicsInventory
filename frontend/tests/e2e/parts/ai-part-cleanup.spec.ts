@@ -1,6 +1,6 @@
 import { test, expect } from '../../support/fixtures';
 import { waitTestEvent, expectConsoleError } from '../../support/helpers';
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 
 test.describe('AI Part Cleanup', () => {
   test('successful cleanup with changes shows merge table with checkboxes', async ({

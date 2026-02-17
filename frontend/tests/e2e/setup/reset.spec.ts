@@ -1,5 +1,5 @@
 import { test, expect } from '../../support/fixtures';
-import type { TestEvent, ListLoadingTestEvent } from '../../../src/types/test-events';
+import type { TestEvent, ListLoadingTestEvent } from '@/lib/test/test-events';
 
 function hasListEvent(events: TestEvent[], scope: string, phase: ListLoadingTestEvent['phase']): boolean {
   return events.some(event => {

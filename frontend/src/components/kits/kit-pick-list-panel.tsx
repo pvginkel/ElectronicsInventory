@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { buildPickListDetailSearch } from '@/types/pick-lists';
 import type { KitDetail, KitPickListSummary, KitStatus } from '@/types/kits';
-import type { UiStateTestEvent } from '@/types/test-events';
+import type { UiStateTestEvent } from '@/lib/test/test-events';
 import { ClipboardList, ChevronDown, ChevronRight, CheckCircle2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildKitPickListPanelMetadata } from '@/components/kits/kit-pick-list-panel-metadata';

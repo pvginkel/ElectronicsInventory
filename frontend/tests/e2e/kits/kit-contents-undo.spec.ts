@@ -7,7 +7,7 @@
 
 import { test, expect } from '../../support/fixtures';
 import { waitForListLoading, waitTestEvent } from '../../support/helpers';
-import type { FormTestEvent, ToastTestEvent } from '@/types/test-events';
+import type { FormTestEvent, ToastTestEvent } from '@/lib/test/test-events';
 import type { PartKitReservationsResponseSchema_d12d9a5, KitContentDetailSchema_b98797e } from '@/lib/api/generated/hooks';
 
 test.describe('Kit Contents Undo', () => {

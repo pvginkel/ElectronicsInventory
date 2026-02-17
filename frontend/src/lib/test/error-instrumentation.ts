@@ -4,7 +4,7 @@
  */
 
 import { emitTestEvent } from './event-emitter';
-import { TestEventKind, type ErrorTestEvent } from '@/types/test-events';
+import { TestEventKind, type ErrorTestEvent } from '@/lib/test/test-events';
 import { getGlobalCorrelationContext } from '@/contexts/correlation-context';
 
 /**

@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, waitTestEvent, waitForListLoading } from '../../support/helpers';
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 
 const overviewSummaryText = ({
   visible,

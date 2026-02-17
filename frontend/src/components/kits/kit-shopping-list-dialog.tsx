@@ -20,7 +20,7 @@ import {
 } from '@/hooks/use-kit-shopping-list-links';
 import type { KitContentRow, KitDetail } from '@/types/kits';
 import { emitTestEvent } from '@/lib/test/event-emitter';
-import type { UiStateTestEvent } from '@/types/test-events';
+import type { UiStateTestEvent } from '@/lib/test/test-events';
 import type { ShoppingListStatus } from '@/types/shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api/api-error';

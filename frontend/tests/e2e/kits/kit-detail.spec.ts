@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, waitForFormValidationError, waitForListLoading, waitForUiState, waitTestEvent } from '../../support/helpers';
-import type { UiStateTestEvent, FormTestEvent } from '@/types/test-events';
+import type { UiStateTestEvent, FormTestEvent } from '@/lib/test/test-events';
 import type { KitContentDetailSchema_b98797e } from '@/lib/api/generated/hooks';
 import type {
   KitDetailResponseSchema_b98797e,
@@ -1124,7 +1124,8 @@ test.describe('Kit detail workspace', () => {
 
     const preConflictFormEvents = await testEvents.getEventsByKind('form');
     await kits.detailEditorSubmit('edit', seeded.id).click();
-    await expect(kits.detailEditor('edit', seeded.id)).toContainText('updated by another request');
+    // Conflict recovery: form syncs to server values (quantity 9, note "External update")
+    await expect(kits.detailEditorNote('edit', seeded.id)).toHaveValue('External update');
     const postConflictFormEvents = await testEvents.getEventsByKind('form');
     const conflictEvent = postConflictFormEvents.find((event, index) => {
       if (event.kind !== 'form' || index < preConflictFormEvents.length) {

@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 import { BasePage } from './base-page';
 import { selectors } from '../selectors';
 import { waitForListLoading, waitTestEvent } from '../helpers';

@@ -4,7 +4,7 @@
  */
 
 import { emitTestEvent } from './event-emitter';
-import { TestEventKind, type ToastTestEvent } from '@/types/test-events';
+import { TestEventKind, type ToastTestEvent } from '@/lib/test/test-events';
 import type { ToastOptions, ToastType } from '@/components/ui/toast';
 
 /**

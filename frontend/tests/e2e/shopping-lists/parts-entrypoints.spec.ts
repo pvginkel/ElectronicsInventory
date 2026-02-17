@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, waitForListLoading, waitTestEvent } from '../../support/helpers';
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 
 const ADD_FORM_ID = 'ShoppingListMembership:addFromPart';
 
@@ -80,7 +80,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await expect(conceptRow.getByTestId(/note$/)).toContainText('Ensure we stock extras');
   });
 
-  test('surfaces duplicate guard when adding to an existing concept list', async ({ parts, testData, toastHelper }) => {
+  test('surfaces duplicate guard when adding to an existing concept list', async ({ parts, testData }) => {
     const { part } = await testData.parts.create({
       overrides: { description: 'Duplicate guard target' },
     });
@@ -103,7 +103,8 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await expectConsoleError(parts.playwrightPage, /Toast exception ApiError/i);
 
     await parts.submitAddToShoppingList();
-    await toastHelper.waitForToastWithText(/failed to add part to shopping list/i);
+    await expect(parts.addToShoppingListConflictAlert).toBeVisible();
+    await expect(parts.addToShoppingListConflictAlert).toContainText(/already on the list/i);
 
     await expect(parts.detailShoppingListBadges).toHaveCount(1);
     await parts.closeAddToShoppingListDialog();

@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, makeUnique, makeUniqueToken } from '../../support/helpers';
-import type { FormTestEvent, ToastTestEvent, ErrorTestEvent } from '@/types/test-events';
+import type { FormTestEvent, ToastTestEvent, ErrorTestEvent } from '@/lib/test/test-events';
 
 const PART_CREATE_FORM_ID = 'part_create';
 const PART_DUPLICATE_FORM_ID = 'part_duplicate';

@@ -1,5 +1,5 @@
 import { test, expect } from '../../support/fixtures';
-import type { TestEvent } from '../../../src/types/test-events';
+import type { TestEvent } from '@/lib/test/test-events';
 import type { TestEventCapture } from '../../support/helpers/test-events';
 
 async function waitForListStateSuccess(testEvents: TestEventCapture) {

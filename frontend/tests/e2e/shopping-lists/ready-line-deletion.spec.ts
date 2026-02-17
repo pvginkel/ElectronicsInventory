@@ -7,7 +7,7 @@
 
 import { test, expect } from '../../support/fixtures';
 import { waitForListLoading, waitTestEvent } from '../../support/helpers';
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 import type { components } from '../../../src/lib/api/generated/types';
 
 type ShoppingListResponseSchema = components['schemas']['ShoppingListResponseSchema.46f0cf6'];

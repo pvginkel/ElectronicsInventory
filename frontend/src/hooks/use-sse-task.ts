@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { isTestMode } from '@/lib/config/test-mode';
 import { emitTestEvent } from '@/lib/test/event-emitter';
-import type { SseTestEvent } from '@/types/test-events';
+import type { SseTestEvent } from '@/lib/test/test-events';
 import { useSseContext } from '@/contexts/sse-context';
 
 interface SSEProgressEvent {

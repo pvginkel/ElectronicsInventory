@@ -6,7 +6,7 @@
 import type { Client } from 'openapi-fetch';
 import { ulid } from 'ulid';
 import { emitTestEvent } from './event-emitter';
-import { TestEventKind, type ApiTestEvent } from '@/types/test-events';
+import { TestEventKind, type ApiTestEvent } from '@/lib/test/test-events';
 import { getGlobalCorrelationContext } from '@/contexts/correlation-context';
 
 // Store request timing information

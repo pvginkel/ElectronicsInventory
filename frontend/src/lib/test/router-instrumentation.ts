@@ -5,7 +5,7 @@
 
 import type { AnyRouter } from '@tanstack/react-router';
 import { emitTestEvent } from './event-emitter';
-import { TestEventKind, type RouteTestEvent } from '@/types/test-events';
+import { TestEventKind, type RouteTestEvent } from '@/lib/test/test-events';
 
 /**
  * Setup router instrumentation to emit route test-event payloads

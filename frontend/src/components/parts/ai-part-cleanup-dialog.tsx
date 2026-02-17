@@ -102,7 +102,7 @@ export function AIPartCleanupDialog({ open, onClose, partId }: AIPartCleanupDial
   // Emit dialog opened event for testing
   useEffect(() => {
     if (open && isTestMode()) {
-      const event: Omit<import('@/types/test-events').UiStateTestEvent, 'timestamp'> = {
+      const event: Omit<import('@/lib/test/test-events').UiStateTestEvent, 'timestamp'> = {
         kind: 'ui_state',
         scope: 'parts.cleanup.dialog',
         phase: 'open',

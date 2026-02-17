@@ -1,4 +1,4 @@
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 import { test, expect } from '../../support/fixtures';
 
 const CREATE_FORM_ID = 'type_create';

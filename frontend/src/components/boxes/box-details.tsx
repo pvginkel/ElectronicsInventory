@@ -20,7 +20,7 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { KeyValueBadge, DescriptionItem, CapacityBar } from '@/components/ui';
 import { emitTestEvent } from '@/lib/test/event-emitter';
-import { TestEventKind } from '@/types/test-events';
+import { TestEventKind } from '@/lib/test/test-events';
 import { isTestMode } from '@/lib/config/test-mode';
 import type { LocationDisplayData } from '@/types/locations';
 
@@ -106,7 +106,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
     );
 
     if (searchTerm.trim()) {
-      const payload: Omit<import('@/types/test-events').ListLoadingTestEvent, 'timestamp'> = {
+      const payload: Omit<import('@/lib/test/test-events').ListLoadingTestEvent, 'timestamp'> = {
         kind: TestEventKind.LIST_LOADING,
         scope: 'boxes.detail.search',
         phase: 'filtered',
@@ -118,7 +118,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
       };
       emitTestEvent(payload);
     } else {
-      const payload: Omit<import('@/types/test-events').ListLoadingTestEvent, 'timestamp'> = {
+      const payload: Omit<import('@/lib/test/test-events').ListLoadingTestEvent, 'timestamp'> = {
         kind: TestEventKind.LIST_LOADING,
         scope: 'boxes.detail.search',
         phase: 'cleared',

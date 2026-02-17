@@ -1,68 +1,35 @@
 /**
  * Root layout component.
- * Integrates authentication, top bar, sidebar navigation, and all providers.
+ * Composes provider groups and renders the app shell.
  *
- * Provider ordering:
- * 1. QueryClientProvider - enables data fetching
- * 2. ToastProvider - enables toast notifications
- * 3. AuthProvider - provides auth state and instrumentation
- * 4. AuthGate - blocks rendering until authenticated
- * 5. SseContextProvider - SSE connections (guarded by auth)
- * 6. DeploymentProvider - deployment version tracking
- * 7. QuerySetup - wires toast function to query client
+ * Provider ordering (maintained by the three provider group components):
+ * 1. CoreProviders: QueryClientProvider > ToastProvider > QuerySetup
+ * 2. AuthProviders: AuthProvider > AuthGate
+ * 3. SseProviders: SseContextProvider > DeploymentProvider
  */
 
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState } from 'react';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
-import { ToastProvider } from '@/contexts/toast-context';
-import { AuthProvider } from '@/contexts/auth-context';
-import { AuthGate } from '@/components/auth/auth-gate';
-import { SseContextProvider } from '@/contexts/sse-context-provider';
-import { DeploymentProvider } from '@/contexts/deployment-context';
 import { DeploymentNotificationBar } from '@/components/ui/deployment-notification-bar';
-import { queryClient, setToastFunction } from '@/lib/query-client';
-import { useToast } from '@/hooks/use-toast';
+import { CoreProviders } from '@/providers/core-providers';
+import { AuthProviders } from '@/providers/auth-providers';
+import { SseProviders } from '@/providers/sse-providers';
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
-function QuerySetup({ children }: { children: ReactNode }) {
-  const { showError, showException } = useToast();
-
-  useEffect(() => {
-    setToastFunction((message, error) => {
-      if (error !== undefined) {
-        showException(message, error);
-        return;
-      }
-      showError(message);
-    });
-  }, [showError, showException]);
-
-  return <>{children}</>;
-}
-
 function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <AuthProvider>
-          <AuthGate>
-            <SseContextProvider>
-              <DeploymentProvider>
-                <QuerySetup>
-                  <AppShellFrame />
-                </QuerySetup>
-              </DeploymentProvider>
-            </SseContextProvider>
-          </AuthGate>
-        </AuthProvider>
-      </ToastProvider>
-    </QueryClientProvider>
+    <CoreProviders>
+      <AuthProviders>
+        <SseProviders>
+          <AppShellFrame />
+        </SseProviders>
+      </AuthProviders>
+    </CoreProviders>
   );
 }
 

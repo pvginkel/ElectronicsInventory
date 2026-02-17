@@ -286,7 +286,7 @@ export function AIPartCleanupMergeStep({
 
       // Emit test event for form submission
       if (isTestMode()) {
-        const event: Omit<import('@/types/test-events').FormTestEvent, 'timestamp'> = {
+        const event: Omit<import('@/lib/test/test-events').FormTestEvent, 'timestamp'> = {
           kind: 'form',
           phase: 'submit',
           formId: 'ai-part-cleanup-apply',
@@ -396,7 +396,7 @@ export function AIPartCleanupMergeStep({
 
       // Emit success event
       if (isTestMode()) {
-        const event: Omit<import('@/types/test-events').FormTestEvent, 'timestamp'> = {
+        const event: Omit<import('@/lib/test/test-events').FormTestEvent, 'timestamp'> = {
           kind: 'form',
           phase: 'success',
           formId: 'ai-part-cleanup-apply',

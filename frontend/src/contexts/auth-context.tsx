@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { useAuth, type UserInfo } from '@/hooks/use-auth';
 import { isTestMode } from '@/lib/config/test-mode';
 import { emitTestEvent } from '@/lib/test/event-emitter';
-import { TestEventKind, type UiStateTestEvent } from '@/types/test-events';
+import { TestEventKind, type UiStateTestEvent } from '@/lib/test/test-events';
 
 /**
  * Auth context value shape.

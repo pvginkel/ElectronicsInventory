@@ -2,7 +2,7 @@ import { expect, Locator, Page } from '@playwright/test';
 import { BasePage } from './base-page';
 import { waitForListLoading, waitForUiState, expectConsoleError } from '../helpers';
 import { SellerSelectorHarness } from './seller-selector-harness';
-import type { ListLoadingTestEvent, UiStateTestEvent } from '@/types/test-events';
+import type { ListLoadingTestEvent, UiStateTestEvent } from '@/lib/test/test-events';
 
 export class ShoppingListsPage extends BasePage {
   readonly overviewRoot: Locator;

@@ -5,6 +5,7 @@
  */
 
 import { Link } from '@tanstack/react-router'
+import { PROJECT_TITLE, PROJECT_DESCRIPTION } from '@/lib/consts'
 import { UserDropdown } from './user-dropdown'
 
 interface TopBarProps {
@@ -54,7 +55,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
         {/* Logo - 110% of text height via em units inherited from parent font-size */}
         <img
           src="/favicon.png"
-          alt="Electronics Inventory Logo"
+          alt={`${PROJECT_DESCRIPTION} Logo`}
           className="h-[1.4em] w-[1.4em] mr-1 mt-1"
           data-testid="app-shell.topbar.logo"
         />
@@ -62,7 +63,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
           className="font-semibold"
           data-testid="app-shell.topbar.title"
         >
-          Electronics
+          {PROJECT_TITLE}
         </span>
       </Link>
 

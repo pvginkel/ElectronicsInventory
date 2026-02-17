@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { emitTestEvent } from './event-emitter';
-import { TestEventKind, type FormTestEvent } from '@/types/test-events';
+import { TestEventKind, type FormTestEvent } from '@/lib/test/test-events';
 import { isTestMode } from '@/lib/config/test-mode';
 
 /**

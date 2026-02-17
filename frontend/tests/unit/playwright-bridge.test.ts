@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { FormTestEvent } from '@/types/test-events';
+import type { FormTestEvent } from '@/lib/test/test-events';
 import { TestEventBuffer } from '../support/helpers/test-events';
 
 let counter = 0;

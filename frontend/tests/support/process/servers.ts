@@ -69,6 +69,11 @@ export async function startBackend(
     streamLogs: options.streamLogs === true,
     env: {
       ...process.env,
+      // Disable real OIDC in tests — the testing service endpoints
+      // (/api/testing/auth/*) provide auth simulation regardless of this flag.
+      // Without this override, OIDC_ENABLED=true from .env causes the
+      // before_request hook to attempt real token validation → 401.
+      OIDC_ENABLED: 'false',
       ...(options.frontendVersionUrl
         ? { FRONTEND_VERSION_URL: options.frontendVersionUrl }
         : {}),

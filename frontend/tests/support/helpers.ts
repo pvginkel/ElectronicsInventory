@@ -1,4 +1,4 @@
-import type { TestEvent, UiStateTestEvent, ListLoadingTestEvent } from '@/types/test-events';
+import type { TestEvent, UiStateTestEvent, ListLoadingTestEvent } from '@/lib/test/test-events';
 import { makeUniqueToken as baseMakeUniqueToken } from '@/lib/utils/random';
 import { Page, expect } from '@playwright/test';
 import { getTestEventBuffer } from './helpers/test-events';

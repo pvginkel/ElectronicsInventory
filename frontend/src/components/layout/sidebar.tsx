@@ -5,9 +5,10 @@
  */
 
 import { Link } from '@tanstack/react-router'
-import { Wrench, CircuitBoard, ShoppingCart, Archive, Tag, Store, Info, type LucideIcon } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { navigationItems } from './sidebar-nav'
 
-interface SidebarItem {
+export interface SidebarItem {
   to: string
   label: string
   icon: LucideIcon
@@ -19,16 +20,6 @@ interface SidebarProps {
   onNavigate?: () => void
   variant?: 'desktop' | 'mobile'
 }
-
-const navigationItems: SidebarItem[] = [
-  { to: '/parts', label: 'Parts', icon: Wrench, testId: 'parts' },
-  { to: '/kits', label: 'Kits', icon: CircuitBoard, testId: 'kits' },
-  { to: '/shopping-lists', label: 'Shopping Lists', icon: ShoppingCart, testId: 'shopping-lists' },
-  { to: '/boxes', label: 'Storage', icon: Archive, testId: 'boxes' },
-  { to: '/types', label: 'Types', icon: Tag, testId: 'types' },
-  { to: '/sellers', label: 'Sellers', icon: Store, testId: 'sellers' },
-  { to: '/about', label: 'About', icon: Info, testId: 'about' }
-]
 
 /**
  * Sidebar component.
