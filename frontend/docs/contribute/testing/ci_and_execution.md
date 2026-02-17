@@ -40,7 +40,7 @@ Playwright now uses per-worker managed services exclusively. Each worker starts 
 
 Service startup sequence (per worker):
 1. **Backend** – Started via `../backend/scripts/testing-server.sh` with a worker-specific SQLite database copy.
-2. **SSE Gateway** – Started via `../ssegateway/scripts/run-gateway.sh` with callback URL pointing to the worker's backend.
+2. **SSE Gateway** – Started via the `ssegateway` npm package (installed as a devDependency) with callback URL pointing to the worker's backend.
 3. **Frontend** – Started via `./scripts/testing-server.sh` with `VITE_TEST_MODE=true`, proxying to the worker's backend and gateway.
 
 Health checks:
@@ -68,12 +68,9 @@ The external services mode (`PLAYWRIGHT_MANAGED_SERVICES=false`) has been remove
 
 ## Environment Overrides
 
-Use `.env.test` to configure service locations and log streaming:
+Use `.env.test` to enable log streaming for debugging:
 
 ```bash
-# Override SSE Gateway repository location (optional)
-SSE_GATEWAY_ROOT=/custom/path/to/ssegateway
-
 # Enable log streaming for debugging (optional)
 PLAYWRIGHT_BACKEND_LOG_STREAM=true
 PLAYWRIGHT_GATEWAY_LOG_STREAM=true
@@ -85,7 +82,7 @@ Service URLs are managed automatically by worker fixtures and should not be over
 ## CI Integration
 
 - Suites run headless with per-worker managed services.
-- Ensure backend and SSE Gateway repos are available (CI scripts expect `../backend/` and `../ssegateway/`).
+- Ensure the backend repo is available (CI scripts expect `../backend/`). The SSE Gateway is resolved as an npm devDependency.
 - Artifacts (`test-results/`, `playwright-report/`) should be collected for debugging.
 - Service logs (`backend.log`, `gateway.log`, `frontend.log`) are attached to each test result.
 - Treat failing `console.error` output as blocking unless deliberately silenced via helpers.

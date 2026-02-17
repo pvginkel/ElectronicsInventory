@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import getPort from 'get-port';
@@ -129,21 +130,23 @@ export async function startSSEGateway(options: {
           exclude: options.excludePorts ?? [],
         });
 
-  const scriptPath = resolve(getSSEGatewayRepoRoot(), './scripts/run-gateway.sh');
+  const require = createRequire(import.meta.url);
+  const gatewayEntry = require.resolve('ssegateway');
   const callbackUrl = `${options.backendUrl}/api/sse/callback`;
-  const args = ['--port', String(port), '--callback-url', callbackUrl];
 
   return startService({
     workerIndex: options.workerIndex,
     port,
     serviceLabel: 'sse-gateway',
-    scriptPath,
-    args,
+    scriptPath: process.execPath,
+    args: [gatewayEntry],
     readinessPath: GATEWAY_READY_PATH,
     startupTimeoutMs: GATEWAY_STARTUP_TIMEOUT_MS,
     streamLogs: options.streamLogs === true,
     env: {
       ...process.env,
+      PORT: String(port),
+      CALLBACK_URL: callbackUrl,
     },
   });
 }
@@ -378,7 +381,6 @@ async function waitForExit(
 
 let frontendRepoRootCache: string | undefined;
 let backendRepoRootCache: string | undefined;
-let sseGatewayRepoRootCache: string | undefined;
 
 function getFrontendRepoRoot(): string {
   if (!frontendRepoRootCache) {
@@ -393,14 +395,6 @@ function getBackendRepoRoot(): string {
     backendRepoRootCache = resolve(getFrontendRepoRoot(), '../backend');
   }
   return backendRepoRootCache;
-}
-
-function getSSEGatewayRepoRoot(): string {
-  if (!sseGatewayRepoRootCache) {
-    const envRoot = process.env.SSE_GATEWAY_ROOT;
-    sseGatewayRepoRootCache = envRoot || resolve(getFrontendRepoRoot(), '../ssegateway');
-  }
-  return sseGatewayRepoRootCache;
 }
 
 const activeChildren = new Set<ChildProcessWithoutNullStreams>();

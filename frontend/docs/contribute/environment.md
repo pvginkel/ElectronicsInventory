@@ -10,7 +10,6 @@ This document captures the environment variables, port conventions, and configur
 | `SSE_GATEWAY_URL` | `http://localhost:3001` (dev) | SSE Gateway origin used by the Vite `/sse` proxy. Managed automatically by Playwright fixtures. |
 | `FRONTEND_URL` | `http://localhost:3000` (dev) | Base URL for the frontend. Managed automatically by Playwright fixtures. |
 | `VITE_TEST_MODE` | `false` | Toggles frontend test instrumentation and test-event emission. Set to `true` automatically by Playwright fixtures. |
-| `SSE_GATEWAY_ROOT` | `../ssegateway` | Path to the SSE Gateway repository. Override if the gateway is not at the default location. |
 | `PLAYWRIGHT_BACKEND_LOG_STREAM` | `false` | Set to `true` to stream backend logs to console during test runs. |
 | `PLAYWRIGHT_GATEWAY_LOG_STREAM` | `false` | Set to `true` to stream SSE Gateway logs to console during test runs. |
 | `PLAYWRIGHT_FRONTEND_LOG_STREAM` | `false` | Set to `true` to stream frontend logs to console during test runs. |
@@ -18,7 +17,7 @@ This document captures the environment variables, port conventions, and configur
 ## Environment Files
 
 - `.env` – consumed by Vite during local development. Override `BACKEND_URL` or `SSE_GATEWAY_URL` here if your services are not running on default ports.
-- `.env.test` – automatically loaded by `playwright.config.ts` via `dotenv`. Use this to override Playwright-specific values such as `SSE_GATEWAY_ROOT` or enable log streaming.
+- `.env.test` – automatically loaded by `playwright.config.ts` via `dotenv`. Use this to enable log streaming and configure Playwright-specific overrides.
 
 > `.env.test` is ignored by git; commit durable defaults to documentation and keep machine-specific overrides local.
 

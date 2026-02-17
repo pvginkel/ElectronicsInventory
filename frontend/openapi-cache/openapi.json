@@ -1124,7 +1124,7 @@
         "title": "CleanupPartRequestSchema",
         "type": "object"
       },
-      "ContentHtmlQuerySchema.355d24f": {
+      "ContentHtmlQuerySchema.7ccab41": {
         "description": "Query parameters for deterministic HTML content fixtures.",
         "properties": {
           "title": {
@@ -1142,7 +1142,7 @@
         "title": "ContentHtmlQuerySchema",
         "type": "object"
       },
-      "ContentImageQuerySchema.355d24f": {
+      "ContentImageQuerySchema.7ccab41": {
         "description": "Query parameters for deterministic testing image content.",
         "properties": {
           "text": {
@@ -1408,7 +1408,7 @@
         "title": "DashboardStatsSchema",
         "type": "object"
       },
-      "DeploymentTriggerRequestSchema.355d24f": {
+      "DeploymentTriggerRequestSchema.6b6ce9f": {
         "description": "Request schema for triggering version deployment events in testing mode.",
         "properties": {
           "changelog": {
@@ -1451,7 +1451,7 @@
         "title": "DeploymentTriggerRequestSchema",
         "type": "object"
       },
-      "DeploymentTriggerResponseSchema.355d24f": {
+      "DeploymentTriggerResponseSchema.6b6ce9f": {
         "description": "Response schema for deployment trigger acknowledgements.",
         "properties": {
           "delivered": {
@@ -1462,9 +1462,9 @@
             "title": "Delivered",
             "type": "boolean"
           },
-          "requestId": {
+          "request_id": {
             "description": "Echoed correlation identifier",
-            "title": "Requestid",
+            "title": "Request Id",
             "type": "string"
           },
           "status": {
@@ -1477,7 +1477,7 @@
           }
         },
         "required": [
-          "requestId",
+          "request_id",
           "delivered",
           "status"
         ],
@@ -1542,6 +1542,21 @@
           "message"
         ],
         "title": "ErrorDetailsSchema",
+        "type": "object"
+      },
+      "ForceErrorQuerySchema.e510e64": {
+        "description": "Query parameters for force-error endpoint.",
+        "properties": {
+          "status": {
+            "description": "HTTP status code to return on next /api/auth/self request",
+            "title": "Status",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ForceErrorQuerySchema",
         "type": "object"
       },
       "HealthResponse.d817ae2": {
@@ -9791,7 +9806,7 @@
         "title": "StorageSummarySchema",
         "type": "object"
       },
-      "TaskEventRequestSchema.355d24f": {
+      "TaskEventRequestSchema.6b6ce9f": {
         "description": "Request schema for sending fake task events in testing mode.",
         "properties": {
           "data": {
@@ -9853,7 +9868,7 @@
         "title": "TaskEventRequestSchema",
         "type": "object"
       },
-      "TaskEventResponseSchema.355d24f": {
+      "TaskEventResponseSchema.6b6ce9f": {
         "description": "Response schema for task event send acknowledgement.",
         "properties": {
           "delivered": {
@@ -9864,29 +9879,61 @@
             "title": "Delivered",
             "type": "boolean"
           },
-          "eventType": {
+          "event_type": {
             "description": "Echoed event type",
-            "title": "Eventtype",
+            "title": "Event Type",
             "type": "string"
           },
-          "requestId": {
+          "request_id": {
             "description": "Echoed request ID",
-            "title": "Requestid",
+            "title": "Request Id",
             "type": "string"
           },
-          "taskId": {
+          "task_id": {
             "description": "Echoed task ID",
-            "title": "Taskid",
+            "title": "Task Id",
             "type": "string"
           }
         },
         "required": [
-          "requestId",
-          "taskId",
-          "eventType",
+          "request_id",
+          "task_id",
+          "event_type",
           "delivered"
         ],
         "title": "TaskEventResponseSchema",
+        "type": "object"
+      },
+      "TaskStartRequestSchema.6b6ce9f": {
+        "description": "Request schema for starting a test task.",
+        "properties": {
+          "params": {
+            "additionalProperties": true,
+            "description": "Task parameters (steps, delay, error_message)",
+            "examples": [
+              {
+                "delay": 0.1,
+                "steps": 3
+              }
+            ],
+            "title": "Params",
+            "type": "object"
+          },
+          "task_type": {
+            "default": "demo_task",
+            "description": "Type of test task to start",
+            "enum": [
+              "demo_task",
+              "failing_task"
+            ],
+            "examples": [
+              "demo_task"
+            ],
+            "title": "Task Type",
+            "type": "string"
+          }
+        },
+        "title": "TaskStartRequestSchema",
         "type": "object"
       },
       "TaskStartResponse.70db092": {
@@ -9921,21 +9968,42 @@
         "title": "TaskStatus",
         "type": "string"
       },
-      "TestErrorResponseSchema.355d24f": {
-        "description": "Schema for testing API error responses.",
+      "TaskStartResponseSchema.6b6ce9f": {
+        "description": "Response schema for test task start.",
+        "properties": {
+          "status": {
+            "default": "started",
+            "description": "Task status",
+            "examples": [
+              "started"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task_id": {
+            "description": "Unique task identifier",
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "TaskStartResponseSchema",
+        "type": "object"
+      },
+      "TestErrorResponseSchema.6b6ce9f": {
+        "description": "Error response schema for testing endpoints.",
         "properties": {
           "error": {
             "description": "Error message",
-            "examples": [
-              "Database reset already in progress"
-            ],
             "title": "Error",
             "type": "string"
           },
           "status": {
-            "description": "Operation status",
+            "description": "Error status code",
             "examples": [
-              "busy"
+              "not_found"
             ],
             "title": "Status",
             "type": "string"
@@ -9948,49 +10016,103 @@
         "title": "TestErrorResponseSchema",
         "type": "object"
       },
-      "TestResetResponseSchema.355d24f": {
-        "description": "Response schema for database reset endpoint.",
+      "TestSessionCreateSchema.e510e64": {
+        "description": "Request schema for creating a test authentication session.",
         "properties": {
-          "migrations_applied": {
-            "description": "Number of database migrations applied",
-            "examples": [
-              5
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Migrations Applied",
-            "type": "integer"
+            "default": null,
+            "description": "User email address",
+            "title": "Email"
           },
-          "mode": {
-            "description": "Environment mode",
-            "examples": [
-              "testing"
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Mode",
-            "type": "string"
+            "default": null,
+            "description": "User display name",
+            "title": "Name"
           },
-          "seeded": {
-            "description": "Whether test data was loaded",
-            "examples": [
-              true
-            ],
-            "title": "Seeded",
-            "type": "boolean"
+          "roles": {
+            "description": "User roles",
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
           },
-          "status": {
-            "description": "Reset operation status",
-            "examples": [
-              "complete"
-            ],
-            "title": "Status",
+          "subject": {
+            "description": "User subject identifier (sub claim)",
+            "title": "Subject",
             "type": "string"
           }
         },
         "required": [
-          "status",
-          "mode",
-          "seeded",
-          "migrations_applied"
+          "subject"
         ],
-        "title": "TestResetResponseSchema",
+        "title": "TestSessionCreateSchema",
+        "type": "object"
+      },
+      "TestSessionResponseSchema.e510e64": {
+        "description": "Response schema for test session creation.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "User email address",
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "User display name",
+            "title": "Name"
+          },
+          "roles": {
+            "description": "User roles",
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "subject": {
+            "description": "User subject identifier",
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "roles"
+        ],
+        "title": "TestSessionResponseSchema",
         "type": "object"
       },
       "TypeCreateSchema.50492c8": {
@@ -10336,7 +10458,7 @@
   },
   "info": {
     "description": "Hobby electronics parts inventory management system",
-    "title": "Electronics Inventory API",
+    "title": "ElectronicsInventory API",
     "version": "1.0.0"
   },
   "openapi": "3.1.0",
@@ -10956,7 +11078,7 @@
     },
     "/api/auth/self": {
       "get": {
-        "description": "Returns user information from the validated JWT token in the cookie.\n\nThis endpoint is NOT @public. The before_request hook handles auth: - When OIDC disabled: hook passes through, we return default local-user - When OIDC enabled: hook validates token, sets g.auth_context\n\nReturns:     200: User information from validated token     401: No valid token provided or token invalid (via before_request hook)",
+        "description": "This endpoint is @public because it handles authentication explicitly: in testing mode it checks test sessions and forced errors; otherwise it validates tokens or returns a default local-user when OIDC is off.\n\nReturns:     200: User information from validated token or test session     401: No valid token provided or token invalid",
         "operationId": "get__api_auth_self",
         "parameters": [],
         "responses": {
@@ -15367,7 +15489,7 @@
     },
     "/api/sse/callback": {
       "post": {
-        "description": "This endpoint receives callbacks from the SSE Gateway when clients connect or disconnect. It extracts the request_id from the callback URL and calls ConnectionManager, which then notifies observers.\n\nReturns:     200 on success     401 if authentication fails (production only)     400 if payload invalid or request_id missing",
+        "description": "This endpoint receives callbacks from the SSE Gateway when clients connect or disconnect. It extracts the request_id from the callback URL and calls SSEConnectionManager, which then notifies observers.\n\nReturns:     200 on success     401 if authentication fails (production only)     400 if payload invalid or request_id missing",
         "operationId": "post__api_sse_callback",
         "parameters": [],
         "responses": {},
@@ -15377,7 +15499,7 @@
     },
     "/api/tasks/{task_id}": {
       "delete": {
-        "description": "Returns:     JSON with removal result",
+        "description": "",
         "operationId": "delete__api_tasks_{task_id}",
         "parameters": [
           {
@@ -15397,7 +15519,7 @@
     },
     "/api/tasks/{task_id}/cancel": {
       "post": {
-        "description": "Returns:     JSON with cancellation result",
+        "description": "",
         "operationId": "post__api_tasks_{task_id}_cancel",
         "parameters": [
           {
@@ -15417,7 +15539,7 @@
     },
     "/api/tasks/{task_id}/status": {
       "get": {
-        "description": "Returns:     JSON with current task status information",
+        "description": "",
         "operationId": "get__api_tasks_{task_id}_status",
         "parameters": [
           {
@@ -15432,6 +15554,79 @@
         ],
         "responses": {},
         "summary": "Get current status of a task.",
+        "tags": []
+      }
+    },
+    "/api/testing/auth/clear": {
+      "post": {
+        "description": "Returns:     204: Session cleared successfully with cookie invalidated",
+        "operationId": "post__api_testing_auth_clear",
+        "parameters": [],
+        "responses": {},
+        "summary": "Clear the current test session for test isolation.",
+        "tags": []
+      }
+    },
+    "/api/testing/auth/force-error": {
+      "post": {
+        "description": "This is a single-shot error - subsequent requests resume normal behavior.\n\nQuery Parameters:     status: HTTP status code to return (e.g., 500, 503)\n\nReturns:     204: Error configured successfully",
+        "operationId": "post__api_testing_auth_force-error",
+        "parameters": [
+          {
+            "description": "HTTP status code to return on next /api/auth/self request",
+            "in": "query",
+            "name": "status",
+            "required": true,
+            "schema": {
+              "description": "HTTP status code to return on next /api/auth/self request",
+              "title": "Status",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Configure /api/auth/self to return an error on the next request.",
+        "tags": []
+      }
+    },
+    "/api/testing/auth/session": {
+      "post": {
+        "description": "Sets the same session cookie that the real OIDC callback would set, allowing Playwright tests to authenticate without a running IdP.\n\nReturns:     201: Session created successfully with session cookie set",
+        "operationId": "post__api_testing_auth_session",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestSessionCreateSchema.e510e64"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestSessionResponseSchema.e510e64"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Create an authenticated test session, bypassing the real OIDC flow.",
         "tags": []
       }
     },
@@ -15529,7 +15724,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DeploymentTriggerRequestSchema.355d24f"
+                "$ref": "#/components/schemas/DeploymentTriggerRequestSchema.6b6ce9f"
               }
             }
           },
@@ -15540,7 +15735,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeploymentTriggerResponseSchema.355d24f"
+                  "$ref": "#/components/schemas/DeploymentTriggerResponseSchema.6b6ce9f"
                 }
               }
             },
@@ -15557,13 +15752,13 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Trigger a deterministic version deployment notification for Playwright.",
+        "summary": "Trigger a version event for integration testing.",
         "tags": []
       }
     },
     "/api/testing/logs/stream": {
       "get": {
-        "description": "Streams logs from all loggers at INFO level and above. Each log entry is formatted as structured JSON with correlation ID when available.\n\nEvent Types:     - log: Application log entries     - connection_open: Sent when client connects     - heartbeat: Sent every 30 seconds for keepalive     - connection_close: Sent when server shuts down\n\nReturns:     SSE stream of log events",
+        "description": "Streams logs from all loggers at INFO level and above. Each log entry is formatted as structured JSON with correlation ID when available.\n\nEvent Types:     - log: Application log entries     - connection_open: Sent when client connects     - heartbeat: Sent every 30 seconds for keepalive     - connection_close: Sent when server shuts down",
         "operationId": "get__api_testing_logs_stream",
         "parameters": [],
         "responses": {},
@@ -15571,17 +15766,68 @@
         "tags": []
       }
     },
-    "/api/testing/reset": {
+    "/api/testing/sse/task-event": {
       "post": {
-        "description": "Query Parameters:     seed: boolean, default false - Whether to load test data after reset\n\nReturns:     200: Reset completed successfully     503: Reset already in progress (with Retry-After header)",
-        "operationId": "post__api_testing_reset",
+        "description": "Allows integration tests to simulate task events without running actual background tasks. The event is sent directly to the SSE connection identified by request_id.",
+        "operationId": "post__api_testing_sse_task-event",
         "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskEventRequestSchema.6b6ce9f"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TestResetResponseSchema.355d24f"
+                  "$ref": "#/components/schemas/TaskEventResponseSchema.6b6ce9f"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestErrorResponseSchema.6b6ce9f"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Send a fake task event to a specific SSE connection for testing.",
+        "tags": []
+      }
+    },
+    "/api/testing/tasks/start": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_testing_tasks_start",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskStartRequestSchema.6b6ce9f"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskStartResponseSchema.6b6ce9f"
                 }
               }
             },
@@ -15596,70 +15842,9 @@
               }
             },
             "description": "Bad Request"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TestErrorResponseSchema.355d24f"
-                }
-              }
-            },
-            "description": "Service Unavailable"
           }
         },
-        "summary": "Reset database to clean state with optional test data seeding.",
-        "tags": []
-      }
-    },
-    "/api/testing/sse/task-event": {
-      "post": {
-        "description": "This endpoint allows the Playwright test suite to simulate task events without running actual background tasks. The event is sent directly to the SSE connection identified by request_id.\n\nReturns:     200: Event sent successfully     400: No connection exists for the given request_id",
-        "operationId": "post__api_testing_sse_task-event",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TaskEventRequestSchema.355d24f"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskEventResponseSchema.355d24f"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TestErrorResponseSchema.355d24f"
-                }
-              }
-            },
-            "description": "Bad Request"
-          }
-        },
-        "summary": "Send a fake task event to a specific SSE connection for Playwright testing.",
-        "tags": []
-      }
-    },
-    "/api/testing/tasks/start": {
-      "post": {
-        "description": "Request body:     {         \"task_type\": \"demo_task\" | \"failing_task\",         \"params\": { ... task-specific parameters ... }     }\n\nReturns:     200: Task started successfully with task_id and status",
-        "operationId": "post__api_testing_tasks_start",
-        "parameters": [],
-        "responses": {},
-        "summary": "Start a test task for SSE baseline testing.",
+        "summary": "Start a demo or failing task for integration testing.",
         "tags": []
       }
     },
@@ -15972,7 +16157,7 @@
     },
     "/health/readyz": {
       "get": {
-        "description": "Returns 503 when the application is shutting down, database is not ready, or migrations are pending. This signals Kubernetes to remove the pod from service endpoints.",
+        "description": "Returns 503 when the application is shutting down, or any registered readiness check fails. This signals Kubernetes to remove the pod from service endpoints.",
         "operationId": "get__health_readyz",
         "parameters": [],
         "responses": {

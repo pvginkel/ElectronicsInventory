@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import testingNoRouteMocksRule from './scripts/eslint-rules/testing/no-route-mocks.js'
 
 export default tseslint.config([
-  { ignores: ['dist', 'node_modules', '*.gen.ts', 'src/lib/api/generated/**'] },
+  { ignores: ['dist', 'node_modules', '.pnpm-store', '*.gen.ts', 'src/lib/api/generated/**'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
