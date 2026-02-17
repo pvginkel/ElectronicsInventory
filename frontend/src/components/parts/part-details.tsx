@@ -1,23 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
+import { Button } from '@/components/primitives/button';
+import { ConfirmDialog } from '@/components/primitives/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Alert,
-  KeyValueBadge,
-  ExternalLink,
-  DescriptionList,
-  DescriptionItem,
-  SectionHeading,
-} from '@/components/ui';
+} from '@/components/primitives/dropdown-menu';
+import { Alert, ExternalLink, DescriptionList, DescriptionItem } from '@/components/primitives';
+import { KeyValueBadge, SectionHeading } from '@/components/ui';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { PartLocationGrid } from './part-location-grid';

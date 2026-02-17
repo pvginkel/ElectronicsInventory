@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/primitives/input';
+import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
+import { ConfirmDialog, type DialogContentProps } from '@/components/primitives/dialog';
 import { usePartLocations, useAddStock, useRemoveStock } from '@/hooks/use-parts';
 import { useLocationSuggestions } from '@/hooks/use-types';
 import { useGetBoxes } from '@/lib/api/generated/hooks';

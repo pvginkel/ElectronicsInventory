@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { AIPartDuplicateCard } from './ai-duplicate-card';
 import { useSortedDuplicates } from '@/hooks/use-sorted-duplicates';
 import { useDuplicatePartDetails } from '@/hooks/use-duplicate-part-details';

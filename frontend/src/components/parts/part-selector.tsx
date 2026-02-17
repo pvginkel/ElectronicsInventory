@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableSelect } from '@/components/primitives/searchable-select';
 import { usePartsSelector, type PartSelectorOption, type PartSelectorSummary } from '@/hooks/use-parts-selector';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';

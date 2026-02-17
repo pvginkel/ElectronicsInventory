@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { useToast } from '@/hooks/use-toast';
 import { buildKitsQueryKey } from '@/hooks/use-kits';
 import { trackFormError, trackFormSubmit, trackFormSuccess } from '@/lib/test/form-instrumentation';

@@ -1,6 +1,6 @@
 import { CircuitBoard } from 'lucide-react';
 
-import { LinkChip } from '@/components/ui';
+import { LinkChip } from '@/components/primitives';
 import type { KitStatus } from '@/types/kits';
 
 interface KitLinkChipProps {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Alert, ListSectionHeader } from '@/components/ui';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Alert, ListSectionHeader } from '@/components/primitives';
+import { Button } from '@/components/primitives/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/primitives/dropdown-menu';
 import { SHOPPING_LIST_LINE_SORT_OPTIONS } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListLineSortKey } from '@/types/shopping-lists';
 import { ConceptLineRow } from './concept-line-row';

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { SectionHeading } from './section-heading';
+import { SectionHeading } from '@/components/ui/section-heading';
 
 export interface MembershipTooltipContentItem {
   id: string | number;

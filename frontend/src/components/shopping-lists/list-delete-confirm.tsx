@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
-import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
+import { ConfirmDialog, type DialogContentProps } from '@/components/primitives/dialog';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useDeleteShoppingListMutation, useUpdateShoppingListStatusMutation } from '@/hooks/use-shopping-lists';
 import { useToast } from '@/hooks/use-toast';

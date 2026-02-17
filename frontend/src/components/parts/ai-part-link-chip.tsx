@@ -1,7 +1,7 @@
 import { Wrench, Info } from 'lucide-react';
 
-import { LinkChip } from '@/components/ui/link-chip';
-import { Tooltip } from '@/components/ui/tooltip';
+import { LinkChip } from '@/components/primitives/link-chip';
+import { Tooltip } from '@/components/primitives/tooltip';
 import { AIPartDuplicateCard } from './ai-duplicate-card';
 import { useDuplicatePartDetails } from '@/hooks/use-duplicate-part-details';
 import { formatPartForDisplay } from '@/lib/utils/parts';

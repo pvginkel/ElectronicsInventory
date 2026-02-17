@@ -1,13 +1,9 @@
 import type { ReactNode } from 'react';
-import { CardDescription, CardTitle } from '@/components/ui/card';
+import { CardDescription, CardTitle } from '@/components/primitives/card';
 import { CardLink } from '@/components/ui/card-link';
-import {
-  QuantityBadge,
-  StatusBadge,
-  MembershipTooltipContent,
-  type MembershipTooltipContentItem,
-} from '@/components/ui';
-import { MembershipIndicator } from '@/components/ui/membership-indicator';
+import { QuantityBadge, StatusBadge } from '@/components/ui';
+import { MembershipTooltipContent, type MembershipTooltipContentItem } from '@/components/parts/membership-tooltip-content';
+import { MembershipIndicator } from '@/components/parts/membership-indicator';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import type {
   KitSummary,

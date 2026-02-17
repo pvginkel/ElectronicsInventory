@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ExternalLink } from '@/components/ui';
+import { Button } from '@/components/primitives/button';
+import { Card } from '@/components/primitives/card';
+import { ExternalLink } from '@/components/primitives';
 import { ArrowRight } from 'lucide-react';
 import { TypeCreateDialog } from '@/components/types/type-create-dialog';
 import { SellerCreateDialog } from '@/components/sellers/seller-create-dialog';

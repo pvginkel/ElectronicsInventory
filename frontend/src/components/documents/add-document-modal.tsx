@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FormLabel } from '@/components/ui/form';
-import { DropZone } from '@/components/ui/drop-zone';
-import { ProgressBar } from '@/components/ui/progress-bar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { FormLabel } from '@/components/primitives/form';
+import { DropZone } from '@/components/primitives/drop-zone';
+import { ProgressBar } from '@/components/primitives/progress-bar';
 import { CameraCapture } from './camera-capture';
 import { useAddDocumentModal } from '@/hooks/use-add-document-modal';
 import { useCameraDetection } from '@/hooks/use-camera-detection';

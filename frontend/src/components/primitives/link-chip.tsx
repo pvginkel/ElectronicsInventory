@@ -3,8 +3,8 @@ import { Link } from '@tanstack/react-router';
 import { Unlink } from 'lucide-react';
 
 import { StatusBadge } from '@/components/ui';
-import { Button } from '@/components/ui/button';
-import { Tooltip } from '@/components/ui/tooltip';
+import { Button } from './button';
+import { Tooltip } from './tooltip';
 import { cn } from '@/lib/utils';
 
 export interface LinkChipProps {

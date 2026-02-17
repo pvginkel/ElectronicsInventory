@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { IconButton } from '@/components/ui/hover-actions';
+import { Dialog, DialogContent, DialogTitle } from '@/components/primitives/dialog';
+import { IconButton } from '@/components/primitives/hover-actions';
 import { IconBadge } from '@/components/ui';
 import { X } from 'lucide-react';
 import { ZoomInIcon } from '@/components/icons/ZoomInIcon';

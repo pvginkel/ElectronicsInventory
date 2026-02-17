@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Form, FormField, FormLabel } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
+import { Button } from '@/components/primitives/button';
+import { Form, FormField, FormLabel } from '@/components/primitives/form';
+import { Input } from '@/components/primitives/input';
 import { BoxSelector } from '@/components/parts/box-selector';
 import { Badge } from '@/components/ui/badge';
 import { MetricDisplay } from '@/components/ui';

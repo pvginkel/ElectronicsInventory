@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Input } from '@/components/ui/input';
+import { Input } from './input';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useDebouncedValue } from '@/lib/utils/debounce';
 

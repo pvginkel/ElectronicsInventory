@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { progressBarSizeClasses, progressBarVariantClasses } from '@/styles/progress-bar';
 
 type NativeDivProps = React.ComponentPropsWithoutRef<"div">
 
@@ -24,19 +25,6 @@ export const ProgressBar = React.forwardRef<HTMLDivElement, ProgressBarProps>(
   }, ref) => {
     const clampedValue = value !== undefined ? Math.min(100, Math.max(0, value)) : 0;
 
-    const sizeClasses = {
-      sm: 'h-1',
-      md: 'h-2',
-      lg: 'h-3'
-    };
-
-    const variantClasses = {
-      default: 'bg-primary',
-      success: 'bg-green-500',
-      warning: 'bg-yellow-500',
-      error: 'bg-red-500'
-    };
-
     return (
       <div
         ref={ref}
@@ -48,11 +36,11 @@ export const ProgressBar = React.forwardRef<HTMLDivElement, ProgressBarProps>(
         aria-busy={indeterminate ? "true" : undefined}
         className={cn("w-full", className)}
       >
-        <div className={cn("w-full bg-muted rounded-full overflow-hidden", sizeClasses[size])}>
+        <div className={cn("w-full bg-muted rounded-full overflow-hidden", progressBarSizeClasses[size])}>
           <div
             className={cn(
               "h-full transition-all duration-300 ease-out",
-              variantClasses[variant],
+              progressBarVariantClasses[variant],
               indeterminate && "animate-pulse"
             )}
             style={{ width: indeterminate ? "100%" : `${clampedValue}%` }}

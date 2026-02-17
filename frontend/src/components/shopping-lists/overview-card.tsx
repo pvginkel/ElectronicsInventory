@@ -1,5 +1,5 @@
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { CardLink } from '@/components/ui/card-link';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 

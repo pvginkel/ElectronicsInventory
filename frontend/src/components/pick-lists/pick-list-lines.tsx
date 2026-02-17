@@ -1,10 +1,11 @@
 import { type ReactNode, useState } from 'react';
 import { Loader2, Pencil } from 'lucide-react';
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, EmptyState, InlineNotification, KeyValueBadge, StatusBadge } from '@/components/ui';
+import { Card, CardContent, CardHeader } from '@/components/primitives/card';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Alert, InlineNotification } from '@/components/primitives';
+import { EmptyState, KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
 import { formatLocation } from '@/lib/utils/locations';

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { CollectionGrid, EmptyState } from '@/components/ui';
-import { ConfirmDialog } from '@/components/ui/dialog';
-import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { ConfirmDialog } from '@/components/primitives/dialog';
+import { DebouncedSearchInput } from '@/components/primitives/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';

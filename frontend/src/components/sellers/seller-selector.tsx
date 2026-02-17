@@ -1,9 +1,9 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { SearchableSelect } from '@/components/ui/searchable-select'
+import { SearchableSelect } from '@/components/primitives/searchable-select'
 import { SellerCreateDialog } from './seller-create-dialog'
 import { useSellers, useCreateSeller } from '@/hooks/use-sellers'
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon'
-import { ExternalLink } from '@/components/ui'
+import { ExternalLink } from '@/components/primitives'
 import { useToast } from '@/hooks/use-toast'
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 

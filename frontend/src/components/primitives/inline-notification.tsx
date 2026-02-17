@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { AlertCircle, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { notificationVariantClasses, notificationDefaultIcons } from '@/styles/notification';
 
 /**
  * InlineNotification component variant types
@@ -90,26 +91,10 @@ export interface InlineNotificationProps {
  */
 export const InlineNotification = React.forwardRef<HTMLSpanElement, InlineNotificationProps>(
   ({ variant, children, icon, testId }, ref) => {
-    // Map variant to color classes
-    const variantClasses = {
-      error: 'border-destructive/50 bg-destructive/10 text-destructive',
-      warning: 'border-amber-400 bg-amber-50 text-amber-900',
-      info: 'border-blue-400 bg-blue-50 text-blue-900',
-      success: 'border-green-400 bg-green-50 text-green-900',
-    };
-
-    // Map variant to default icon component
-    const defaultIcons = {
-      error: AlertCircle,
-      warning: AlertTriangle,
-      info: Info,
-      success: CheckCircle2,
-    };
-
     // Determine which icon to render
     let iconNode: React.ReactNode = null;
     if (icon === true) {
-      const IconComponent = defaultIcons[variant];
+      const IconComponent = notificationDefaultIcons[variant];
       iconNode = <IconComponent className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />;
     } else if (icon && typeof icon !== 'boolean') {
       iconNode = icon;
@@ -118,7 +103,7 @@ export const InlineNotification = React.forwardRef<HTMLSpanElement, InlineNotifi
     return (
       <span
         ref={ref}
-        className={`inline-flex items-center gap-2 rounded border px-2 py-1 text-sm ${variantClasses[variant]}`}
+        className={cn('inline-flex items-center gap-2 rounded border px-2 py-1 text-sm', notificationVariantClasses[variant])}
         data-testid={testId}
       >
         {iconNode}

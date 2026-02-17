@@ -1,14 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
 import { type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Button } from '@/components/ui/button';
-import { Tooltip } from '@/components/ui/tooltip';
+import { Button } from '@/components/primitives/button';
+import { Tooltip } from '@/components/primitives/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/components/primitives/dropdown-menu';
 import { StatusBadge, KeyValueBadge } from '@/components/ui';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';

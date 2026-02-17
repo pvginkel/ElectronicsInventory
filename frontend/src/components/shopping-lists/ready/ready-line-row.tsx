@@ -1,5 +1,5 @@
 import { forwardRef, type MouseEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';

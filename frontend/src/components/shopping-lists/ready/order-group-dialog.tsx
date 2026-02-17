@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Form, FormField, FormLabel } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/primitives/dialog';
+import { Button } from '@/components/primitives/button';
+import { Form, FormField, FormLabel } from '@/components/primitives/form';
+import { Input } from '@/components/primitives/input';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
 import type { ShoppingListSellerGroup } from '@/types/shopping-lists';
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { AIPartInputStep } from './ai-part-input-step';
 import { AIPartProgressStep } from './ai-part-progress-step';
 import { AIPartReviewStep } from './ai-part-review-step';

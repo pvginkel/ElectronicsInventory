@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/primitives/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TypeCreateDialog } from '@/components/types/type-create-dialog';
 import { SellerSelector } from '@/components/sellers/seller-selector';
@@ -11,13 +11,13 @@ import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
 import { AIPartDuplicateBar } from './ai-duplicate-bar';
-import { Alert } from '@/components/ui/alert';
+import { Alert } from '@/components/primitives/alert';
 import { transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { useCreateType } from '@/hooks/use-types';
 import { useCreateSeller } from '@/hooks/use-sellers';
 import type { components } from '@/lib/api/generated/types';
 import type { TransformedAIPartAnalysisResult } from '@/types/ai-parts';
-import { ExternalLink } from '@/components/ui';
+import { ExternalLink } from '@/components/primitives';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { Bot } from 'lucide-react';
 

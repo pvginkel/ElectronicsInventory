@@ -178,7 +178,7 @@ DialogDescription.displayName = 'DialogDescription'
 // Compatibility exports
 export const DialogContent = DialogInnerContent
 
-interface ConfirmDialogProps {
+export interface ConfirmDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string

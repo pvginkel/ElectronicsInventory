@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { AlertCircle, AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { alertVariantClasses, alertDefaultIcons } from '@/styles/alert';
 
 /**
  * Alert component variant types
@@ -120,26 +121,10 @@ export interface AlertProps {
  */
 export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
   ({ variant, children, icon, title, onDismiss, action, className, testId }, ref) => {
-    // Map variant to color classes
-    const variantClasses = {
-      error: 'border-destructive/50 bg-destructive/10 text-destructive',
-      warning: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-400',
-      info: 'border-blue-300 bg-blue-50 text-blue-900',
-      success: 'border-green-300 bg-green-50 text-green-900',
-    };
-
-    // Map variant to default icon component
-    const defaultIcons = {
-      error: AlertCircle,
-      warning: AlertTriangle,
-      info: Info,
-      success: CheckCircle2,
-    };
-
     // Determine which icon to render
     let iconNode: React.ReactNode = null;
     if (icon === true) {
-      const IconComponent = defaultIcons[variant];
+      const IconComponent = alertDefaultIcons[variant];
       iconNode = <IconComponent className="h-5 w-5 flex-shrink-0" />;
     } else if (icon && typeof icon !== 'boolean') {
       iconNode = icon;
@@ -157,7 +142,7 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
         role={role}
         className={cn(
           'flex gap-3 rounded-md border px-4 py-3 text-sm',
-          variantClasses[variant],
+          alertVariantClasses[variant],
           className
         )}
         data-testid={testId}

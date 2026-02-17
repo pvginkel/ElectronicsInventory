@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine } from '@/types/shopping-lists';

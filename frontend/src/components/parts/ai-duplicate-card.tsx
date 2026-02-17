@@ -1,6 +1,6 @@
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
-import { Card } from '@/components/ui/card';
-import { Tooltip } from '@/components/ui/tooltip';
+import { Card } from '@/components/primitives/card';
+import { Tooltip } from '@/components/primitives/tooltip';
 import { Info } from 'lucide-react';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { AIPartConfidenceBadge } from './ai-confidence-badge';

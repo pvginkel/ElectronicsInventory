@@ -3,20 +3,14 @@ import { CardLink } from '@/components/ui/card-link';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
-import {
-  CodeBadge,
-  InformationBadge,
-  QuantityBadge,
-  MembershipTooltipContent,
-  type MembershipTooltipContentItem,
-} from '@/components/ui';
+import { CodeBadge, InformationBadge, QuantityBadge, Badge } from '@/components/ui';
+import { MembershipTooltipContent, type MembershipTooltipContentItem } from './membership-tooltip-content';
+import { MembershipIndicator } from './membership-indicator';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { CircuitBoard, ShoppingCart } from 'lucide-react';
 import type { ShoppingListMembershipSummary } from '@/types/shopping-lists';
 import type { PartKitMembershipSummary } from '@/hooks/use-part-kit-memberships';
-import { Badge } from '@/components/ui/badge';
-import { MembershipIndicator } from '@/components/ui/membership-indicator';
 
 interface PartListItemProps {
   part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema;

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/ui/label';
 
 interface AIPartInputStepProps {

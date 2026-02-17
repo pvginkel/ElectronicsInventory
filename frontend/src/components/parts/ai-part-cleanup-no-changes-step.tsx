@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/primitives/button';
+import { Card } from '@/components/primitives/card';
 import { CheckCircle2 } from 'lucide-react';
 
 interface AIPartCleanupNoChangesStepProps {

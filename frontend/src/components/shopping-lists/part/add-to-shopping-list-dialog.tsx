@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
-import { Form, FormField, FormLabel } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Alert } from '@/components/ui';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/primitives/dialog';
+import { Form, FormField, FormLabel } from '@/components/primitives/form';
+import { Input } from '@/components/primitives/input';
+import { Button } from '@/components/primitives/button';
+import { Alert } from '@/components/primitives';
 import { SellerSelector } from '@/components/sellers/seller-selector';
 import { ShoppingListSelector } from '@/components/shopping-lists/shopping-list-selector';
 import { cn } from '@/lib/utils';

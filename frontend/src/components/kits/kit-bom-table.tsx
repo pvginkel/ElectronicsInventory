@@ -1,9 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import { AlertTriangle, Loader2, Pencil, Trash, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip } from '@/components/ui/tooltip';
+import { Tooltip } from '@/components/primitives/tooltip';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { KitBOMRowEditor } from '@/components/kits/kit-bom-row-editor';
 import type { KitContentRow } from '@/types/kits';

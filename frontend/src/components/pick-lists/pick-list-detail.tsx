@@ -4,9 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Printer } from 'lucide-react';
 
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/dialog';
+import { Card } from '@/components/primitives/card';
+import { Button } from '@/components/primitives/button';
+import { ConfirmDialog } from '@/components/primitives/dialog';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';

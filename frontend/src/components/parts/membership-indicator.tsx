@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { Tooltip } from './tooltip';
+import { Tooltip } from '@/components/primitives/tooltip';
 
 interface MembershipIndicatorProps<TSummary> {
   summary?: TSummary;

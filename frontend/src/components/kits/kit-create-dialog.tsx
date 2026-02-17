@@ -6,10 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
   type DialogContentProps,
-} from '@/components/ui/dialog';
-import { Form, FormField, FormLabel } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+} from '@/components/primitives/dialog';
+import { Form, FormField, FormLabel } from '@/components/primitives/form';
+import { Input } from '@/components/primitives/input';
+import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';

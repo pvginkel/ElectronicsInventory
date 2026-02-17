@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as ToastPrimitive from '@radix-ui/react-toast'
 import { cn } from '@/lib/utils'
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
+import { toastToneStyles, toastIconMap } from '@/styles/toast'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -35,37 +36,11 @@ interface ToastProps extends Omit<NativeToastRootProps, 'duration' | 'onOpenChan
 
 const DEFAULT_TOAST_DURATION_MS = 15000
 
-const toneStyles = {
-  success: {
-    container: 'bg-green-50 border-green-200 text-green-800',
-    action: 'bg-green-800 text-green-50 hover:bg-green-700 focus:ring-green-900',
-  },
-  error: {
-    container: 'bg-red-50 border-red-200 text-red-800',
-    action: 'bg-red-800 text-red-50 hover:bg-red-700 focus:ring-red-900',
-  },
-  warning: {
-    container: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-    action: 'bg-yellow-800 text-yellow-50 hover:bg-yellow-700 focus:ring-yellow-900',
-  },
-  info: {
-    container: 'bg-blue-50 border-blue-200 text-blue-800',
-    action: 'bg-blue-800 text-blue-50 hover:bg-blue-700 focus:ring-blue-900',
-  },
-} as const;
-
 const ToastComponent = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Root>,
   ToastProps
 >(({ toast, onRemove, className, ...props }, ref) => {
-  const iconMap = {
-    success: '✓',
-    error: '✕',
-    warning: '⚠',
-    info: 'ℹ'
-  }
-
-  const tone = toneStyles[toast.type];
+  const tone = toastToneStyles[toast.type];
 
   return (
     <ToastPrimitive.Root
@@ -92,7 +67,7 @@ const ToastComponent = React.forwardRef<
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 leading-none">
-            <span className="text-lg">{iconMap[toast.type]}</span>
+            <span className="text-lg">{toastIconMap[toast.type]}</span>
           </div>
           <div className="flex flex-1 flex-col gap-2 overflow-hidden">
             <ToastPrimitive.Title className="text-sm font-medium overflow-hidden line-clamp-3">

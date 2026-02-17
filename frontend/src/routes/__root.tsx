@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
-import { DeploymentNotificationBar } from '@/components/ui/deployment-notification-bar';
+import { DeploymentNotificationBar } from '@/components/primitives/deployment-notification-bar';
 import { CoreProviders } from '@/providers/core-providers';
 import { AuthProviders } from '@/providers/auth-providers';
 import { SseProviders } from '@/providers/sse-providers';

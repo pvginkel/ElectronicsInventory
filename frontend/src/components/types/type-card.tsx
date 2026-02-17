@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card'
+import { Button } from '@/components/primitives/button'
 
 interface TypeCardProps {
   type: {

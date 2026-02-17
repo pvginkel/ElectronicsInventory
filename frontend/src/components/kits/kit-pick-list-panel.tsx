@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ListSectionHeader, StatusBadge } from '@/components/ui';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { ListSectionHeader } from '@/components/primitives';
+import { StatusBadge } from '@/components/ui';
+import { Button } from '@/components/primitives/button';
+import { Card, CardContent } from '@/components/primitives/card';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { buildPickListDetailSearch } from '@/types/pick-lists';
 import type { KitDetail, KitPickListSummary, KitStatus } from '@/types/kits';

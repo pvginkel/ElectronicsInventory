@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { PartSelector } from '@/components/parts/part-selector';
 import { generateFormId } from '@/lib/test/form-instrumentation';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';

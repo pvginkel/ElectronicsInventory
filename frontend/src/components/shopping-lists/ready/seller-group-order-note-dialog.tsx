@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
-import { Form, FormField, FormLabel } from '@/components/ui/form';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/primitives/dialog';
+import { Form, FormField, FormLabel } from '@/components/primitives/form';
+import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';

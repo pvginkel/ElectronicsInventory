@@ -1,10 +1,10 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
-import { Form, FormField, FormLabel } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/primitives/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/primitives/dialog';
+import { Form, FormField, FormLabel } from '@/components/primitives/form';
+import { Input } from '@/components/primitives/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';

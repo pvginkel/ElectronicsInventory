@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { AIPartCleanupProgressStep } from './ai-part-cleanup-progress-step';
 import { AIPartCleanupMergeStep } from './ai-part-cleanup-merge-step';
 import { AIPartCleanupNoChangesStep } from './ai-part-cleanup-no-changes-step';

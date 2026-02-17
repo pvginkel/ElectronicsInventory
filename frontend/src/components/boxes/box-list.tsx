@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { CollectionGrid, EmptyState } from '@/components/ui';
-import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { DebouncedSearchInput } from '@/components/primitives/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';

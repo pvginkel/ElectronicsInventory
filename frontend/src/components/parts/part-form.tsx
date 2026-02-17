@@ -1,7 +1,7 @@
 import { type ReactNode, useState, useEffect } from 'react';
-import { Form, FormField, FormLabel } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Form, FormField, FormLabel } from '@/components/primitives/form';
+import { Input } from '@/components/primitives/input';
+import { Button } from '@/components/primitives/button';
 import { TypeSelector } from '@/components/types/type-selector';
 import { SellerSelector } from '@/components/sellers/seller-selector';
 import { TagsInput } from './tags-input';

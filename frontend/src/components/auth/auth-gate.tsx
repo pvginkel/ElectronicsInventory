@@ -6,7 +6,7 @@
 
 import { type ReactNode } from 'react';
 import { useAuthContext } from '@/contexts/auth-context';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { ApiError } from '@/lib/api/api-error';
 
 interface AuthGateProps {

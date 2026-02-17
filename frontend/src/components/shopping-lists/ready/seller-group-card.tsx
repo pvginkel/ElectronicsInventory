@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { ExternalLink, ListSectionHeader, MetricDisplay } from '@/components/ui';
+import { Button } from '@/components/primitives/button';
+import { ExternalLink, ListSectionHeader } from '@/components/primitives';
+import { MetricDisplay } from '@/components/ui';
 import { summarizeSellerGroupVisibility } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 import { ReadyLineRow } from './ready-line-row';

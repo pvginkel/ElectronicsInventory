@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
   type DialogContentProps,
-} from '@/components/ui/dialog';
+} from '@/components/primitives/dialog';
 
 interface AdjustStockDialogProps {
   open: boolean;

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ProgressBar } from './progress-bar';
+import { ProgressBar } from '@/components/primitives/progress-bar';
 
 export interface CapacityBarProps {
   /** Number of used/occupied units (e.g., occupied locations). Must be non-negative. */

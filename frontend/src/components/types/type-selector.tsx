@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableSelect } from '@/components/primitives/searchable-select';
 import { TypeCreateDialog } from './type-create-dialog';
 import { useTypesSearch, useCreateType } from '@/hooks/use-types';
 

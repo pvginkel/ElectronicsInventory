@@ -1,4 +1,4 @@
-import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardContent, CardHeader, CardTitle } from '@/components/primitives/card'
 import { CardLink } from '@/components/ui/card-link'
 import { CapacityBar } from '@/components/ui'
 

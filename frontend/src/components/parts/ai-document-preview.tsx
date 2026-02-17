@@ -1,5 +1,5 @@
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/primitives/card';
+import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/ui/badge';
 import { X, FileText, ExternalLink, Image } from 'lucide-react';
 import type { components } from '@/lib/api/generated/types';

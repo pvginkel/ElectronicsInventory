@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableSelect } from '@/components/primitives/searchable-select';
 import { ListCreateDialog } from '@/components/shopping-lists/list-create-dialog';
 import {
   useShoppingListOptions,

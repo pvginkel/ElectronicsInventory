@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/primitives/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
 import { Thumbnail } from '@/components/ui/thumbnail';
 import { usePartDocuments } from '@/hooks/use-part-documents';
 import { useSetCoverAttachment, useRemoveCoverAttachment } from '@/hooks/use-cover-image';

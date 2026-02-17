@@ -1,6 +1,6 @@
 import { ShoppingCart } from 'lucide-react';
 
-import { LinkChip } from '@/components/ui';
+import { LinkChip } from '@/components/primitives';
 import type { ShoppingListStatus } from '@/types/shopping-lists';
 
 const DEFAULT_SHOPPING_LIST_SEARCH = {

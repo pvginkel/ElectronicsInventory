@@ -1,5 +1,5 @@
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/primitives/card';
 import { QuantityBadge } from '@/components/ui/quantity-badge';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import type { PartAssignment } from '@/types/locations';

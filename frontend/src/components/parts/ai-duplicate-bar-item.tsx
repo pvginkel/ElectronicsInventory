@@ -1,4 +1,4 @@
-import { Tooltip } from '@/components/ui/tooltip';
+import { Tooltip } from '@/components/primitives/tooltip';
 import { Info } from 'lucide-react';
 import { AIPartConfidenceBadge } from './ai-confidence-badge';
 import { formatPartForDisplay } from '@/lib/utils/parts';

@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
-import { ProgressBar } from '@/components/ui/progress-bar';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/primitives/button';
+import { ProgressBar } from '@/components/primitives/progress-bar';
+import { Card } from '@/components/primitives/card';
 import { IconBadge } from '@/components/ui';
 import { AlertCircle, Loader2 } from 'lucide-react';
 

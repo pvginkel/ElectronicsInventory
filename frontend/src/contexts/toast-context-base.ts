@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { ToastOptions, ToastType } from '@/components/ui/toast';
+import type { ToastOptions, ToastType } from '@/components/primitives/toast';
 
 export interface ToastContextValue {
   showToast: (message: string, type: ToastType, options?: ToastOptions) => string;

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { cardBaseClasses, cardVariantClasses, cardGridTileInteractiveClasses } from '@/styles/card'
 
 type NativeDivProps = React.ComponentPropsWithoutRef<"div">
 
@@ -9,19 +10,10 @@ interface CardProps extends NativeDivProps {
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ variant = 'default', className, onClick, onKeyDown, children, ...props }, ref) => {
-    const baseClasses = 'rounded-lg border bg-card text-card-foreground shadow-sm'
-
-    const variantClasses = {
-      default: 'p-6',
-      stats: 'p-6 text-center',
-      action: 'p-4 hover:bg-accent/50 cursor-pointer transition-colors',
-      content: 'p-4',
-      'grid-tile': onClick
-        ? 'p-4 overflow-hidden transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98] cursor-pointer'
-        : 'p-4 overflow-hidden',
-      'grid-tile-disabled': 'p-4 overflow-hidden pointer-events-none',
-      slim: 'border-0 p-2'
-    }
+    // Build grid-tile classes conditionally based on onClick presence
+    const resolvedVariantClasses = variant === 'grid-tile' && onClick
+      ? cn(cardVariantClasses['grid-tile'], cardGridTileInteractiveClasses)
+      : cardVariantClasses[variant]
 
     const handleClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
       onClick?.(e)
@@ -42,7 +34,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         {...props}
-        className={cn(baseClasses, variantClasses[variant], className)}
+        className={cn(cardBaseClasses, resolvedVariantClasses, className)}
         onClick={handleClick}
         onKeyDown={onClick ? handleKeyDown : onKeyDown}
       >

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Input } from '@/components/ui/input';
+import { Input } from './input';
 import { cn } from '@/lib/utils';
 
 interface SearchableSelectOption<IdType extends string | number = number> {

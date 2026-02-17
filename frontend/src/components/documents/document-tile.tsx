@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { IconButton } from '@/components/ui/hover-actions';
-import { ConfirmDialog } from '@/components/ui/dialog';
+import { IconButton } from '@/components/primitives/hover-actions';
+import { ConfirmDialog } from '@/components/primitives/dialog';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import type { DocumentItem } from '@/types/documents';
 import pdfIconSvg from '@/assets/pdf-icon.svg';
 import { LinkIcon } from '@/components/icons/LinkIcon';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/primitives/card';
 
 interface DocumentTileProps {
   document: DocumentItem;

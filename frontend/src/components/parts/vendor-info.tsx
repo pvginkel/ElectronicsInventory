@@ -1,4 +1,4 @@
-import { ExternalLink } from '@/components/ui';
+import { ExternalLink } from '@/components/primitives';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
 
 interface VendorInfoProps {

@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/primitives/input';
+import { Button } from '@/components/primitives/button';
 import { InformationBadge } from '@/components/ui';
 
 interface TagsInputProps {

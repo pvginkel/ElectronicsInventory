@@ -5,7 +5,7 @@
 
 import { emitTestEvent } from './event-emitter';
 import { TestEventKind, type ToastTestEvent } from '@/lib/test/test-events';
-import type { ToastOptions, ToastType } from '@/components/ui/toast';
+import type { ToastOptions, ToastType } from '@/components/primitives/toast';
 
 /**
  * Extract error code from error message or object

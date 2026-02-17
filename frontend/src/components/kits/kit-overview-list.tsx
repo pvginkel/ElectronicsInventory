@@ -1,11 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
-import { Alert, CollectionGrid, EmptyState } from '@/components/ui';
-import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { Button } from '@/components/primitives/button';
+import { Alert } from '@/components/primitives';
+import { CollectionGrid, EmptyState } from '@/components/ui';
+import { SegmentedTabs } from '@/components/primitives/segmented-tabs';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
-import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { DebouncedSearchInput } from '@/components/primitives/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { KitCard } from '@/components/kits/kit-card';
 import { useKitsOverview } from '@/hooks/use-kits';
