@@ -520,22 +520,8 @@ class TestTaskEventEndpoint:
         """Test 400 error when send_event fails (connection disappears during send)."""
         sse_connection_manager = container.sse_connection_manager()
 
-        # Patch send_event to return True during on_connect (so connection isn't cleaned up)
-        # then return False during the actual task event send
-        call_count = [0]
-
-        def mock_send_event(*args, **kwargs):
-            call_count[0] += 1
-            # First call is from FrontendVersionService during on_connect - let it succeed
-            if call_count[0] == 1:
-                return True
-            # Second call is from the actual test - make it fail
-            return False
-
-        with patch.object(sse_connection_manager, 'send_event', side_effect=mock_send_event):
-            # Register the connection - FrontendVersionService callback will use first send_event call
-            sse_connection_manager.on_connect("test-connection", "test-token", "http://example.com")
-
+        with patch.object(sse_connection_manager, 'has_connection', return_value=True), \
+             patch.object(sse_connection_manager, 'send_event', return_value=False):
             response = client.post("/api/testing/sse/task-event", json={
                 "request_id": "test-connection",
                 "task_id": "task-fail",

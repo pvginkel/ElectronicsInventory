@@ -8,6 +8,7 @@ the same template.
 Hook points called by create_app():
   - create_container()
   - register_blueprints()
+  - register_root_blueprints()
   - register_error_handlers()
 
 Hook points called by CLI command handlers:
@@ -117,12 +118,13 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
         api_bp.register_blueprint(types_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(utils_bp)  # type: ignore[attr-defined]
 
-    # Icons blueprint registered directly on app (not on api_bp) to preserve
-    # existing /api/icons route prefix set in the blueprint itself
+
+
+def register_root_blueprints(app: Flask) -> None:
+    """Register app-specific blueprints directly on the app (not under /api prefix)."""
     from app.api.icons import icons_bp
 
     app.register_blueprint(icons_bp)
-
 
 
 def register_error_handlers(app: Flask) -> None:

@@ -1,6 +1,5 @@
 """Flask application factory."""
 
-
 import logging
 
 from flask import g
@@ -16,10 +15,11 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     """Create and configure Flask application.
 
     This factory follows a hook-based pattern where app-specific behavior
-    is injected through three functions in app/startup.py:
+    is injected through functions in app/startup.py:
     - create_container(): builds the DI container with app-specific providers
-    - register_blueprints(): registers domain resource blueprints
+    - register_blueprints(): registers domain resource blueprints on /api
     - register_error_handlers(): registers app-specific error handlers
+    - register_root_blueprints(): registers blueprints directly on the app (not under /api)
     """
     app = App(__name__)
 
@@ -31,7 +31,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     settings.validate_production_config()
 
     app.config.from_object(settings.to_flask_config())
-
 
     # Initialize extensions
     db.init_app(app)
@@ -61,7 +60,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
             setup_pool_logging(db.engine)
 
-
     # Initialize SpecTree for OpenAPI docs
     from app.utils.spectree_config import configure_spectree
 
@@ -77,9 +75,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     container = create_container()
     container.config.override(settings)
     container.app_config.override(app_settings)
-
     container.session_maker.override(SessionLocal)
-
 
     # Wire container to all API modules via package scanning
     container.wire(packages=['app.api'])
@@ -92,7 +88,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     # Initialize correlation ID tracking
     from app.utils import _init_request_id
     _init_request_id(app)
-
 
     # Set up log capture handler in testing mode
     if settings.is_testing:
@@ -110,7 +105,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
         app.logger.info("Log capture handler initialized for testing mode")
 
-
     # Register error handlers: core + business (template), then app-specific hook
     from app.utils.flask_error_handlers import (
         register_business_error_handlers,
@@ -124,7 +118,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     from app.startup import register_error_handlers
 
     register_error_handlers(app)
-
 
     # Register database health checks with HealthService
     from app import database as _database_module
@@ -145,7 +138,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
     health_service.register_readyz("database", _check_db_readiness)
 
-
     # Register main API blueprint (includes auth hooks and auth_bp)
     from app.api import api_bp
 
@@ -164,6 +156,10 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     app.register_blueprint(health_bp)
     app.register_blueprint(metrics_bp)
 
+    # --- Hook 4: App-specific root-level blueprints (not under /api) ---
+    from app.startup import register_root_blueprints
+
+    register_root_blueprints(app)
 
     # Always register testing blueprints (runtime check handles access control)
     from app.api.testing_logs import testing_logs_bp
@@ -187,8 +183,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
     # Register testing content endpoints (runtime check handles access control)
     from app.api.testing_content import testing_content_bp
     app.register_blueprint(testing_content_bp)
-
-
 
     @app.teardown_request
     def close_session(exc: Exception | None) -> None:
@@ -216,23 +210,12 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
             # Ensure the scoped session is removed after each request
             container.db_session.reset()
 
-
     # Start background services only when not in CLI mode
     if not skip_background_services:
-        # Start temp file manager cleanup thread during app creation
-        temp_file_manager = container.temp_file_manager()
-        temp_file_manager.start_cleanup_thread()
+        # Eagerly instantiate and start all registered background services
+        from app.services.container import start_background_services
 
-
-        # Ensure S3 bucket exists during startup
-        try:
-            s3_service = container.s3_service()
-            s3_service.ensure_bucket_exists()
-        except Exception as e:
-            # Log warning but don't fail startup - S3 might be optional
-            app.logger.warning(f"Failed to ensure S3 bucket exists: {e}")
-
-
+        start_background_services(container)
 
         # Initialize request diagnostics if enabled
         from app.services.diagnostics_service import DiagnosticsService
@@ -240,13 +223,6 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
         with app.app_context():
             diagnostics_service.init_app(app, db.engine)
         app.diagnostics_service = diagnostics_service
-
-
-
-        # Initialize FrontendVersionService singleton to register its observer callback
-        # with SSEConnectionManager. Must happen before fire_startup().
-        container.frontend_version_service()
-
 
         # Signal that application startup is complete. Services that registered
         # for STARTUP notifications will be invoked here.
