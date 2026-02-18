@@ -129,15 +129,15 @@ export function useKitShoppingListLinkMutation() {
       },
       {
         ...mutateOptions,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           invalidate(input.kitId, data as KitShoppingListLinkResponseSchema_b98797e | undefined, input.shoppingListId);
-          mutateOptions?.onSuccess?.(data, variables, context);
+          mutateOptions?.onSuccess?.(data, variables, onMutateResult, context);
         },
-        onError: (error, variables, context) => {
-          mutateOptions?.onError?.(error, variables, context);
+        onError: (error, variables, onMutateResult, context) => {
+          mutateOptions?.onError?.(error, variables, onMutateResult, context);
         },
-        onSettled: (data, error, variables, context) => {
-          mutateOptions?.onSettled?.(data, error, variables, context);
+        onSettled: (data, error, variables, onMutateResult, context) => {
+          mutateOptions?.onSettled?.(data, error, variables, onMutateResult, context);
         },
       }
     );
@@ -160,15 +160,15 @@ export function useKitShoppingListLinkMutation() {
       },
       {
         ...mutateOptions,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           invalidate(input.kitId, data as KitShoppingListLinkResponseSchema_b98797e | undefined, input.shoppingListId);
-          mutateOptions?.onSuccess?.(data, variables, context);
+          mutateOptions?.onSuccess?.(data, variables, onMutateResult, context);
         },
-        onError: (error, variables, context) => {
-          mutateOptions?.onError?.(error, variables, context);
+        onError: (error, variables, onMutateResult, context) => {
+          mutateOptions?.onError?.(error, variables, onMutateResult, context);
         },
-        onSettled: (data, error, variables, context) => {
-          mutateOptions?.onSettled?.(data, error, variables, context);
+        onSettled: (data, error, variables, onMutateResult, context) => {
+          mutateOptions?.onSettled?.(data, error, variables, onMutateResult, context);
         },
       }
     );
@@ -198,15 +198,15 @@ export function useKitShoppingListUnlinkMutation() {
       },
       {
         ...mutateOptions,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           invalidateKitShoppingListCaches(queryClient, input.kitId, input.shoppingListId);
-          mutateOptions?.onSuccess?.(data, variables, context);
+          mutateOptions?.onSuccess?.(data, variables, onMutateResult, context);
         },
-        onError: (error, variables, context) => {
-          mutateOptions?.onError?.(error, variables, context);
+        onError: (error, variables, onMutateResult, context) => {
+          mutateOptions?.onError?.(error, variables, onMutateResult, context);
         },
-        onSettled: (data, error, variables, context) => {
-          mutateOptions?.onSettled?.(data, error, variables, context);
+        onSettled: (data, error, variables, onMutateResult, context) => {
+          mutateOptions?.onSettled?.(data, error, variables, onMutateResult, context);
         },
       }
     );
@@ -221,15 +221,15 @@ export function useKitShoppingListUnlinkMutation() {
       },
       {
         ...mutateOptions,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           invalidateKitShoppingListCaches(queryClient, input.kitId, input.shoppingListId);
-          mutateOptions?.onSuccess?.(data, variables, context);
+          mutateOptions?.onSuccess?.(data, variables, onMutateResult, context);
         },
-        onError: (error, variables, context) => {
-          mutateOptions?.onError?.(error, variables, context);
+        onError: (error, variables, onMutateResult, context) => {
+          mutateOptions?.onError?.(error, variables, onMutateResult, context);
         },
-        onSettled: (data, error, variables, context) => {
-          mutateOptions?.onSettled?.(data, error, variables, context);
+        onSettled: (data, error, variables, onMutateResult, context) => {
+          mutateOptions?.onSettled?.(data, error, variables, onMutateResult, context);
         },
       }
     );

@@ -2,32 +2,18 @@
  * Generic test selector helpers.
  * Template-owned — provides testId(), buildSelector(), and common UI selectors.
  *
- * Domain-specific selectors (parts, types, boxes, sellers) live in selectors-domain.ts.
- * They are re-exported here so existing consumer imports remain unchanged.
+ * Domain-specific selectors live in selectors-domain.ts.
+ * Page objects should import from selectors-domain.ts directly.
  */
 
 import { testId } from './test-id';
-import {
-  partsSelectors,
-  typesSelectors,
-  boxesSelectors,
-  sellersSelectors,
-} from './selectors-domain';
 
 export { testId };
 
 /**
- * Common selector patterns by domain.
- * Re-exports domain selectors alongside generic common patterns
- * so consumers can use selectors.parts, selectors.common, etc.
+ * Common selector patterns shared across all apps.
  */
 export const selectors = {
-  // Domain selectors (re-exported from selectors-domain.ts)
-  parts: partsSelectors,
-  types: typesSelectors,
-  boxes: boxesSelectors,
-  sellers: sellersSelectors,
-
   // Common UI selectors (generic infrastructure)
   common: {
     loading: testId('loading'),

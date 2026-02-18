@@ -23,7 +23,7 @@ Document any remaining use of the legacy selector map as transitional, and plan 
 ## Page Object Structure
 
 ```typescript
-// tests/e2e/types/TypesPage.ts
+// tests/support/page-objects/TypesPage.ts
 import { expect, Locator, Page } from '@playwright/test';
 
 export class TypesPage {

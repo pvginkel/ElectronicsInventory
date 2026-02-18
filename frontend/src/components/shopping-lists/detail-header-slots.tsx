@@ -13,7 +13,6 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 import { useGetShoppingListsKitsByListId } from '@/lib/api/generated/hooks';
 import { mapShoppingListKitLinks } from '@/types/shopping-lists';
 import { KitLinkChip } from '@/components/kits/kit-link-chip';
-import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
 import type { ConceptHeaderProps } from './concept-header';
 
@@ -154,7 +153,7 @@ export function useShoppingListDetailHeaderSlots({
       slots: {
         breadcrumbs: (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link to={ShoppingListsRoute.fullPath} search={{ search: overviewSearchTerm }} className="hover:text-foreground">
+            <Link to={'/shopping-lists'} search={{ search: overviewSearchTerm }} className="hover:text-foreground">
               Shopping Lists
             </Link>
             <span>/</span>
@@ -199,7 +198,7 @@ export function useShoppingListDetailHeaderSlots({
   const slots: ShoppingListDetailHeaderSlots = {
     breadcrumbs: (
       <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.breadcrumb">
-        <Link to={ShoppingListsRoute.fullPath} search={{ search: overviewSearchTerm }} className="hover:text-foreground">
+        <Link to={'/shopping-lists'} search={{ search: overviewSearchTerm }} className="hover:text-foreground">
           Shopping Lists
         </Link>
         <span>/</span>

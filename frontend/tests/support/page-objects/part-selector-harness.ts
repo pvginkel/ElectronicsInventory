@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import type { FormTestEvent } from '@/lib/test/test-events';
 import { BasePage } from './base-page';
-import { selectors } from '../selectors';
+import { partsSelectors } from '../selectors-domain';
 import { waitForListLoading, waitTestEvent } from '../helpers';
 
 export const PART_SELECTOR_HARNESS_FORM_ID = 'partselectorharness_submit';
@@ -12,27 +12,27 @@ export class PartSelectorHarnessPage extends BasePage {
   }
 
   get harnessRoot(): Locator {
-    return this.page.locator(selectors.parts.selector.harness.page);
+    return this.page.locator(partsSelectors.selector.harness.page);
   }
 
   get selectorRoot(): Locator {
-    return this.page.locator(selectors.parts.selector.root);
+    return this.page.locator(partsSelectors.selector.root);
   }
 
   get input(): Locator {
-    return this.page.locator(selectors.parts.selector.input);
+    return this.page.locator(partsSelectors.selector.input);
   }
 
   get selectedSummary(): Locator {
-    return this.page.locator(selectors.parts.selector.selected);
+    return this.page.locator(partsSelectors.selector.selected);
   }
 
   get submissionSummary(): Locator {
-    return this.page.locator(selectors.parts.selector.harness.submission);
+    return this.page.locator(partsSelectors.selector.harness.submission);
   }
 
   get submitButton(): Locator {
-    return this.page.locator(selectors.parts.selector.harness.submit);
+    return this.page.locator(partsSelectors.selector.harness.submit);
   }
 
   async goto(): Promise<void> {

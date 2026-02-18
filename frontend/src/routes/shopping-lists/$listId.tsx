@@ -37,7 +37,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { trackFormSubmit, trackFormSuccess, trackFormError } from '@/lib/test/form-instrumentation';
 import { ConfirmDialog, type DialogContentProps } from '@/components/primitives/dialog';
-import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { useShoppingListDetailHeaderSlots } from '@/components/shopping-lists/detail-header-slots';
 import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
@@ -110,7 +109,7 @@ function ShoppingListDetailRoute() {
   const handleListDeleted = useCallback((list: ShoppingListOverviewSummary) => {
     void list;
     void navigate({
-      to: ShoppingListsRoute.fullPath,
+      to: '/shopping-lists',
       search: { search: search.originSearch ?? '' },
       replace: true,
     });

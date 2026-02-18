@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { waitForListLoading } from '../../support/helpers';
+import { waitForListLoading } from '../helpers';
 
 export class TypesPage {
   readonly page: Page;

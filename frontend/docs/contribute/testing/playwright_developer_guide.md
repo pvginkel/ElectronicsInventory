@@ -54,7 +54,7 @@ Custom fixtures extend Playwright's base test:
 - `frontendUrl` / `backendUrl` – Provided by the worker-scoped service manager. In managed mode every worker boots its own backend + Vite proxy; when `PLAYWRIGHT_MANAGED_SERVICES=false` they fall back to the externally supplied URLs.
 - `backendLogs` – Captures per-worker backend stdout/stderr and publishes them as `backend.log` attachments for each spec (enable live streaming with `PLAYWRIGHT_BACKEND_LOG_STREAM=true`).
 - `testData` – Bundled factories for `types`, `parts`, etc.
-- `types` – Page object for the Types feature (`tests/e2e/types/TypesPage.ts`).
+- `types` – Page object for the Types feature (`tests/support/page-objects/TypesPage.ts`).
 - `page` override – Registers the Playwright test-event bridge, enforces console error policy (unexpected errors fail the test), and disables animations for determinism.
 - `testEvents` – Provides access to the circular buffer of test-event payloads (`TestEventCapture`) for sequence assertions and debugging dumps.
 - `sseTimeout` – Shared SSE-aware timeout (35s) for long polling scenarios.

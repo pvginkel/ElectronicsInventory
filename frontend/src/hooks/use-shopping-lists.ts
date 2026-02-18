@@ -973,9 +973,9 @@ export function useDeleteShoppingListMutation() {
       { path: { list_id: listId } },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleCleanup(listId);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -988,9 +988,9 @@ export function useDeleteShoppingListMutation() {
       { path: { list_id: listId } },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleCleanup(listId);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1083,14 +1083,14 @@ export function useUpdateShoppingListLineMutation() {
       { path: { line_id: input.lineId }, body: toLineUpdatePayload(input) },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
           if (typeof resolvedListId === 'number') {
             handleInvalidate(resolvedListId);
           }
           invalidatePartMemberships(queryClient, input.partKey);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1103,14 +1103,14 @@ export function useUpdateShoppingListLineMutation() {
       { path: { line_id: input.lineId }, body: toLineUpdatePayload(input) },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
           if (typeof resolvedListId === 'number') {
             handleInvalidate(resolvedListId);
           }
           invalidatePartMemberships(queryClient, input.partKey);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1138,12 +1138,12 @@ export function useDeleteShoppingListLineMutation() {
       { path: { line_id: input.lineId } },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
           if (input.partKey) {
             invalidatePartMemberships(queryClient, input.partKey);
           }
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1156,12 +1156,12 @@ export function useDeleteShoppingListLineMutation() {
       { path: { line_id: input.lineId } },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
           if (input.partKey) {
             invalidatePartMemberships(queryClient, input.partKey);
           }
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1188,7 +1188,7 @@ export function useReceiveShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
@@ -1201,7 +1201,7 @@ export function useReceiveShoppingListLineMutation() {
           }
 
           invalidateInventoryQueries(queryClient, input.partKey);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1217,7 +1217,7 @@ export function useReceiveShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
@@ -1230,7 +1230,7 @@ export function useReceiveShoppingListLineMutation() {
           }
 
           invalidateInventoryQueries(queryClient, input.partKey);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1257,7 +1257,7 @@ export function useCompleteShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
@@ -1270,7 +1270,7 @@ export function useCompleteShoppingListLineMutation() {
           }
 
           invalidateInventoryQueries(queryClient, input.partKey);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1286,7 +1286,7 @@ export function useCompleteShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
@@ -1299,7 +1299,7 @@ export function useCompleteShoppingListLineMutation() {
           }
 
           invalidateInventoryQueries(queryClient, input.partKey);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1333,7 +1333,7 @@ export function useOrderShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
           handleInvalidate(resolvedListId);
@@ -1401,7 +1401,7 @@ export function useOrderShoppingListLineMutation() {
               };
             });
           }
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1417,7 +1417,7 @@ export function useOrderShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
           const resolvedListId = response?.shopping_list_id ?? input.listId;
           handleInvalidate(resolvedListId);
@@ -1485,7 +1485,7 @@ export function useOrderShoppingListLineMutation() {
               };
             });
           }
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1553,10 +1553,10 @@ export function useRevertShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
           updateCache(input.listId, input.lineId);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1572,10 +1572,10 @@ export function useRevertShoppingListLineMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
           updateCache(input.listId, input.lineId);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1609,9 +1609,9 @@ export function useOrderShoppingListGroupMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1630,9 +1630,9 @@ export function useOrderShoppingListGroupMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1666,7 +1666,7 @@ export function useUpdateSellerOrderNoteMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
           // Update local cache so the Ready view reflects the note without waiting on refetch.
           queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(input.listId), (current) => {
@@ -1700,7 +1700,7 @@ export function useUpdateSellerOrderNoteMutation() {
               sellerGroups: nextSellerGroups,
             };
           });
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );
@@ -1719,7 +1719,7 @@ export function useUpdateSellerOrderNoteMutation() {
       },
       {
         ...options,
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, onMutateResult, context) => {
           handleInvalidate(input.listId);
           queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(input.listId), (current) => {
             if (!current) {
@@ -1749,7 +1749,7 @@ export function useUpdateSellerOrderNoteMutation() {
               sellerGroups: nextSellerGroups,
             };
           });
-          options?.onSuccess?.(data, variables, context);
+          options?.onSuccess?.(data, variables, onMutateResult, context);
         },
       }
     );

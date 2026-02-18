@@ -33,7 +33,7 @@ interface PartListProps {
 
 export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter, onCreatePart, onCreateWithAI }: PartListProps) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate({ from: '/parts' });
+  const navigate = useNavigate({ from: '/parts/' });
   const {
     data: parts = [],
     isLoading: partsLoading,

@@ -12,7 +12,7 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import { expect } from '@playwright/test';
 import { createApiClient, createTestDataBundle } from '../api';
-import { TypesPage } from '../e2e/types/TypesPage';
+import { TypesPage } from './page-objects/TypesPage';
 import { PartsPage } from './page-objects/parts-page';
 import { BoxesPage } from './page-objects/boxes-page';
 import { SellersPage } from './page-objects/sellers-page';
