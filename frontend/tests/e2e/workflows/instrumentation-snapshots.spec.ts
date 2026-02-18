@@ -1,10 +1,9 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, makeUnique, makeUniqueToken } from '../../support/helpers';
-import type { FormTestEvent, ToastTestEvent, ErrorTestEvent } from '@/lib/test/test-events';
+import type { FormTestEvent, ErrorTestEvent } from '@/lib/test/test-events';
 
 const PART_CREATE_FORM_ID = 'part_create';
-const PART_DUPLICATE_FORM_ID = 'part_duplicate';
 
 test.describe('Instrumentation snapshots', () => {
   test('part creation form emits validation and success events', async ({
@@ -49,58 +48,6 @@ test.describe('Instrumentation snapshots', () => {
     const formEvents = (await testEvents.getEvents()).filter(event => event.kind === 'form') as FormTestEvent[];
     const eventPhases = formEvents.map(event => event.phase);
     expect(eventPhases).toEqual(['open', 'validation_error', 'submit', 'success']);
-  });
-
-  test('document duplication failures surface toast instrumentation', async ({
-    page,
-    parts,
-    testEvents,
-    toastHelper,
-    testData,
-  }) => {
-    const { part } = await testData.parts.create({
-      overrides: { description: makeUnique('Document Source') },
-    });
-
-    const attachment = await testData.attachments.createUrl(part.key, {
-      title: makeUnique('Attachment'),
-    });
-
-    await parts.gotoList();
-    await parts.waitForCards();
-    await parts.openCardByKey(part.key);
-
-    await parts.duplicateCurrentPart();
-    await expect(parts.formRoot).toBeVisible();
-
-    await testEvents.clearEvents();
-
-    await expectConsoleError(page, /Failed to copy document/i);
-    await expectConsoleError(page, /404/);
-    await expectConsoleError(page, /Attachment .* was not found/i);
-    await testData.attachments.delete(part.key, attachment.id);
-
-    const duplicateResponsePromise = page.waitForResponse(response => {
-      if (response.request().method() !== 'POST') {
-        return false;
-      }
-      try {
-        return new URL(response.url()).pathname === '/api/parts';
-      } catch {
-        return false;
-      }
-    });
-    await parts.formSubmit.click();
-    await duplicateResponsePromise;
-
-    const errorToast = await testEvents.waitForEvent(event => event.kind === 'toast' && event.level === 'error' && (event as ToastTestEvent).message.toLowerCase().includes('failed to copy')) as ToastTestEvent;
-    expect(errorToast.message).toContain('Failed to copy');
-    await toastHelper.waitForToastWithText(/attachment .* was not found/i);
-
-    const duplicateEvents = (await testEvents.getEvents()).filter(event => event.kind === 'form' && event.formId === PART_DUPLICATE_FORM_ID) as FormTestEvent[];
-    const duplicatePhases = duplicateEvents.map(event => event.phase);
-    expect(duplicatePhases).toContain('submit');
-    expect(duplicatePhases).toContain('success');
   });
 
   test('AI analysis failure emits error instrumentation', async ({

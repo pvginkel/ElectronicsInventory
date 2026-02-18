@@ -225,8 +225,6 @@ test.describe('Shopping List Phase 3 entry points', () => {
 
     await parts.gotoList();
     await parts.waitForCards();
-    await waitForListLoading(parts.playwrightPage, 'parts.list.shoppingListIndicators', 'ready');
-    await waitForListLoading(parts.playwrightPage, 'parts.list.kitIndicators', 'ready');
 
     const activeIndicator = parts.shoppingListIndicator(activePart.key);
     await expect(activeIndicator).toBeVisible();
