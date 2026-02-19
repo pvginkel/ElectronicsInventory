@@ -1,11 +1,25 @@
-import type { components } from '@/lib/api/generated/types'
+/**
+ * Inline error type definitions — no dependency on generated types.
+ * These match the standard backend error response shapes.
+ */
 
-type ErrorDetailsSchema = components['schemas']['ErrorResponseSchema.c2a0d71.ErrorDetailsSchema']
-type ValidationError = components['schemas']['ValidationError.6a07bef']
+interface ErrorDetail {
+  field?: string
+  message?: string
+  [key: string]: unknown
+}
+
+interface ValidationErrorElement {
+  loc?: (string | number)[]
+  msg: string
+  type?: string
+}
+
+type ValidationError = ValidationErrorElement[]
 
 interface ApiError {
   error: string
-  details?: ErrorDetailsSchema | ErrorDetailsSchema[]
+  details?: ErrorDetail | ErrorDetail[]
 }
 
 interface FetchError extends Error {

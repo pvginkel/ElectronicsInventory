@@ -1,6 +1,10 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { BasePage } from './base-page';
 
+/**
+ * Page object for template infrastructure: top bar, sidebar, mobile menu,
+ * deployment banner, and toast viewport.
+ */
 export class AppShellPage extends BasePage {
   readonly root: Locator;
   readonly layout: Locator;
@@ -52,7 +56,6 @@ export class AppShellPage extends BasePage {
     await expect(this.root).toHaveAttribute('data-mobile-menu-state', state);
   }
 
-  /** Toggle sidebar (desktop) or mobile menu via the TopBar hamburger button */
   async toggleDesktopSidebar(): Promise<void> {
     await this.hamburgerButton.click();
   }
@@ -62,16 +65,10 @@ export class AppShellPage extends BasePage {
     await expect(link).toHaveAttribute('data-active', 'true');
   }
 
-  async expectInactiveNav(slug: string): Promise<void> {
-    const link = this.sidebarLink(slug);
-    await expect(link).toHaveAttribute('data-active', 'false');
-  }
-
   async clickDesktopNav(slug: string): Promise<void> {
     await this.sidebarLink(slug).click();
   }
 
-  /** Open mobile menu via the TopBar hamburger button */
   async openMobileMenu(): Promise<void> {
     await this.hamburgerButton.click();
     await this.expectMobileMenuState('open');

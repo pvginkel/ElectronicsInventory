@@ -10,8 +10,8 @@ export const Form = React.forwardRef<HTMLFormElement, FormProps>(
     // Wrap onSubmit to prevent event propagation to parent forms.
     // This is critical for nested dialogs (e.g., SellerCreateDialog opened from PartForm)
     // to prevent the dialog's form submission from triggering the parent form's submission.
-    const handleSubmit = onSubmit
-      ? (e: React.SubmitEvent<HTMLFormElement>) => {
+    const handleSubmit: typeof onSubmit = onSubmit
+      ? (e) => {
           e.stopPropagation()
           onSubmit(e)
         }

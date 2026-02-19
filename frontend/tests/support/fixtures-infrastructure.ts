@@ -26,7 +26,8 @@ import {
   createDeploymentSseHelper,
 } from './helpers/deployment-sse';
 import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
-import { AuthFactory } from '../api/factories/auth';
+import { AuthFactory } from './helpers/auth-factory';
+import { AppShellPage } from './page-objects/app-shell-page';
 import { startBackend, startFrontend, startSSEGateway } from './process/servers';
 import {
   createBackendLogCollector,
@@ -61,6 +62,7 @@ export type InfrastructureFixtures = {
   fileUploadHelper: FileUploadHelper;
   deploymentSse: DeploymentSseHelper;
   auth: AuthFactory;
+  appShell: AppShellPage;
 };
 
 type InternalFixtures = {
@@ -282,6 +284,10 @@ export const infrastructureFixtures = base.extend<InfrastructureFixtures, Intern
       }
     },
 
+    appShell: async ({ page }, use) => {
+      await use(new AppShellPage(page));
+    },
+
     auth: async ({ _serviceManager, page }, use) => {
       // Use frontend URL so cookies are set on the correct origin.
       // The /api/* routes are proxied to the backend.
@@ -348,7 +354,7 @@ export const infrastructureFixtures = base.extend<InfrastructureFixtures, Intern
 
         try {
           workerDbDir = await mkdtemp(
-            join(tmpdir(), `electronics-inventory-worker-${workerInfo.workerIndex}-`)
+            join(tmpdir(), `test-worker-${workerInfo.workerIndex}-`)
           );
           workerDbPath = join(workerDbDir, 'database.sqlite');
           await copyFile(seedDbPath, workerDbPath);

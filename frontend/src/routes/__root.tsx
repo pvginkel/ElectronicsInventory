@@ -1,11 +1,6 @@
 /**
  * Root layout component.
  * Composes provider groups and renders the app shell.
- *
- * Provider ordering (maintained by the three provider group components):
- * 1. CoreProviders: QueryClientProvider > ToastProvider > QuerySetup
- * 2. AuthProviders: AuthProvider > AuthGate
- * 3. SseProviders: SseContextProvider > DeploymentProvider
  */
 
 import { useState } from 'react';
@@ -13,9 +8,7 @@ import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
 import { DeploymentNotificationBar } from '@/components/primitives/deployment-notification-bar';
-import { CoreProviders } from '@/providers/core-providers';
-import { AuthProviders } from '@/providers/auth-providers';
-import { SseProviders } from '@/providers/sse-providers';
+import { Providers } from '@/providers';
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -23,13 +16,9 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   return (
-    <CoreProviders>
-      <AuthProviders>
-        <SseProviders>
-          <AppShellFrame />
-        </SseProviders>
-      </AuthProviders>
-    </CoreProviders>
+    <Providers>
+      <AppShellFrame />
+    </Providers>
   );
 }
 

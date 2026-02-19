@@ -21,7 +21,6 @@ test('surfaces backend-driven deployment updates', async ({
 
     await testEvents.clearEvents();
 
-    // Manually opt into the deployment SSE stream for deterministic coverage.
     await deploymentSse.resetRequestId();
     const connectionStatus = await deploymentSse.ensureConnected();
 
@@ -63,7 +62,6 @@ test('surfaces backend-driven deployment updates', async ({
       timeoutMs: 15000,
     });
 
-    // Allow React to process the baseline version state update before sending the new version
     await page.waitForTimeout(200);
 
     const triggerResponse = await page.request.post(`${backendUrl}/api/testing/deployments/version`, {

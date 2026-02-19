@@ -16,7 +16,6 @@ function versionPlugin(): Plugin {
           return fileContent
         }
       }
-      
       // Fallback to git command
       return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
     } catch (error) {
@@ -28,7 +27,6 @@ function versionPlugin(): Plugin {
   return {
     name: 'version-plugin',
     generateBundle() {
-      // Generate version.json for production build
       const gitCommitId = getGitCommitId()
       const versionData = { version: gitCommitId }
       this.emitFile({
@@ -46,7 +44,6 @@ function backendProxyStatusPlugin(target: string): Plugin {
   const checkBackend = async () => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 2000)
-
     try {
       const response = await fetch(probeUrl, { signal: controller.signal })
       if (!response.ok) {
@@ -67,26 +64,19 @@ function backendProxyStatusPlugin(target: string): Plugin {
   }
 
   const safeCheck = () => {
-    checkBackend().catch(() => {
-      // Connectivity issues are already reported above; no additional handling required.
-    })
+    checkBackend().catch(() => {})
   }
 
   return {
     name: 'backend-proxy-status',
-    configureServer() {
-      safeCheck()
-    },
-    configurePreviewServer() {
-      safeCheck()
-    }
+    configureServer() { safeCheck() },
+    configurePreviewServer() { safeCheck() }
   }
 }
 
 const backendProxyTarget = process.env.BACKEND_URL || 'http://localhost:5000'
 const gatewayProxyTarget = process.env.SSE_GATEWAY_URL || 'http://localhost:3001'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [tailwindcss(), react(), versionPlugin(), backendProxyStatusPlugin(backendProxyTarget)],
   resolve: {
@@ -115,11 +105,7 @@ export default defineConfig({
         secure: false,
       }
     },
-    watch: process.env.VITE_TEST_MODE === 'true'
-      ? {
-          ignored: ['**']
-        }
-      : undefined
+    watch: process.env.VITE_TEST_MODE === 'true' ? { ignored: ['**'] } : undefined
   },
   preview: {
     proxy: {
@@ -136,16 +122,12 @@ export default defineConfig({
     }
   },
   define: {
-    // In production builds, always set VITE_TEST_MODE to 'false' to enable tree-shaking
-    // In development, use the environment variable if set
     'import.meta.env.VITE_TEST_MODE': process.env.NODE_ENV === 'production'
       ? JSON.stringify('false')
       : JSON.stringify(process.env.VITE_TEST_MODE || 'false'),
-    // Expose SSE Gateway URL for direct connection (bypasses Vite proxy)
     'import.meta.env.VITE_SSE_GATEWAY_URL': JSON.stringify(process.env.SSE_GATEWAY_URL || ''),
   },
   build: {
-    // Ensure test mode is disabled in production builds
     rollupOptions: {
       external: process.env.NODE_ENV === 'production' && process.env.VITE_TEST_MODE === 'true'
         ? ['./src/lib/test/*']

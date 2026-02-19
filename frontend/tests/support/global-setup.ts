@@ -28,9 +28,10 @@ export default globalSetup;
 
 async function initializeSeedDatabase(): Promise<string> {
   const repoRoot = getRepoRoot();
+  const backendRoot = resolve(repoRoot, process.env.BACKEND_ROOT || '../backend');
   const tmpRoot = await mkdtemp(join(tmpdir(), 'electronics-seed-'));
   const dbPath = join(tmpRoot, 'seed.sqlite');
-  const scriptPath = resolve(repoRoot, '../backend/scripts/initialize-sqlite-database.sh');
+  const scriptPath = resolve(backendRoot, 'scripts/initialize-sqlite-database.sh');
 
   await runScript(scriptPath, ['--db', dbPath, '--load-test-data'], {
     cwd: repoRoot,

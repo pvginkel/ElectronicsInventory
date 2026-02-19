@@ -392,7 +392,7 @@ function getFrontendRepoRoot(): string {
 
 function getBackendRepoRoot(): string {
   if (!backendRepoRootCache) {
-    backendRepoRootCache = resolve(getFrontendRepoRoot(), '../backend');
+    backendRepoRootCache = resolve(getFrontendRepoRoot(), process.env.BACKEND_ROOT || '../backend');
   }
   return backendRepoRootCache;
 }

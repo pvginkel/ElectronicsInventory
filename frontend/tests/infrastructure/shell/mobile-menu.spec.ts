@@ -6,8 +6,6 @@ const MOBILE_VIEWPORT = { width: 414, height: 736 } as const;
 test.describe('App shell - mobile menu', () => {
   test('opens, navigates, and closes the mobile sidebar', async ({
     appShell,
-    kits,
-    parts,
     page,
   }) => {
     await page.setViewportSize(MOBILE_VIEWPORT);
@@ -19,19 +17,17 @@ test.describe('App shell - mobile menu', () => {
     await appShell.openMobileMenu();
     await expect(appShell.mobileSidebar).toBeVisible();
 
-    await appShell.sidebarLink('parts', { variant: 'mobile' }).click();
+    await appShell.sidebarLink('items', { variant: 'mobile' }).click();
     await appShell.expectMobileMenuState('closed');
-    await expect(page).toHaveURL(/\/parts(?:$|\?)/);
-    await parts.waitForCards();
+    await expect(page).toHaveURL(/\/items(?:$|\?)/);
 
     await appShell.openMobileMenu();
     await appShell.closeMobileMenuViaBackdrop();
     await appShell.expectMobileMenuState('closed');
 
     await appShell.openMobileMenu();
-    await appShell.sidebarLink('kits', { variant: 'mobile' }).click();
+    await appShell.sidebarLink('about', { variant: 'mobile' }).click();
     await appShell.expectMobileMenuState('closed');
-    await expect(page).toHaveURL(/\/kits(?:$|\?)/);
-    await kits.waitForOverviewReady();
+    await expect(page).toHaveURL(/\/about(?:$|\?)/);
   });
 });

@@ -2,8 +2,7 @@
  * Generic test selector helpers.
  * Template-owned — provides testId(), buildSelector(), and common UI selectors.
  *
- * Domain-specific selectors live in selectors-domain.ts.
- * Page objects should import from selectors-domain.ts directly.
+ * Domain-specific selectors live in selectors-domain.ts (app-owned).
  */
 
 import { testId } from './test-id';
@@ -11,10 +10,9 @@ import { testId } from './test-id';
 export { testId };
 
 /**
- * Common selector patterns shared across all apps.
+ * Common UI selectors (generic infrastructure).
  */
 export const selectors = {
-  // Common UI selectors (generic infrastructure)
   common: {
     loading: testId('loading'),
     error: testId('error'),
@@ -30,7 +28,7 @@ export const selectors = {
 };
 
 /**
- * Helper to build custom selectors following the pattern
+ * Helper to build custom selectors following the pattern.
  */
 export function buildSelector(domain: string, section: string, element: string, id?: string): string {
   const parts = [domain, section, element];

@@ -120,7 +120,7 @@
   }
 }
 
-/* App-specific theme overrides (EI brand colors, category utilities, animations) */
+/* App-specific theme overrides (brand colors, custom utilities, animations) */
 @import "./styles/app-theme.css";
 
 @layer base {

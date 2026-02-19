@@ -1,0 +1,15 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.1
+_src_path: ../../ModernAppTemplate/frontend
+author_email: pvginkel@gmail.com
+author_name: Pieter van Ginkel
+backend_port: 5000
+frontend_port: 3000
+project_description: Electronics Inventory
+project_name: electronics-inventory
+project_title: Electronics
+repo_url: ''
+sse_gateway_port: 3001
+use_oidc: true
+use_s3: true
+use_sse: true
