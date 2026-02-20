@@ -1,33 +1,16 @@
 import { createContext } from 'react';
 
 /**
- * Version event data received from SSE stream
- */
-export interface VersionEventData {
-  version: string;
-  correlationId?: string;
-  requestId?: string;
-}
-
-/**
- * Task event data received from SSE stream
- */
-export interface TaskEventData {
-  taskId: string;
-  eventType: string;
-  data: unknown;
-}
-
-/**
- * SSE context value exposed to consumers
+ * SSE context value exposed to consumers.
+ *
+ * Provides a generic addEventListener interface for subscribing to named SSE events.
+ * Consumer hooks are responsible for parsing event data into their own DTOs.
  */
 export interface SseContextValue {
   isConnected: boolean;
   requestId: string | null;
-  registerVersionListener: (callback: (event: VersionEventData) => void) => () => void;
-  registerTaskListener: (callback: (event: TaskEventData) => void) => () => void;
-  /** Subscribe to a specific task's events, replaying any buffered events that arrived before subscription */
-  subscribeToTask: (taskId: string, callback: (event: TaskEventData) => void) => () => void;
+  /** Subscribe to a named SSE event; returns an unsubscribe function */
+  addEventListener: (event: string, handler: (data: unknown) => void) => () => void;
   reconnect: () => void;
 }
 
@@ -37,13 +20,7 @@ export interface SseContextValue {
 export const defaultSseContextValue: SseContextValue = {
   isConnected: false,
   requestId: null,
-  registerVersionListener: () => {
-    throw new Error('useSseContext must be used within SseContextProvider');
-  },
-  registerTaskListener: () => {
-    throw new Error('useSseContext must be used within SseContextProvider');
-  },
-  subscribeToTask: () => {
+  addEventListener: () => {
     throw new Error('useSseContext must be used within SseContextProvider');
   },
   reconnect: () => {

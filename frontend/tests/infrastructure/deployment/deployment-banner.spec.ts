@@ -6,8 +6,6 @@ import { test, expect } from '../../support/fixtures';
 import { makeUnique } from '../../support/helpers';
 import { extractSseData, waitForSseEvent } from '../../support/helpers/test-events';
 
-const DEPLOYMENT_STREAM_ID = 'deployment.version';
-
 test.describe('Deployment banner streaming', () => {
 test('surfaces backend-driven deployment updates', async ({
   page,
@@ -25,13 +23,13 @@ test('surfaces backend-driven deployment updates', async ({
     const connectionStatus = await deploymentSse.ensureConnected();
 
     const openEvent = await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+      streamId: 'connection',
       phase: 'open',
       event: 'connected',
       timeoutMs: 15000,
     });
 
-    const connectionData = extractSseData<{ requestId?: string; correlationId?: string }>(openEvent);
+    const connectionData = extractSseData<{ requestId?: string }>(openEvent);
     const requestId = connectionStatus.requestId ?? connectionData?.requestId ?? null;
     expect(requestId).toBeTruthy();
     if (!requestId) {
@@ -51,7 +49,7 @@ test('surfaces backend-driven deployment updates', async ({
     expect(baselineResponse.ok()).toBeTruthy();
 
     await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+      streamId: 'version',
       phase: 'message',
       event: 'version',
       matcher: event => {
@@ -74,7 +72,7 @@ test('surfaces backend-driven deployment updates', async ({
     expect(triggerResponse.ok()).toBeTruthy();
 
     const payloadEvent = await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+      streamId: 'version',
       phase: 'message',
       event: 'version',
       matcher: event => {
@@ -114,7 +112,7 @@ test('surfaces backend-driven deployment updates', async ({
     await testEvents.clearEvents();
     await deploymentSse.ensureConnected();
     await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+      streamId: 'connection',
       phase: 'open',
       event: 'connected',
       timeoutMs: 15000,

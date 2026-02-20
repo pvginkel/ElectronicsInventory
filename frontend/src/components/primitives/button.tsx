@@ -6,7 +6,7 @@ import { buttonBaseClasses, buttonVariants, buttonSizes, buttonAiTextClasses } f
 type NativeButtonProps = React.ComponentPropsWithoutRef<"button">
 
 export interface ButtonProps extends NativeButtonProps {
-  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'ai_assisted' | 'filter'
+  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'ai_assisted' | 'filter' | 'destructive'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   icon?: React.ReactNode

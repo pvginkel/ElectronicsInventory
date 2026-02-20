@@ -157,6 +157,12 @@ export type TestEvent =
   | SseTestEvent;
 
 /**
+ * Distributive Omit that preserves union discriminants.
+ * Unlike built-in Omit which collapses union members to shared keys only.
+ */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+/**
  * Test event payload - the actual data passed to emitTestEvent
  */
-export type TestEventPayload = Omit<TestEvent, 'timestamp'>;
+export type TestEventPayload = DistributiveOmit<TestEvent, 'timestamp'>;

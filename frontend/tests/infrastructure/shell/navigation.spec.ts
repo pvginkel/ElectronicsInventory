@@ -1,7 +1,10 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
+import { SIDEBAR_VISIBLE } from '@/lib/consts';
 
 test.describe('App shell - desktop navigation', () => {
+  test.skip(!SIDEBAR_VISIBLE, 'Sidebar is hidden (SIDEBAR_VISIBLE = false)');
+
   test('collapses sidebar and navigates primary routes', async ({
     appShell,
     page,

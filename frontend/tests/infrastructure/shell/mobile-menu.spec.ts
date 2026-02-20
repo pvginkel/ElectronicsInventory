@@ -1,9 +1,12 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
+import { SIDEBAR_VISIBLE } from '@/lib/consts';
 
 const MOBILE_VIEWPORT = { width: 414, height: 736 } as const;
 
 test.describe('App shell - mobile menu', () => {
+  test.skip(!SIDEBAR_VISIBLE, 'Sidebar is hidden (SIDEBAR_VISIBLE = false)');
+
   test('opens, navigates, and closes the mobile sidebar', async ({
     appShell,
     page,
