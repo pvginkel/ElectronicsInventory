@@ -24,6 +24,5 @@ services:
       - ../frontend/.git:/work/ElectronicsInventory/frontend/.git:ro
       - ../../SSEGateway:/work/SSEGateway:rw
       - ../../SSEGateway/.git:/work/SSEGateway/.git:ro
-      - ../../IoTSupport:/work/IoTSupport:ro
     # Required for Chromium
     shm_size: 1G
