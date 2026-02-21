@@ -75,8 +75,8 @@ function backendProxyStatusPlugin(target: string): Plugin {
   }
 }
 
-const backendProxyTarget = process.env.BACKEND_URL || 'http://localhost:5000'
-const gatewayProxyTarget = process.env.SSE_GATEWAY_URL || 'http://localhost:3001'
+const backendProxyTarget = process.env.BACKEND_URL || 'http://localhost:3001'
+const gatewayProxyTarget = process.env.SSE_GATEWAY_URL || 'http://localhost:3002'
 
 export default defineConfig({
   plugins: [tailwindcss(), react(), versionPlugin(), backendProxyStatusPlugin(backendProxyTarget)],
