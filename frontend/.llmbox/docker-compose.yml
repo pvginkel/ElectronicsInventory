@@ -9,6 +9,7 @@ services:
     environment:
       TERM: ${TERM}
       COLORTERM: ${COLORTERM}
+      SSE_GATEWAY_ROOT: /work/SSEGateway
     volumes:
       - ${HOME}/.claude.json:/home/ubuntu/.claude.json:rw
       - ${HOME}/.claude:/home/ubuntu/.claude:rw
@@ -21,6 +22,7 @@ services:
       - ../backend/.git:/work/ElectronicsInventory/backend/.git:ro
       - ../frontend:/work/ElectronicsInventory/frontend:rw
       - ../frontend/.git:/work/ElectronicsInventory/frontend/.git:ro
-      - ../../IoTSupport:/work/IoTSupport:ro
+      - ../../SSEGateway:/work/SSEGateway:rw
+      - ../../SSEGateway/.git:/work/SSEGateway/.git:ro
     # Required for Chromium
     shm_size: 1G

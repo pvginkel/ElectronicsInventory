@@ -9,8 +9,10 @@ import { test, expect } from '../../support/fixtures';
 import { makeUnique } from '../../support/helpers';
 import { waitForSseEvent, extractSseData } from '../../support/helpers/test-events';
 
-const DEPLOYMENT_STREAM_ID = 'deployment.version';
-const TASK_STREAM_ID = 'task';
+// The SSE context provider emits connection events with streamId 'connection'
+// and task events arrive as envelope type 'task_event'.
+const CONNECTION_STREAM_ID = 'connection';
+const TASK_STREAM_ID = 'task_event';
 
 test.describe('Task SSE events', () => {
   test('receives task events through unified SSE stream', async ({
@@ -30,7 +32,7 @@ test.describe('Task SSE events', () => {
 
     // Wait for SSE connection event
     const connectedEvent = await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+      streamId: CONNECTION_STREAM_ID,
       phase: 'open',
       event: 'connected',
       timeoutMs: 15000,
@@ -61,22 +63,29 @@ test.describe('Task SSE events', () => {
 
     expect(response.ok()).toBe(true);
 
-    // Verify the task event was received
+    // Verify the task event was received.
+    // The gateway wraps the event as {"type":"task_event","payload":{...}},
+    // so the streamId and event are both 'task_event'. The inner event_type
+    // lives inside the payload data.
     const taskEvent = await waitForSseEvent(page, {
       streamId: TASK_STREAM_ID,
       phase: 'message',
-      event: 'progress_update',
+      event: TASK_STREAM_ID,
       matcher: (event) => {
-        const payload = extractSseData<{ taskId?: string }>(event);
-        return payload?.taskId === taskId;
+        const payload = extractSseData<{ task_id?: string }>(event);
+        return payload?.task_id === taskId;
       },
       timeoutMs: 5000,
     });
 
     expect(taskEvent).toBeTruthy();
-    const taskPayload = extractSseData<{ taskId: string; eventType: string; data: unknown }>(taskEvent);
-    expect(taskPayload?.taskId).toBe(taskId);
-    expect(taskPayload?.eventType).toBe('progress_update');
+    const taskPayload = extractSseData<{
+      task_id: string;
+      event_type: string;
+      data: unknown;
+    }>(taskEvent);
+    expect(taskPayload?.task_id).toBe(taskId);
+    expect(taskPayload?.event_type).toBe('progress_update');
 
     await deploymentSse.disconnect();
   });
@@ -94,15 +103,14 @@ test.describe('Task SSE events', () => {
     await deploymentSse.resetRequestId();
     const connectionStatus = await deploymentSse.ensureConnected();
 
-    const connectedEvent = await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+    await waitForSseEvent(page, {
+      streamId: CONNECTION_STREAM_ID,
       phase: 'open',
       event: 'connected',
       timeoutMs: 15000,
     });
 
-    const connectionData = extractSseData<{ requestId?: string }>(connectedEvent);
-    const requestId = connectionStatus.requestId ?? connectionData?.requestId;
+    const requestId = connectionStatus.requestId;
     expect(requestId).toBeTruthy();
     if (!requestId) {
       return;
@@ -123,13 +131,20 @@ test.describe('Task SSE events', () => {
     const startEvent = await waitForSseEvent(page, {
       streamId: TASK_STREAM_ID,
       phase: 'message',
-      event: 'task_started',
-      matcher: (event) => extractSseData<{ taskId?: string }>(event)?.taskId === taskId,
+      event: TASK_STREAM_ID,
+      matcher: (event) => {
+        const payload = extractSseData<{ task_id?: string; event_type?: string }>(event);
+        return payload?.task_id === taskId && payload?.event_type === 'task_started';
+      },
       timeoutMs: 5000,
     });
 
-    const startPayload = extractSseData<{ taskId: string; eventType: string; data: { message: string } }>(startEvent);
-    expect(startPayload?.eventType).toBe('task_started');
+    const startPayload = extractSseData<{
+      task_id: string;
+      event_type: string;
+      data: { message: string };
+    }>(startEvent);
+    expect(startPayload?.event_type).toBe('task_started');
     expect(startPayload?.data?.message).toBe('Analysis started');
 
     // Send task_completed event
@@ -147,13 +162,20 @@ test.describe('Task SSE events', () => {
     const completeEvent = await waitForSseEvent(page, {
       streamId: TASK_STREAM_ID,
       phase: 'message',
-      event: 'task_completed',
-      matcher: (event) => extractSseData<{ taskId?: string }>(event)?.taskId === taskId,
+      event: TASK_STREAM_ID,
+      matcher: (event) => {
+        const payload = extractSseData<{ task_id?: string; event_type?: string }>(event);
+        return payload?.task_id === taskId && payload?.event_type === 'task_completed';
+      },
       timeoutMs: 5000,
     });
 
-    const completePayload = extractSseData<{ taskId: string; eventType: string; data: { result: unknown } }>(completeEvent);
-    expect(completePayload?.eventType).toBe('task_completed');
+    const completePayload = extractSseData<{
+      task_id: string;
+      event_type: string;
+      data: { result: unknown };
+    }>(completeEvent);
+    expect(completePayload?.event_type).toBe('task_completed');
     expect(completePayload?.data?.result).toEqual({ name: 'Test Part', category: 'Resistor' });
 
     await deploymentSse.disconnect();
@@ -172,15 +194,14 @@ test.describe('Task SSE events', () => {
     await deploymentSse.resetRequestId();
     const connectionStatus = await deploymentSse.ensureConnected();
 
-    const connectedEvent = await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+    await waitForSseEvent(page, {
+      streamId: CONNECTION_STREAM_ID,
       phase: 'open',
       event: 'connected',
       timeoutMs: 15000,
     });
 
-    const connectionData = extractSseData<{ requestId?: string }>(connectedEvent);
-    const requestId = connectionStatus.requestId ?? connectionData?.requestId;
+    const requestId = connectionStatus.requestId;
     expect(requestId).toBeTruthy();
     if (!requestId) {
       return;
@@ -206,12 +227,16 @@ test.describe('Task SSE events', () => {
         },
       });
 
-      // Wait for each event to be received
+      // Wait for each event to be received — all arrive with streamId 'task_event'.
+      // Discriminate by matching on task_id and event_type within the payload.
       await waitForSseEvent(page, {
         streamId: TASK_STREAM_ID,
         phase: 'message',
-        event: event.event_type,
-        matcher: (e) => extractSseData<{ taskId?: string }>(e)?.taskId === taskId,
+        event: TASK_STREAM_ID,
+        matcher: (e) => {
+          const payload = extractSseData<{ task_id?: string; event_type?: string }>(e);
+          return payload?.task_id === taskId && payload?.event_type === event.event_type;
+        },
         timeoutMs: 5000,
       });
     }
@@ -235,7 +260,7 @@ test.describe('Task SSE events', () => {
     const connectionStatus = await deploymentSse.ensureConnected();
 
     await waitForSseEvent(page, {
-      streamId: DEPLOYMENT_STREAM_ID,
+      streamId: CONNECTION_STREAM_ID,
       phase: 'open',
       event: 'connected',
       timeoutMs: 15000,
@@ -267,9 +292,11 @@ test.describe('Task SSE events', () => {
     const progressStep = page.getByTestId('parts.ai.progress-step');
     await expect(progressStep).toBeVisible();
 
-    // Wait for subscription event (indicates useSSETask subscribed to task)
+    // Wait for subscription event (indicates useSSETask subscribed to task).
+    // useSSETask emits this with streamId 'task', distinct from the raw SSE
+    // envelope streamId 'task_event'.
     const subscriptionEvent = await waitForSseEvent(page, {
-      streamId: TASK_STREAM_ID,
+      streamId: 'task',
       phase: 'open',
       event: 'task_subscription',
       timeoutMs: 10000,
