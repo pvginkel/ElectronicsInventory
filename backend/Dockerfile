@@ -44,7 +44,7 @@ RUN apt-get update && \
       libpq5 \
    && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 5000
+EXPOSE 3001
 
 WORKDIR /app
 
