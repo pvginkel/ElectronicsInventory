@@ -7,7 +7,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko') {
         stage('Cloning repo') {
             git branch: 'main',
                 credentialsId: '5f6fbd66-b41c-405f-b107-85ba6fd97f10',
-                url: ''
+                url: 'https://github.com/pvginkel/ElectronicsInventoryUI.git'
         }
 
         stage("Building electronics-inventory") {
@@ -15,8 +15,8 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko') {
 
             container('kaniko') {
                 helmCharts.kaniko([
-                    "registry:5000/electronics-inventory:${currentBuild.number}",
-                    "registry:5000/electronics-inventory:latest"
+                    "registry:5000/electronics-inventory-ui:${currentBuild.number}",
+                    "registry:5000/electronics-inventory-ui:latest"
                 ])
             }
         }
