@@ -17,6 +17,7 @@ from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
+from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
@@ -349,9 +350,9 @@ class KitPickListService:
                 selectinload(KitPickList.lines)
                 .selectinload(KitPickListLine.kit_content)
                 .selectinload(KitContent.part),
-                selectinload(KitPickList.lines).selectinload(
-                    KitPickListLine.location
-                ),
+                selectinload(KitPickList.lines)
+                .selectinload(KitPickListLine.location)
+                .selectinload(Location.box),
             )
             .where(KitPickList.id == pick_list_id)
         )
@@ -382,9 +383,9 @@ class KitPickListService:
                 selectinload(KitPickList.lines)
                 .selectinload(KitPickListLine.kit_content)
                 .selectinload(KitContent.part),
-                selectinload(KitPickList.lines).selectinload(
-                    KitPickListLine.location
-                ),
+                selectinload(KitPickList.lines)
+                .selectinload(KitPickListLine.location)
+                .selectinload(Location.box),
             )
             .where(KitPickList.kit_id == kit_id)
             .order_by(KitPickList.created_at.desc(), KitPickList.id.desc())
@@ -411,9 +412,9 @@ class KitPickListService:
                 selectinload(KitPickList.lines)
                 .selectinload(KitPickListLine.kit_content)
                 .selectinload(KitContent.part),
-                selectinload(KitPickList.lines).selectinload(
-                    KitPickListLine.location
-                ),
+                selectinload(KitPickList.lines)
+                .selectinload(KitPickListLine.location)
+                .selectinload(Location.box),
             )
             .where(KitPickList.kit_id.in_(ordered_ids))
         )
@@ -666,7 +667,9 @@ class KitPickListService:
                 selectinload(KitPickListLine.kit_content).selectinload(
                     KitContent.part
                 ),
-                selectinload(KitPickListLine.location),
+                selectinload(KitPickListLine.location).selectinload(
+                    Location.box
+                ),
             )
             .where(
                 KitPickListLine.id == line_id,

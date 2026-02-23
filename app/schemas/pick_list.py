@@ -115,6 +115,10 @@ class PickListLineLocationSchema(BaseModel):
         description="Location number inside the box",
         json_schema_extra={"example": 7},
     )
+    box_description: str = Field(
+        description="Description of the box containing the location",
+        json_schema_extra={"example": "Passive Components"},
+    )
 
 
 class PickListLineContentSchema(BaseModel):
