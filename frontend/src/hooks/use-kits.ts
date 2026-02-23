@@ -8,21 +8,19 @@ import {
   type KitSummary,
 } from '@/types/kits';
 
-type KitsQueryParams = { query: { status: KitStatus; query?: string } };
+type KitsQueryParams = { query: { status: KitStatus } };
 
-export function createKitsQueryParams(status: KitStatus, searchTerm?: string): KitsQueryParams {
-  const trimmed = searchTerm?.trim() ?? '';
-  const query: KitsQueryParams['query'] = { status };
-
-  if (trimmed.length > 0) {
-    query.query = trimmed;
-  }
-
-  return { query };
+/** Build query params for the kits endpoint. Search is handled client-side via fuzzy matching. */
+export function createKitsQueryParams(status: KitStatus): KitsQueryParams {
+  return { query: { status } };
 }
 
-export function buildKitsQueryKey(status: KitStatus, searchTerm?: string) {
-  return ['getKits', createKitsQueryParams(status, searchTerm)] as const;
+/** Stable param objects for each status — no search term, so these never change. */
+const ACTIVE_PARAMS = createKitsQueryParams('active');
+const ARCHIVED_PARAMS = createKitsQueryParams('archived');
+
+export function buildKitsQueryKey(status: KitStatus) {
+  return ['getKits', createKitsQueryParams(status)] as const;
 }
 
 export interface UseKitsOverviewResult {
@@ -32,26 +30,15 @@ export interface UseKitsOverviewResult {
   };
   buckets: KitOverviewBuckets;
   counts: KitOverviewCounts;
-  search: string;
 }
 
 /**
  * Retrieve kits for both lifecycle statuses so the overview tabs stay hydrated.
+ * Search filtering is performed client-side via fuzzy matching in the component.
  */
-export function useKitsOverview(searchTerm?: string): UseKitsOverviewResult {
-  const normalizedSearch = searchTerm?.trim() ?? '';
-
-  const activeParams = useMemo(
-    () => createKitsQueryParams('active', normalizedSearch),
-    [normalizedSearch],
-  );
-  const archivedParams = useMemo(
-    () => createKitsQueryParams('archived', normalizedSearch),
-    [normalizedSearch],
-  );
-
-  const activeQuery = useGetKits(activeParams);
-  const archivedQuery = useGetKits(archivedParams);
+export function useKitsOverview(): UseKitsOverviewResult {
+  const activeQuery = useGetKits(ACTIVE_PARAMS);
+  const archivedQuery = useGetKits(ARCHIVED_PARAMS);
 
   const buckets: KitOverviewBuckets = useMemo(() => {
     const activeKits = mapKits(activeQuery.data);
@@ -74,7 +61,6 @@ export function useKitsOverview(searchTerm?: string): UseKitsOverviewResult {
     },
     buckets,
     counts,
-    search: normalizedSearch,
   };
 }
 

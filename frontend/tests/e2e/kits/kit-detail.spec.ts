@@ -130,9 +130,7 @@ test.describe('Kit detail workspace', () => {
     );
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(targetKit.name);
-    await searchReady;
     await expect(kits.cardById(targetKit.id)).toBeVisible();
     await kits.openDetailFromCard(targetKit.id);
 
@@ -251,9 +249,7 @@ test.describe('Kit detail workspace', () => {
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
 
     await detailReady;
@@ -336,9 +332,7 @@ test.describe('Kit detail workspace', () => {
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
 
     await detailReady;
@@ -401,9 +395,7 @@ test.describe('Kit detail workspace', () => {
 
     await kits.gotoOverview();
     await kits.selectTab('archived');
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id, 'archived');
 
     await waitForListLoading(page, 'kits.detail', 'ready');
@@ -557,9 +549,7 @@ test.describe('Kit detail workspace', () => {
     const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await expect(kits.cardById(kit.id)).toBeVisible();
     await kits.openDetailFromCard(kit.id);
 
@@ -726,11 +716,7 @@ test.describe('Kit detail workspace', () => {
     await expect(kits.overviewRoot).toBeVisible();
     await Promise.all([overviewReady, pickMembershipReady]);
 
-    const searchOverviewReady = waitForListLoading(page, 'kits.overview', 'ready');
-    const searchMembershipReady = waitForListLoading(page, 'kits.list.memberships.pick', 'ready');
     await kits.search(kit.name);
-    await Promise.all([searchOverviewReady, searchMembershipReady]);
-
     await expect(kits.cardById(kit.id)).toBeVisible();
     await expect(kits.pickIndicator(kit.id)).toBeHidden();
     await expect(kits.cardById(kit.id)).not.toContainText(/open pick list/i);
@@ -788,9 +774,7 @@ test.describe('Kit detail workspace', () => {
     const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await expect(kits.cardById(kit.id)).toBeVisible();
     await kits.openDetailFromCard(kit.id);
 
@@ -962,9 +946,7 @@ test.describe('Kit detail workspace', () => {
     const kit = await testData.kits.create();
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -1040,9 +1022,7 @@ test.describe('Kit detail workspace', () => {
     });
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -1104,9 +1084,7 @@ test.describe('Kit detail workspace', () => {
     });
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -1166,9 +1144,7 @@ test.describe('Kit detail workspace', () => {
     });
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -1217,9 +1193,7 @@ test.describe('Kit detail workspace', () => {
     await testData.kits.archive(kit.id);
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.selectTab('archived');
     await kits.openDetailFromCard(kit.id, 'archived');
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
@@ -1248,9 +1222,7 @@ test.describe('Kit detail workspace', () => {
 
     await kits.gotoOverview();
     await kits.selectTab('archived');
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id, 'archived');
     await waitForListLoading(page, 'kits.detail', 'ready');
 
@@ -1306,9 +1278,7 @@ test.describe('Kit detail workspace', () => {
     });
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail', 'ready');
 
@@ -1377,9 +1347,7 @@ test.describe('Kit detail workspace', () => {
     });
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail', 'ready');
 
@@ -1432,9 +1400,7 @@ test.describe('Kit detail workspace', () => {
     });
 
     await kits.gotoOverview();
-    const overviewReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await overviewReady;
     await kits.cardById(kit.id).waitFor({ state: 'visible' });
 
     const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
@@ -1580,9 +1546,7 @@ test.describe('Pick list shortfall handling', () => {
     const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
 
     await detailReady;
@@ -1706,9 +1670,7 @@ test.describe('Pick list shortfall handling', () => {
     const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
 
     await detailReady;
@@ -1789,9 +1751,7 @@ test.describe('Pick list shortfall handling', () => {
 
     // Navigate to kit detail
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail', 'ready');
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
@@ -1856,9 +1816,7 @@ test.describe('Pick list shortfall handling', () => {
 
     // Navigate to kit detail
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail', 'ready');
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
@@ -1953,9 +1911,7 @@ test.describe('Pick list shortfall handling', () => {
 
     // Navigate to kit detail
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail', 'ready');
     await waitForListLoading(page, 'kits.detail.contents', 'ready');

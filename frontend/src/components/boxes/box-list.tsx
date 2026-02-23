@@ -12,6 +12,7 @@ import {
   usePostBoxes,
   type BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema,
 } from '@/lib/api/generated/hooks';
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 import { BoxCard } from './box-card';
 import { BoxForm } from './box-form';
 
@@ -50,12 +51,15 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       return boxes;
     }
 
-    const term = searchTerm.toLowerCase();
-    return boxes.filter((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => {
-      const boxNumber = String(box.box_no);
-      const description = box.description?.toLowerCase() ?? '';
-      return boxNumber.includes(term) || description.includes(term);
-    });
+    return boxes.filter((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) =>
+      fuzzyMatch(
+        [
+          { term: String(box.box_no), type: 'literal' },
+          { term: box.description ?? '', type: 'text' },
+        ],
+        searchTerm,
+      ),
+    );
   }, [boxes, searchTerm]);
 
   const sortedBoxes = useMemo(

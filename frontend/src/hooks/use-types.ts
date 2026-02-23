@@ -6,6 +6,7 @@ import {
   useDeleteTypesByTypeId,
   useGetInventorySuggestionsByTypeId
 } from '@/lib/api/generated/hooks';
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 
 export function useGetTypesWithStats() {
   // Use the generated API hook with query parameters for stats
@@ -22,9 +23,8 @@ export function useTypesSearch(searchTerm: string) {
       return allTypes || [];
     }
 
-    const term = searchTerm.toLowerCase();
-    return allTypes.filter((type) => 
-      type.name.toLowerCase().includes(term)
+    return allTypes.filter((type) =>
+      fuzzyMatch([{ term: type.name, type: 'text' }], searchTerm),
     );
   }, [allTypes, searchTerm]);
 

@@ -6,6 +6,7 @@ import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon'
 import { ExternalLink } from '@/components/primitives'
 import { useToast } from '@/hooks/use-toast'
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search'
 
 interface SellerSelectorProps {
   value?: number
@@ -34,12 +35,11 @@ export function SellerSelector({
     error: loadError
   } = useSellers()
 
-  // Filter sellers based on search term
+  // Filter sellers based on search term using fuzzy matching
   const sellers = useMemo(() => {
     if (!searchTerm.trim()) return allSellers
-    const term = searchTerm.toLowerCase()
     return allSellers.filter(seller =>
-      seller.name.toLowerCase().includes(term)
+      fuzzyMatch([{ term: seller.name, type: 'text' }], searchTerm)
     )
   }, [allSellers, searchTerm])
   const createMutation = useCreateSeller()

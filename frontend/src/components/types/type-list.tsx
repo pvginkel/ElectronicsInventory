@@ -18,6 +18,7 @@ import {
   useDeleteType,
   useGetTypesWithStats,
 } from '@/hooks/use-types';
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 import { TypeCard } from './type-card';
 import { TypeForm } from './type-form';
 
@@ -76,8 +77,9 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
       return types;
     }
 
-    const term = searchTerm.toLowerCase();
-    return types.filter((type) => type.name.toLowerCase().includes(term));
+    return types.filter((type) =>
+      fuzzyMatch([{ term: type.name, type: 'text' }], searchTerm),
+    );
   }, [types, searchTerm]);
 
   const sortedTypes = useMemo(

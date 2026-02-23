@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useGetTypes, type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
 import { useAllParts } from '@/hooks/use-all-parts';
 import { formatPartForDisplay } from '@/lib/utils/parts';
+import { fuzzyMatch, type FuzzySearchTerm } from '@/lib/utils/fuzzy-search';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import type {
   PartKitMembershipSummary,
@@ -151,24 +152,24 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
   const filteredParts = useMemo(() => {
     let result = parts;
 
-    // Apply search term filter
+    // Apply fuzzy search filter
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
       result = result.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
         const { displayId, displayDescription, displayManufacturerCode, displayManufacturer } = formatPartForDisplay(part);
         const typeName = part.type_id ? typeMap.get(part.type_id) : '';
-
         const sellerName = part.seller?.name;
 
-        return (
-          displayId.toLowerCase().includes(term) ||
-          displayDescription.toLowerCase().includes(term) ||
-          (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term)) ||
-          (displayManufacturer && displayManufacturer.toLowerCase().includes(term)) ||
-          (sellerName && sellerName.toLowerCase().includes(term)) ||
-          (typeName && typeName.toLowerCase().includes(term)) ||
-          (part.tags && part.tags.some(tag => tag.toLowerCase().includes(term)))
-        );
+        const data: FuzzySearchTerm[] = [
+          { term: displayId, type: 'literal' },
+          { term: displayDescription, type: 'text' },
+          { term: displayManufacturerCode ?? '', type: 'text' },
+          { term: displayManufacturer ?? '', type: 'text' },
+          { term: sellerName ?? '', type: 'text' },
+          { term: typeName ?? '', type: 'text' },
+          ...(part.tags ?? []).map(tag => ({ term: tag, type: 'text' as const })),
+        ];
+
+        return fuzzyMatch(data, searchTerm);
       });
     }
 

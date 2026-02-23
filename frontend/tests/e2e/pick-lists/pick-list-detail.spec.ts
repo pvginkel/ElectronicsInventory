@@ -277,7 +277,9 @@ test.describe('Pick list detail workspace', () => {
 
     await kits.gotoOverview();
     await kits.search(kit.name);
-    await kits.waitForOverviewReady();
+    // Wait for debounced search to propagate to the URL so that
+    // the kit card link includes the search param.
+    await expect(page).toHaveURL(/search=/);
 
     const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
@@ -597,7 +599,9 @@ test.describe('Pick list detail workspace', () => {
     // Navigate to kit detail with search params first
     await kits.gotoOverview();
     await kits.search(kit.name);
-    await kits.waitForOverviewReady();
+    // Wait for debounced search to propagate to the URL so that
+    // the kit card link includes the search param.
+    await expect(page).toHaveURL(/search=/);
 
     const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');

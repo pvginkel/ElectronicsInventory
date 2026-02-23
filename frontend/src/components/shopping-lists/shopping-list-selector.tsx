@@ -7,6 +7,7 @@ import {
 } from '@/hooks/use-shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 import type { ShoppingListOption, ShoppingListStatus } from '@/types/shopping-lists';
 
 type SelectorInputProps = Record<string, unknown>;
@@ -128,11 +129,17 @@ export function ShoppingListSelector({
   }, [combinedOptions, pendingCreatedOption]);
 
   const filteredOptions = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) {
+    if (!searchTerm.trim()) {
       return combinedOptions;
     }
-    return combinedOptions.filter((option) => option.name.toLowerCase().includes(term));
+    return combinedOptions.filter((option) =>
+      fuzzyMatch(
+        [
+          { term: option.name, type: 'text' },
+        ],
+        searchTerm,
+      ),
+    );
   }, [combinedOptions, searchTerm]);
 
   const canCreateLists = enableCreate && normalizedStatuses.includes('concept');

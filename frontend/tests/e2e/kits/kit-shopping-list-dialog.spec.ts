@@ -42,9 +42,7 @@ test.describe('Kit shopping list dialog', () => {
     });
 
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(kits.playwrightPage, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     const detailReady = waitForListLoading(kits.playwrightPage, 'kits.detail', 'ready');
     const contentsReady = waitForListLoading(kits.playwrightPage, 'kits.detail.contents', 'ready');
     await kits.openDetailFromCard(kit.id);

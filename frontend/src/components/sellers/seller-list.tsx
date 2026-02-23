@@ -17,6 +17,7 @@ import {
   useDeleteSeller,
   useSellers,
 } from '@/hooks/use-sellers';
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 
 interface SellerListProps {
   searchTerm?: string;
@@ -67,12 +68,15 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
       return sellers;
     }
 
-    const term = searchTerm.toLowerCase();
-    return sellers.filter((seller: SellerSummary) => {
-      const name = seller.name.toLowerCase();
-      const website = seller.website?.toLowerCase() ?? '';
-      return name.includes(term) || website.includes(term);
-    });
+    return sellers.filter((seller: SellerSummary) =>
+      fuzzyMatch(
+        [
+          { term: seller.name, type: 'text' },
+          { term: seller.website ?? '', type: 'text' },
+        ],
+        searchTerm,
+      ),
+    );
   }, [sellers, searchTerm]);
 
   const sortedSellers = useMemo(

@@ -29,9 +29,7 @@ test.describe('Kit Contents Undo', () => {
 
     // Navigate to kit detail
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -119,9 +117,7 @@ test.describe('Kit Contents Undo', () => {
 
     // Navigate to kit detail
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -164,9 +160,7 @@ test.describe('Kit Contents Undo', () => {
 
     // Navigate and delete content while kit is active
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -211,9 +205,7 @@ test.describe('Kit Contents Undo', () => {
 
     // Navigate to kit detail
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
@@ -275,9 +267,7 @@ test.describe('Kit Contents Undo', () => {
 
     // Navigate to kit detail
     await kits.gotoOverview();
-    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.search(kit.name);
-    await searchReady;
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 

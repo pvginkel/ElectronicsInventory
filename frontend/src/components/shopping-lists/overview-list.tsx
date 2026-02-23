@@ -14,6 +14,7 @@ import { ShoppingListOverviewCard } from './overview-card';
 import { ListCreateDialog } from './list-create-dialog';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 import { beginUiState, endUiState } from '@/lib/test/ui-state';
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 
 interface ShoppingListsOverviewProps {
   searchTerm: string;
@@ -90,13 +91,17 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     if (!searchTerm.trim()) {
       return lists;
     }
-    const term = searchTerm.toLowerCase();
-    return lists.filter((list) => {
-      const matchesName = list.name.toLowerCase().includes(term);
-      const matchesDescription = list.description?.toLowerCase().includes(term);
-      const matchesSeller = list.primarySellerName?.toLowerCase().includes(term);
-      return matchesName || matchesDescription || matchesSeller;
-    });
+
+    return lists.filter((list) =>
+      fuzzyMatch(
+        [
+          { term: list.name, type: 'text' },
+          { term: list.description ?? '', type: 'text' },
+          { term: list.primarySellerName ?? '', type: 'text' },
+        ],
+        searchTerm,
+      ),
+    );
   }, [lists, searchTerm]);
 
   const activeLists = useMemo(

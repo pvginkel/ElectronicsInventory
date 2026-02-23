@@ -12,6 +12,7 @@ import { KitCard } from '@/components/kits/kit-card';
 import { useKitsOverview } from '@/hooks/use-kits';
 import { useKitPickListMemberships, useKitShoppingListMemberships } from '@/hooks/use-kit-memberships';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 import type { KitStatus } from '@/types/kits';
 
 interface KitOverviewListProps {
@@ -32,7 +33,7 @@ export function KitOverviewList({
   onStatusChange,
   onCreateKit,
 }: KitOverviewListProps) {
-  const { queries, buckets, counts } = useKitsOverview(searchTerm);
+  const { queries, buckets, counts } = useKitsOverview();
 
   const preserveSearchParams = useCallback((current: Record<string, unknown>) => ({
     status: current.status as KitStatus,
@@ -52,8 +53,25 @@ export function KitOverviewList({
   const shoppingMemberships = useKitShoppingListMemberships(allKitIds);
   const pickMemberships = useKitPickListMemberships(allKitIds);
 
-  const activeKits = status === 'archived' ? buckets.archived : buckets.active;
+  // Client-side fuzzy filtering replaces the former server-side search.
+  const kitsForTab = status === 'archived' ? buckets.archived : buckets.active;
   const searchActive = searchTerm.trim().length > 0;
+
+  const filteredKits = useMemo(() => {
+    if (!searchActive) {
+      return kitsForTab;
+    }
+    return kitsForTab.filter((kit) =>
+      fuzzyMatch(
+        [
+          { term: kit.name, type: 'text' },
+          { term: kit.description ?? '', type: 'text' },
+        ],
+        searchTerm,
+      ),
+    );
+  }, [kitsForTab, searchActive, searchTerm]);
+
   const hasAnyKits = buckets.active.length + buckets.archived.length > 0;
   const isLoading = queries.active.isLoading || queries.archived.isLoading;
   const isFetching = queries.active.isFetching || queries.archived.isFetching;
@@ -69,14 +87,14 @@ export function KitOverviewList({
     getReadyMetadata: () => ({
       status,
       totals: counts,
-      visible: activeKits.length,
-      ...(searchActive ? { filtered: activeKits.length } : {}),
+      visible: filteredKits.length,
+      ...(searchActive ? { filtered: filteredKits.length } : {}),
       searchTerm: searchActive ? searchTerm : null,
     }),
     getErrorMetadata: (err) => ({
       status,
       totals: counts,
-      visible: activeKits.length,
+      visible: filteredKits.length,
       searchTerm: searchActive ? searchTerm : null,
       message: err instanceof Error ? err.message : String(err),
     }),
@@ -125,11 +143,11 @@ export function KitOverviewList({
 
   const countsNode = (
     <ListScreenCounts
-      visible={activeKits.length}
+      visible={filteredKits.length}
       total={counts[status]}
       category={TAB_LABELS[status]}
       noun={{ singular: 'kit', plural: 'kits' }}
-      filtered={searchActive ? activeKits.length : undefined}
+      filtered={searchActive ? filteredKits.length : undefined}
     />
   );
 
@@ -201,7 +219,7 @@ export function KitOverviewList({
         }}
       />
     );
-  } else if (searchActive && activeKits.length === 0) {
+  } else if (searchActive && filteredKits.length === 0) {
     content = (
       <EmptyState
         testId="kits.overview.no-results"
@@ -209,7 +227,7 @@ export function KitOverviewList({
         description="Try adjusting the search term or creating a new kit for the build you need."
       />
     );
-  } else if (activeKits.length === 0) {
+  } else if (filteredKits.length === 0) {
     content = (
       <EmptyState
         variant="minimal"
@@ -220,7 +238,7 @@ export function KitOverviewList({
   } else {
     content = (
       <CollectionGrid testId={`kits.overview.grid.${status}`}>
-        {activeKits.map((kit) => (
+        {filteredKits.map((kit) => (
           <KitCard
             key={kit.id}
             kit={kit}

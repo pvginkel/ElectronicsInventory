@@ -3,6 +3,7 @@ import { type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/
 import { useAllParts } from '@/hooks/use-all-parts';
 import { useGetTypesWithStats } from '@/hooks/use-types';
 import { formatPartForDisplay } from '@/lib/utils/parts';
+import { fuzzyMatch, type FuzzySearchTerm } from '@/lib/utils/fuzzy-search';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 
 export interface PartSelectorOption extends Record<string, unknown> {
@@ -31,7 +32,6 @@ export interface PartSelectorSummary {
 interface PartSelectorOptionMeta {
   option: PartSelectorOption;
   summary: PartSelectorSummary;
-  searchTokens: string[];
 }
 
 export interface UsePartsSelectorOptions {
@@ -47,26 +47,6 @@ export interface UsePartsSelectorResult {
   isFetching: boolean;
   error: unknown;
   getSelectedSummary: (id?: string) => PartSelectorSummary | undefined;
-}
-
-function buildSearchTokens(detail: PartSelectorOption, part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema): string[] {
-  const tokens: string[] = [
-    detail.displayId,
-    detail.displayDescription,
-    detail.displayManufacturerCode ?? '',
-    detail.typeName ?? '',
-    detail.manufacturer ?? '',
-    part.seller?.name ?? '',
-  ];
-
-  if (part.tags?.length) {
-    tokens.push(...part.tags.map(tag => tag.toLowerCase()));
-  }
-
-  return tokens
-    .map(token => token.trim())
-    .filter(Boolean)
-    .map(token => token.toLowerCase());
 }
 
 export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSelectorResult {
@@ -137,7 +117,6 @@ export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSel
       return {
         option,
         summary,
-        searchTokens: buildSearchTokens(option, part)
       };
     });
 
@@ -154,17 +133,31 @@ export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSel
   const includeSet = useMemo(() => new Set(options?.includePartKeys ?? []), [options?.includePartKeys]);
 
   const filteredBySearch = useMemo(() => {
-    if (!searchTerm.trim()) {
+    const trimmed = searchTerm.trim();
+    if (!trimmed) {
       return optionsWithMeta;
     }
 
-    const term = searchTerm.toLowerCase();
-    return optionsWithMeta.filter(({ option, searchTokens }) => {
-      if (option.name.toLowerCase().includes(term)) {
-        return true;
-      }
+    // SearchableSelect syncs the input value to the selected option's display
+    // name (e.g. "8-bit shift register (ABCD)").  The parenthesized key token
+    // can't survive fuzzy tokenization, so treat an exact display-name match
+    // as a no-op to avoid an infinite render loop.
+    if (optionsWithMeta.some(({ option }) => option.name === trimmed)) {
+      return optionsWithMeta;
+    }
 
-      return searchTokens.some(token => token.includes(term));
+    return optionsWithMeta.filter(({ option, summary }) => {
+      const raw = summary.raw;
+      const data: FuzzySearchTerm[] = [
+        { term: option.displayId, type: 'literal' },
+        { term: option.displayDescription, type: 'text' },
+        { term: option.displayManufacturerCode ?? '', type: 'text' },
+        { term: option.manufacturer ?? '', type: 'text' },
+        { term: raw?.seller?.name ?? '', type: 'text' },
+        { term: option.typeName ?? '', type: 'text' },
+        ...(raw?.tags ?? []).map(tag => ({ term: tag, type: 'text' as const })),
+      ];
+      return fuzzyMatch(data, searchTerm);
     });
   }, [optionsWithMeta, searchTerm]);
 

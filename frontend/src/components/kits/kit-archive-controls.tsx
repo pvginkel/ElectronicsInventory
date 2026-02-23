@@ -27,10 +27,9 @@ interface MutationContext {
 
 interface KitArchiveControlsProps {
   kit: KitSummary;
-  search: string;
 }
 
-export function KitArchiveControls({ kit, search }: KitArchiveControlsProps) {
+export function KitArchiveControls({ kit }: KitArchiveControlsProps) {
   const queryClient = useQueryClient();
   const { showSuccess, showException } = useToast();
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
@@ -53,15 +52,15 @@ export function KitArchiveControls({ kit, search }: KitArchiveControlsProps) {
 
   const cancelOverviewQueries = useCallback(async () => {
     await Promise.all([
-      queryClient.cancelQueries({ queryKey: buildKitsQueryKey('active', search) }),
-      queryClient.cancelQueries({ queryKey: buildKitsQueryKey('archived', search) }),
+      queryClient.cancelQueries({ queryKey: buildKitsQueryKey('active') }),
+      queryClient.cancelQueries({ queryKey: buildKitsQueryKey('archived') }),
     ]);
-  }, [queryClient, search]);
+  }, [queryClient]);
 
   const unarchiveMutation = usePostKitsUnarchiveByKitId({
     onMutate: async () => {
       await cancelOverviewQueries();
-      const snapshot = applyStatusTransition(queryClient, kit, search, 'active');
+      const snapshot = applyStatusTransition(queryClient, kit, 'active');
       unarchiveSnapshotRef.current = snapshot;
       safeSetPending('unarchive');
       return { snapshot } as MutationContext;
@@ -116,7 +115,7 @@ export function KitArchiveControls({ kit, search }: KitArchiveControlsProps) {
   const archiveMutation = usePostKitsArchiveByKitId({
     onMutate: async () => {
       await cancelOverviewQueries();
-      const snapshot = applyStatusTransition(queryClient, kit, search, 'archived');
+      const snapshot = applyStatusTransition(queryClient, kit, 'archived');
       archiveSnapshotRef.current = snapshot;
       safeSetPending('archive');
       return { snapshot } as MutationContext;
@@ -209,12 +208,11 @@ export function KitArchiveControls({ kit, search }: KitArchiveControlsProps) {
 function applyStatusTransition(
   queryClient: QueryClient,
   kit: KitSummary,
-  search: string,
   targetStatus: KitStatus,
 ): TransitionSnapshot {
   const sourceStatus: KitStatus = targetStatus === 'archived' ? 'active' : 'archived';
-  const sourceKey = buildKitsQueryKey(sourceStatus, search);
-  const targetKey = buildKitsQueryKey(targetStatus, search);
+  const sourceKey = buildKitsQueryKey(sourceStatus);
+  const targetKey = buildKitsQueryKey(targetStatus);
   const previousSource = queryClient.getQueryData<KitSummaryRecord[]>(sourceKey);
   const previousTarget = queryClient.getQueryData<KitSummaryRecord[]>(targetKey);
   const timestamp = new Date().toISOString();
