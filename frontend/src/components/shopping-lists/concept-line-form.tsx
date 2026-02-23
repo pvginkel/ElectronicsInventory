@@ -160,7 +160,7 @@ export function ConceptLineForm({
             partKey: line.part.key,
             needed: parsedNeeded,
             sellerId: values.sellerId ?? null,
-            note: values.note.trim() ? values.note.trim() : null,
+            note: values.note.trim() || '',
           });
           showSuccess('Updated line');
         }
