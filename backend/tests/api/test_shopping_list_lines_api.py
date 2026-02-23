@@ -107,6 +107,58 @@ class TestShoppingListLinesAPI:
         assert cleared["seller_id"] is None
         assert cleared["seller"] is None
 
+    def test_update_line_null_note_preserves_existing(self, client, session, container):
+        """Sending note=null is treated as 'not provided' and preserves the existing note."""
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 2, "note": "Keep me"},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        update_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"note": None},
+        )
+        assert update_resp.status_code == 200
+        assert update_resp.get_json()["note"] == "Keep me"
+
+    def test_update_line_normalizes_empty_note_to_null(self, client, session, container):
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 2, "note": "Has content"},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        clear_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"note": ""},
+        )
+        assert clear_resp.status_code == 200
+        assert clear_resp.get_json()["note"] is None
+
+    def test_update_line_preserves_note_when_omitted(self, client, session, container):
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 2, "note": "Should survive"},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        update_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"needed": 5},
+        )
+        assert update_resp.status_code == 200
+        assert update_resp.get_json()["note"] == "Should survive"
+
     def test_duplicate_line_returns_conflict(self, client, session, container):
         shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
 
