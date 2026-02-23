@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { useGetPickListsByPickListId } from '@/lib/api/generated/hooks';
 import {
-  groupPickListLines,
+  groupPickListLinesByBox,
   mapPickListDetail,
+  type PickListBoxGroup,
   type PickListDetail,
-  type PickListLineGroup,
   type PickListStatus,
 } from '@/types/pick-lists';
 
@@ -23,7 +23,7 @@ export interface UsePickListDetailResult {
   isPickListIdValid: boolean;
   query: ReturnType<typeof useGetPickListsByPickListId>;
   detail: PickListDetail | undefined;
-  lineGroups: PickListLineGroup[];
+  boxGroups: PickListBoxGroup[];
   uniquePartKeys: string[];
   getDetailReadyMetadata: () =>
     | {
@@ -69,8 +69,8 @@ export function usePickListDetail(pickListIdParam: number | string | undefined):
     [query.data]
   );
 
-  const lineGroups = useMemo<PickListLineGroup[]>(
-    () => groupPickListLines(detail?.lines ?? []),
+  const boxGroups = useMemo<PickListBoxGroup[]>(
+    () => groupPickListLinesByBox(detail?.lines ?? []),
     [detail?.lines]
   );
 
@@ -150,7 +150,7 @@ export function usePickListDetail(pickListIdParam: number | string | undefined):
     isPickListIdValid,
     query,
     detail,
-    lineGroups,
+    boxGroups,
     uniquePartKeys,
     getDetailReadyMetadata,
     getDetailErrorMetadata,

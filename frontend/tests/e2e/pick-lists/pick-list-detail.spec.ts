@@ -5,7 +5,7 @@ import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/genera
 import type { createApiClient, createTestDataBundle } from '../../api';
 
 test.describe('Pick list detail workspace', () => {
-  test('shows live availability and highlights shortfalls', async ({ pickLists, testData, apiClient, page }) => {
+  test('shows box-grouped lines with availability and shortfalls', async ({ pickLists, testData, apiClient, page }) => {
     const { part: partA } = await testData.parts.create({
       overrides: { description: 'Control IC' },
     });
@@ -26,23 +26,21 @@ test.describe('Pick list detail workspace', () => {
     const partAId = partAReservations.part_id;
     const partBId = partBReservations.part_id;
 
-    const stockBoxA = await testData.boxes.create({
-      overrides: { description: 'Pick List Box A' },
-    });
-    const stockBoxB = await testData.boxes.create({
-      overrides: { description: 'Pick List Box B' },
+    // Stock both parts in the SAME box to validate multi-part-per-box grouping
+    const sharedBox = await testData.boxes.create({
+      overrides: { description: 'Shared Pick Box' },
     });
 
     await apiClient.apiRequest(() =>
       apiClient.POST('/api/inventory/parts/{part_key}/stock', {
         params: { path: { part_key: partA.key } },
-        body: { box_no: stockBoxA.box_no, loc_no: 1, qty: 20 },
+        body: { box_no: sharedBox.box_no, loc_no: 1, qty: 20 },
       })
     );
     await apiClient.apiRequest(() =>
       apiClient.POST('/api/inventory/parts/{part_key}/stock', {
         params: { path: { part_key: partB.key } },
-        body: { box_no: stockBoxB.box_no, loc_no: 1, qty: 6 },
+        body: { box_no: sharedBox.box_no, loc_no: 2, qty: 6 },
       })
     );
 
@@ -66,10 +64,11 @@ test.describe('Pick list detail workspace', () => {
       requestedUnits: 2,
     });
 
+    // Remove partB stock to create a shortfall
     await apiClient.apiRequest(() =>
       apiClient.DELETE('/api/inventory/parts/{part_key}/stock', {
         params: { path: { part_key: partB.key } },
-        body: { box_no: stockBoxB.box_no, loc_no: 1, qty: 6 },
+        body: { box_no: sharedBox.box_no, loc_no: 2, qty: 6 },
       })
     );
 
@@ -101,13 +100,21 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.metadata).toContainText('Requested units');
     await expect(pickLists.metadata).toContainText('Total lines');
 
-    const groupForPartA = pickLists.group(lineForPartA!.kit_content.id);
-    await expect(groupForPartA).toBeVisible();
-    await expect(groupForPartA).toContainText(partA.description);
+    // Both parts are in the same box; verify the single box group card
+    const boxGroup = pickLists.boxGroup(sharedBox.box_no);
+    await expect(boxGroup).toBeVisible();
 
-    const groupForPartB = pickLists.group(lineForPartB!.kit_content.id);
-    await expect(groupForPartB).toBeVisible();
-    await expect(groupForPartB).toContainText(partB.description);
+    // Verify box header format: #<box_no> - <box_description>
+    const boxHeader = pickLists.boxGroupHeader(sharedBox.box_no);
+    await expect(boxHeader).toContainText(`#${sharedBox.box_no} - Shared Pick Box`);
+
+    // Verify both parts appear as PartInlineSummary in their table rows
+    await expect(pickLists.linePart(lineForPartA!.id)).toContainText(partA.description);
+    await expect(pickLists.linePart(lineForPartB!.id)).toContainText(partB.description);
+
+    // Verify part keys are visible in the Part column
+    await expect(pickLists.linePart(lineForPartA!.id)).toContainText(partA.key);
+    await expect(pickLists.linePart(lineForPartB!.id)).toContainText(partB.key);
 
     const lineALocator = pickLists.line(lineForPartA!.id);
     await expect(lineALocator).toBeVisible();

@@ -49,16 +49,20 @@ export class PickListsPage extends BasePage {
     await this.goto(path);
   }
 
-  group(kitContentId: number): Locator {
-    return this.page.getByTestId(`pick-lists.detail.group.${kitContentId}`);
+  boxGroup(boxNo: number): Locator {
+    return this.page.getByTestId(`pick-lists.detail.group.box-${boxNo}`);
   }
 
-  groupMetrics(kitContentId: number): Locator {
-    return this.page.getByTestId(`pick-lists.detail.group.${kitContentId}.metrics`);
+  boxGroupHeader(boxNo: number): Locator {
+    return this.page.getByTestId(`pick-lists.detail.group.box-${boxNo}.header`);
   }
 
   line(lineId: number): Locator {
     return this.page.getByTestId(`pick-lists.detail.line.${lineId}`);
+  }
+
+  linePart(lineId: number): Locator {
+    return this.page.getByTestId(`pick-lists.detail.line.${lineId}.part`);
   }
 
   lineStatus(lineId: number): Locator {

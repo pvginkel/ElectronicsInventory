@@ -17,6 +17,7 @@ export interface PickListLocation {
   id: number;
   boxNo: number;
   locNo: number;
+  boxDescription: string;
 }
 
 export interface PickListLineContent {
@@ -56,20 +57,10 @@ export interface PickListDetail {
   lines: PickListLine[];
 }
 
-export interface PickListLineGroup {
-  kitContentId: number;
-  partId: number;
-  partKey: string;
-  description: string;
-  manufacturerCode: string | null;
-  coverUrl: string | null;
+export interface PickListBoxGroup {
+  boxNo: number;
+  boxDescription: string;
   lines: PickListLine[];
-  lineCount: number;
-  openLineCount: number;
-  completedLineCount: number;
-  totalQuantityToPick: number;
-  openQuantityToPick: number;
-  pickedQuantity: number;
 }
 
 export interface PickListPartLocationAvailability {
@@ -164,52 +155,49 @@ function mapPickListLineLocation(
     id: location.id,
     boxNo: location.box_no,
     locNo: location.loc_no,
+    boxDescription: location.box_description,
   };
 }
 
-export function groupPickListLines(lines: PickListLine[]): PickListLineGroup[] {
+/**
+ * Group pick list lines by box number, matching the PDF report layout.
+ * Groups are sorted by boxNo ascending; lines within each group are
+ * sorted by (locNo, lineId) ascending.
+ */
+export function groupPickListLinesByBox(lines: PickListLine[]): PickListBoxGroup[] {
   if (lines.length === 0) {
     return [];
   }
 
-  const groups: PickListLineGroup[] = [];
-  const byKitContentId = new Map<number, PickListLineGroup>();
+  // Build groups keyed by boxNo
+  const byBoxNo = new Map<number, PickListBoxGroup>();
 
   for (const line of lines) {
-    const kitContentId = line.kitContent.id;
-    let group = byKitContentId.get(kitContentId);
+    const { boxNo, boxDescription } = line.location;
+    let group = byBoxNo.get(boxNo);
 
     if (!group) {
       group = {
-        kitContentId,
-        partId: line.kitContent.partId,
-        partKey: line.kitContent.partKey,
-        description: line.kitContent.description,
-        manufacturerCode: line.kitContent.manufacturerCode,
-        coverUrl: line.kitContent.coverUrl,
+        boxNo,
+        boxDescription,
         lines: [],
-        lineCount: 0,
-        openLineCount: 0,
-        completedLineCount: 0,
-        totalQuantityToPick: 0,
-        openQuantityToPick: 0,
-        pickedQuantity: 0,
       };
-      groups.push(group);
-      byKitContentId.set(kitContentId, group);
+      byBoxNo.set(boxNo, group);
     }
 
     group.lines.push(line);
-    group.lineCount += 1;
-    group.totalQuantityToPick += line.quantityToPick;
+  }
 
-    if (line.status === 'completed') {
-      group.completedLineCount += 1;
-      group.pickedQuantity += line.quantityToPick;
-    } else {
-      group.openLineCount += 1;
-      group.openQuantityToPick += line.quantityToPick;
-    }
+  // Sort groups by boxNo ascending
+  const groups = Array.from(byBoxNo.values()).sort((a, b) => a.boxNo - b.boxNo);
+
+  // Sort lines within each group by (locNo, lineId)
+  for (const group of groups) {
+    group.lines.sort((a, b) => {
+      const locDiff = a.location.locNo - b.location.locNo;
+      if (locDiff !== 0) return locDiff;
+      return a.id - b.id;
+    });
   }
 
   return groups;

@@ -20,7 +20,7 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 import { useUiStateInstrumentation, beginUiState, endUiState } from '@/lib/test/ui-state';
 import { useConfirm } from '@/hooks/use-confirm';
 import type { KitStatus } from '@/types/kits';
-import type { PickListDetail as PickListDetailModel, PickListLineGroup } from '@/types/pick-lists';
+import type { PickListDetail as PickListDetailModel, PickListBoxGroup } from '@/types/pick-lists';
 import type { DocumentItem } from '@/types/documents';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
@@ -55,7 +55,7 @@ export function PickListDetail({
     pickListId: normalizedPickListId,
     isPickListIdValid,
     detail,
-    lineGroups,
+    boxGroups,
     uniquePartKeys,
     query,
     getDetailReadyMetadata,
@@ -338,7 +338,7 @@ export function PickListDetail({
     hasError,
     error,
     detail,
-    lineGroups,
+    boxGroups,
     onRetry: () => query.refetch(),
     availabilityEnabled,
     availability,
@@ -385,7 +385,7 @@ interface RenderContentOptions {
   hasError: boolean;
   error: unknown;
   detail: PickListDetailModel | undefined;
-  lineGroups: PickListLineGroup[];
+  boxGroups: PickListBoxGroup[];
   onRetry: () => void;
   availabilityEnabled: boolean;
   availability: ReturnType<typeof usePickListAvailability>;
@@ -407,7 +407,7 @@ function renderContent(options: RenderContentOptions) {
     hasError,
     error,
     detail,
-    lineGroups,
+    boxGroups,
     onRetry,
     availabilityEnabled,
     availability,
@@ -470,7 +470,7 @@ function renderContent(options: RenderContentOptions) {
   return (
     <div className="space-y-6" data-testid="pick-lists.detail.loaded">
       <PickListLines
-        groups={lineGroups}
+        boxGroups={boxGroups}
         availability={availability.availabilityByPartKey}
         availabilityEnabled={availabilityEnabled}
         availabilityLoading={availabilityIsLoading}

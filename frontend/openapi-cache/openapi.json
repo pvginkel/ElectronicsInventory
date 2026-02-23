@@ -3053,6 +3053,12 @@
       "KitPickListDetailSchema.b247181.PickListLineLocationSchema": {
         "description": "Location metadata for a pick list line.",
         "properties": {
+          "box_description": {
+            "description": "Description of the box containing the location",
+            "example": "Passive Components",
+            "title": "Box Description",
+            "type": "string"
+          },
           "box_no": {
             "description": "Box number containing the location",
             "example": 3,
@@ -3075,7 +3081,8 @@
         "required": [
           "id",
           "box_no",
-          "loc_no"
+          "loc_no",
+          "box_description"
         ],
         "title": "PickListLineLocationSchema",
         "type": "object"

@@ -1,17 +1,18 @@
 import { type ReactNode, useState } from 'react';
 import { Loader2, Pencil } from 'lucide-react';
 
-import { Card, CardContent, CardHeader } from '@/components/primitives/card';
+import { Card, CardContent } from '@/components/primitives/card';
+import { ListSectionHeader } from '@/components/primitives/list-section-header';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Alert, InlineNotification } from '@/components/primitives';
-import { EmptyState, KeyValueBadge, StatusBadge } from '@/components/ui';
+import { EmptyState, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
 import { formatLocation } from '@/lib/utils/locations';
 import type {
   PickListAvailabilityErrorDetail,
-  PickListLineGroup,
+  PickListBoxGroup,
   PickListPartLocationAvailability,
 } from '@/types/pick-lists';
 
@@ -27,17 +28,19 @@ function getLineStatusBadgeProps(status: 'open' | 'completed'): { color: 'active
   }
 }
 
+// Column widths for the 7-column box-grouped table
 const COLUMN_WIDTHS = {
-  location: 'w-[20%] min-w-[180px]',
-  status: 'w-[12%] min-w-[110px]',
+  part: 'w-[22%] min-w-[200px]',
+  location: 'w-[10%] min-w-[100px]',
+  status: 'w-[10%] min-w-[100px]',
   quantity: 'w-[14%] min-w-[120px]',
-  stock: 'w-[16%] min-w-[140px]',
-  shortfall: 'w-[28%] min-w-[200px]',
-  actions: 'w-[10%] min-w-[120px]',
+  stock: 'w-[12%] min-w-[120px]',
+  shortfall: 'w-[22%] min-w-[160px]',
+  actions: 'w-[10%] min-w-[100px]',
 } as const;
 
 interface PickListLinesProps {
-  groups: PickListLineGroup[];
+  boxGroups: PickListBoxGroup[];
   availability: Map<string, PickListPartLocationAvailability>;
   availabilityEnabled: boolean;
   availabilityLoading: boolean;
@@ -56,7 +59,7 @@ interface PickListLinesProps {
 }
 
 export function PickListLines({
-  groups,
+  boxGroups,
   availability,
   availabilityEnabled,
   availabilityLoading,
@@ -116,7 +119,7 @@ export function PickListLines({
     }
   };
 
-  if (groups.length === 0) {
+  if (boxGroups.length === 0) {
     return (
       <EmptyState
         testId="pick-lists.detail.lines.empty"
@@ -144,75 +147,40 @@ export function PickListLines({
         </Alert>
       ) : null}
 
-      {groups.map(group => {
-        const groupId = group.kitContentId;
+      {boxGroups.map(group => {
+        const groupTestId = `pick-lists.detail.group.box-${group.boxNo}`;
         return (
-          <Card key={groupId} className="p-0" data-testid={`pick-lists.detail.group.${groupId}`}>
-            <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
-              <div className="w-full md:max-w-2xl">
-                <PartInlineSummary
-                  partKey={group.partKey}
-                  description={group.description}
-                  manufacturerCode={group.manufacturerCode}
-                  coverUrl={group.coverUrl}
-                  testId={`pick-lists.detail.group.${groupId}.summary`}
-                  link={true}
-                />
-              </div>
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
-                <div
-                  className="flex flex-wrap gap-2"
-                  data-testid={`pick-lists.detail.group.${groupId}.metrics`}
-                >
-                  <KeyValueBadge
-                    label="Lines"
-                    value={`${NUMBER_FORMATTER.format(group.lineCount)} (${NUMBER_FORMATTER.format(group.openLineCount)} open)`}
-                    color="neutral"
-                    testId={`pick-lists.detail.group.${groupId}.metrics.lines`}
-                  />
-                  <KeyValueBadge
-                    label="Quantity to pick"
-                    value={NUMBER_FORMATTER.format(group.totalQuantityToPick)}
-                    color="neutral"
-                    testId={`pick-lists.detail.group.${groupId}.metrics.total-quantity`}
-                  />
-                  <KeyValueBadge
-                    label="Remaining"
-                    value={NUMBER_FORMATTER.format(group.openQuantityToPick)}
-                    color="warning"
-                    testId={`pick-lists.detail.group.${groupId}.metrics.remaining`}
-                  />
-                </div>
-                <div
-                  className="flex items-center gap-2"
-                  data-testid={`pick-lists.detail.group.${groupId}.actions`}
-                />
-              </div>
-            </CardHeader>
+          <Card key={group.boxNo} className="p-0" data-testid={groupTestId}>
+            <ListSectionHeader
+              title={`#${group.boxNo} - ${group.boxDescription}`}
+              testId={`${groupTestId}.header`}
+            />
             <CardContent className="px-0 py-0">
               <div className="overflow-x-auto">
                 <table
                   className="min-w-full table-fixed divide-y divide-border/70"
-                  data-testid={`pick-lists.detail.group.${groupId}.table`}
+                  data-testid={`${groupTestId}.table`}
                 >
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
+                      <th className={`${COLUMN_WIDTHS.part} px-4 py-3 text-left font-medium`}>Part</th>
                       <th className={`${COLUMN_WIDTHS.location} px-4 py-3 text-left font-medium`}>Location</th>
                       <th className={`${COLUMN_WIDTHS.status} px-4 py-3 text-left font-medium`}>Status</th>
-                      <th className={`${COLUMN_WIDTHS.quantity} px-4 py-3 text-right font-medium`}>Quantity to pick</th>
-                      <th className={`${COLUMN_WIDTHS.stock} px-4 py-3 text-right font-medium`}>Current in stock</th>
+                      <th className={`${COLUMN_WIDTHS.quantity} px-4 py-3 text-right font-medium`}>Qty to pick</th>
+                      <th className={`${COLUMN_WIDTHS.stock} px-4 py-3 text-right font-medium`}>In stock</th>
                       <th className={`${COLUMN_WIDTHS.shortfall} px-4 py-3 text-left font-medium`}>Shortfall</th>
                       <th className={`${COLUMN_WIDTHS.actions} px-4 py-3 text-right font-medium`}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/70" data-testid={`pick-lists.detail.group.${groupId}.lines`}>
+                  <tbody className="divide-y divide-border/70" data-testid={`${groupTestId}.lines`}>
                     {group.lines.map(line => {
                       const lineId = line.id;
                       const locationLabel = formatLocation(line.location.boxNo, line.location.locNo);
+                      // Each line resolves availability using its own partKey
                       const inStockQuantity = availabilityEnabled
                         ? getLineAvailabilityQuantity(
                             availability,
-                            group.partKey,
+                            line.kitContent.partKey,
                             line.location.boxNo,
                             line.location.locNo,
                           )
@@ -242,6 +210,17 @@ export function PickListLines({
 
                       return (
                         <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`}>
+                          <td className={`${COLUMN_WIDTHS.part} px-4 py-3 text-sm text-foreground`}>
+                            <PartInlineSummary
+                              partKey={line.kitContent.partKey}
+                              description={line.kitContent.description}
+                              manufacturerCode={line.kitContent.manufacturerCode}
+                              coverUrl={line.kitContent.coverUrl}
+                              showCoverImage={false}
+                              link={true}
+                              testId={`pick-lists.detail.line.${lineId}.part`}
+                            />
+                          </td>
                           <td className={`${COLUMN_WIDTHS.location} px-4 py-3 text-sm font-medium text-foreground`}>
                             <span data-testid={`pick-lists.detail.line.${lineId}.location`}>
                               {locationLabel}
