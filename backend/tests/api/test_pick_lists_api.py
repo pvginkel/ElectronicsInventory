@@ -75,6 +75,11 @@ class TestPickListsApi:
         assert data["status"] == "open"
         assert data["line_count"] >= 1
         assert all(line["status"] == "open" for line in data["lines"])
+        # Verify box_description is present in each line's location
+        for line in data["lines"]:
+            assert "box_description" in line["location"]
+            assert isinstance(line["location"]["box_description"], str)
+            assert len(line["location"]["box_description"]) > 0
 
     def test_create_pick_list_insufficient_stock(self, client, session, make_attachment_set) -> None:
         kit, _, _, _ = _seed_kit_with_inventory(
@@ -106,6 +111,8 @@ class TestPickListsApi:
         data = response.get_json()
         assert data["id"] == pick_list_id
         assert len(data["lines"]) >= 1
+        # Verify box_description is present and matches seeded box description
+        assert data["lines"][0]["location"]["box_description"] == "API Box"
 
     def test_pick_line_endpoint_updates_inventory(self, client, session, make_attachment_set) -> None:
         kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=3)

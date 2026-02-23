@@ -26,5 +26,10 @@ class Location(db.Model):  # type: ignore[name-defined]
 
     __table_args__ = (UniqueConstraint("box_no", "loc_no"),)
 
+    @property
+    def box_description(self) -> str:
+        """Expose the parent box description for Pydantic serialization."""
+        return self.box.description
+
     def __repr__(self) -> str:
         return f"<Location {self.box_no}-{self.loc_no}>"
