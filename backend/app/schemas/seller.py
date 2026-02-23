@@ -60,6 +60,11 @@ class SellerResponseSchema(BaseModel):
         description="Seller website URL",
         json_schema_extra={"example": "https://www.digikey.com"}
     )
+    logo_url: str | None = Field(
+        default=None,
+        description="CAS URL for the seller logo image",
+        json_schema_extra={"example": "/api/cas/abc123def456"}
+    )
     created_at: datetime = Field(
         description="Timestamp when seller was created"
     )
@@ -84,4 +89,9 @@ class SellerListSchema(BaseModel):
     website: str = Field(
         description="Seller website URL",
         json_schema_extra={"example": "https://www.digikey.com"}
+    )
+    logo_url: str | None = Field(
+        default=None,
+        description="CAS URL for the seller logo image",
+        json_schema_extra={"example": "/api/cas/abc123def456"}
     )

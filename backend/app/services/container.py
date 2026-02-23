@@ -132,7 +132,12 @@ class ServiceContainer(containers.DeclarativeContainer):
     )
     box_service = providers.Factory(BoxService, db=db_session)
     type_service = providers.Factory(TypeService, db=db_session)
-    seller_service = providers.Factory(SellerService, db=db_session)
+    seller_service = providers.Factory(
+        SellerService,
+        db=db_session,
+        s3_service=s3_service,
+        app_settings=app_config,
+    )
     part_seller_service = providers.Factory(
         PartSellerService,
         db=db_session,

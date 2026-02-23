@@ -48,6 +48,7 @@ from tests.domain_fixtures import (  # noqa: F401, E402
     sample_part,
     sample_pdf_bytes,
     sample_pdf_file,
+    sample_png_bytes,
     temp_thumbnail_dir,
 )
 

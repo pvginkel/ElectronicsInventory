@@ -80,14 +80,18 @@ def make_attachment_set_flask(app: Flask):
 
 
 @pytest.fixture
-def sample_image_file() -> BinaryIO:
+def sample_png_bytes() -> bytes:
+    """Create a minimal PNG image as raw bytes for testing."""
+    img = Image.new("RGB", (100, 100), color="red")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@pytest.fixture
+def sample_image_file(sample_png_bytes: bytes) -> BinaryIO:
     """Create a sample PNG image file for testing."""
-    # Create a simple 100x100 red image
-    img = Image.new('RGB', (100, 100), color='red')
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format='PNG')
-    img_bytes.seek(0)
-    return img_bytes
+    return io.BytesIO(sample_png_bytes)
 
 
 @pytest.fixture

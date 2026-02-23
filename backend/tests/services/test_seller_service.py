@@ -1,7 +1,11 @@
 """Test seller service functionality."""
 
+import io
+from unittest.mock import patch
+
 import pytest
 from flask import Flask
+from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.exceptions import (
@@ -410,3 +414,201 @@ class TestSellerService:
             # Should successfully return the existing seller
             assert seller.name == "Amazon"
             assert seller.website == "https://www.amazon.com"
+
+
+class TestSellerServiceLogo:
+    """Test cases for SellerService logo upload and delete functionality."""
+
+    def test_set_logo_valid_png(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
+        """Test uploading a valid PNG logo sets logo_s3_key and logo_url."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+
+        updated = service.set_logo(seller.id, sample_png_bytes)
+
+        assert updated.logo_s3_key is not None
+        assert updated.logo_s3_key.startswith("cas/")
+        assert updated.logo_url is not None
+        assert "/api/cas/" in updated.logo_url
+
+    def test_set_logo_valid_jpeg(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test uploading a valid JPEG logo sets logo_s3_key."""
+        service = container.seller_service()
+        seller = service.create_seller("Mouser", "https://www.mouser.com")
+        img = Image.new("RGB", (100, 100), color="blue")
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        jpeg_bytes = buf.getvalue()
+
+        updated = service.set_logo(seller.id, jpeg_bytes)
+
+        assert updated.logo_s3_key is not None
+        assert updated.logo_s3_key.startswith("cas/")
+        assert updated.logo_url is not None
+
+    def test_set_logo_invalid_file_type_pdf(self, app: Flask, session: Session, container: ServiceContainer, sample_pdf_bytes):
+        """Test uploading a PDF as logo raises InvalidOperationException."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            service.set_logo(seller.id, sample_pdf_bytes)
+
+        assert "file type not allowed" in str(exc_info.value)
+
+    def test_set_logo_invalid_file_type_text(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test uploading a text file as logo raises InvalidOperationException."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+        text_bytes = b"This is not an image file at all."
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            service.set_logo(seller.id, text_bytes)
+
+        assert "file type not allowed" in str(exc_info.value)
+
+    def test_set_logo_file_too_large(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test uploading an oversized file raises InvalidOperationException."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+
+        # Create bytes larger than max_image_size (default 10MB)
+        oversized_bytes = b"\x89PNG" + b"\x00" * (10 * 1024 * 1024 + 1)
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            service.set_logo(seller.id, oversized_bytes)
+
+        assert "file too large" in str(exc_info.value)
+
+    def test_set_logo_nonexistent_seller(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
+        """Test set_logo for non-existent seller raises RecordNotFoundException."""
+        service = container.seller_service()
+        png_bytes = sample_png_bytes
+
+        with pytest.raises(RecordNotFoundException) as exc_info:
+            service.set_logo(999, png_bytes)
+
+        assert "Seller 999 was not found" in str(exc_info.value)
+
+    def test_set_logo_replaces_existing(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
+        """Test uploading a new logo replaces the previous one."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+
+        # Set first logo
+        png_bytes_1 = sample_png_bytes
+        service.set_logo(seller.id, png_bytes_1)
+        first_key = seller.logo_s3_key
+
+        # Set second logo with different content
+        img2 = Image.new("RGB", (200, 200), color="green")
+        buf2 = io.BytesIO()
+        img2.save(buf2, format="PNG")
+        png_bytes_2 = buf2.getvalue()
+
+        service.set_logo(seller.id, png_bytes_2)
+        second_key = seller.logo_s3_key
+
+        # The CAS key should be different (different content)
+        assert first_key != second_key
+        assert second_key is not None
+        assert second_key.startswith("cas/")
+
+    def test_set_logo_cas_dedup_skips_upload(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
+        """Test CAS dedup: when file already exists in S3, upload is skipped."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+        png_bytes = sample_png_bytes
+
+        # First upload -- puts the blob into S3
+        service.set_logo(seller.id, png_bytes)
+        first_key = seller.logo_s3_key
+
+        # Create a second seller and upload the same image
+        seller2 = service.create_seller("Mouser", "https://www.mouser.com")
+
+        # Spy on s3_service.upload_file to verify dedup
+        with patch.object(service.s3_service, "upload_file", wraps=service.s3_service.upload_file) as spy_upload:
+            service.set_logo(seller2.id, png_bytes)
+
+            # file_exists should return True, so upload_file should NOT be called
+            spy_upload.assert_not_called()
+
+        # Both sellers should share the same CAS key
+        assert seller2.logo_s3_key == first_key
+
+    def test_set_logo_s3_upload_failure_rolls_back(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
+        """Test that S3 upload failure propagates and allows transaction rollback."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+        assert seller.logo_s3_key is None
+
+        png_bytes = sample_png_bytes
+
+        # Mock file_exists to return False (no dedup) and upload_file to fail
+        with patch.object(service.s3_service, "file_exists", return_value=False), \
+             patch.object(service.s3_service, "upload_file", side_effect=InvalidOperationException("upload file to S3", "connection refused")):
+            with pytest.raises(InvalidOperationException) as exc_info:
+                service.set_logo(seller.id, png_bytes)
+
+            assert "upload file to S3" in str(exc_info.value)
+
+    def test_delete_logo_with_logo(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
+        """Test deleting logo sets logo_s3_key to None."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+        png_bytes = sample_png_bytes
+
+        # Set logo first
+        service.set_logo(seller.id, png_bytes)
+        assert seller.logo_s3_key is not None
+        assert seller.logo_url is not None
+
+        # Delete logo
+        updated = service.delete_logo(seller.id)
+
+        assert updated.logo_s3_key is None
+        assert updated.logo_url is None
+
+    def test_delete_logo_without_logo(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test deleting logo when none is set does not raise an error."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+        assert seller.logo_s3_key is None
+
+        # Should not raise
+        updated = service.delete_logo(seller.id)
+
+        assert updated.logo_s3_key is None
+        assert updated.logo_url is None
+
+    def test_delete_logo_nonexistent_seller(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test delete_logo for non-existent seller raises RecordNotFoundException."""
+        service = container.seller_service()
+
+        with pytest.raises(RecordNotFoundException) as exc_info:
+            service.delete_logo(999)
+
+        assert "Seller 999 was not found" in str(exc_info.value)
+
+    def test_logo_url_none_when_no_logo(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test that logo_url property is None when logo_s3_key is None."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+
+        assert seller.logo_s3_key is None
+        assert seller.logo_url is None
+
+    def test_logo_url_returns_cas_url_when_set(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
+        """Test that logo_url returns a proper CAS URL when logo is set."""
+        service = container.seller_service()
+        seller = service.create_seller("DigiKey", "https://www.digikey.com")
+        png_bytes = sample_png_bytes
+
+        service.set_logo(seller.id, png_bytes)
+
+        assert seller.logo_url is not None
+        assert seller.logo_url.startswith("/api/cas/")
+        # CAS URL should contain the 64-char hex hash
+        hash_part = seller.logo_url.replace("/api/cas/", "")
+        assert len(hash_part) == 64
