@@ -23,8 +23,8 @@ if TYPE_CHECKING:
     from app.models.attachment_set import AttachmentSet
     from app.models.kit_content import KitContent
     from app.models.part_location import PartLocation
+    from app.models.part_seller import PartSeller
     from app.models.quantity_history import QuantityHistory
-    from app.models.seller import Seller
     from app.models.type import Type
 
 
@@ -45,10 +45,6 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
     manufacturer: Mapped[str | None] = mapped_column(String(255), nullable=True)
     product_page: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    seller_id: Mapped[int | None] = mapped_column(
-        ForeignKey("sellers.id"), nullable=True
-    )
-    seller_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
     attachment_set_id: Mapped[int] = mapped_column(
         ForeignKey("attachment_sets.id"), nullable=False
     )
@@ -82,8 +78,8 @@ class Part(db.Model):  # type: ignore[name-defined]
     type: Mapped[Optional["Type"]] = relationship(
         "Type", back_populates="parts", lazy="select"
     )
-    seller: Mapped[Optional["Seller"]] = relationship(
-        "Seller", back_populates="parts", lazy="select"
+    seller_links: Mapped[list["PartSeller"]] = relationship(
+        "PartSeller", back_populates="part", cascade="all, delete-orphan", lazy="select"
     )
     part_locations: Mapped[list["PartLocation"]] = relationship(
         "PartLocation", back_populates="part", cascade="all, delete-orphan", lazy="select"

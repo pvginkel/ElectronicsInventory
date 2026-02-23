@@ -97,14 +97,17 @@ def _parse_include_parameter(include_param: str | None) -> tuple[bool, bool, boo
 
 def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, Any]:
     """Convert Part model to PartWithTotalSchema data dict."""
-    # Convert seller relationship to proper schema format
-    seller_data = None
-    if part.seller:
-        seller_data = {
-            "id": part.seller.id,
-            "name": part.seller.name,
-            "website": part.seller.website
-        }
+    # Convert seller_links relationship to schema format
+    seller_links_data = []
+    for ps in getattr(part, "seller_links", []) or []:
+        seller_links_data.append({
+            "id": ps.id,
+            "seller_id": ps.seller_id,
+            "seller_name": ps.seller.name if ps.seller else "",
+            "seller_website": ps.seller.website if ps.seller else "",
+            "link": ps.link,
+            "created_at": ps.created_at.isoformat() if ps.created_at else None,
+        })
 
     # Convert datetimes to ISO format strings for JSON serialization
     created_at = part.created_at.isoformat() if part.created_at else None
@@ -117,8 +120,7 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
         "type_id": part.type_id,
         "tags": part.tags,
         "manufacturer": part.manufacturer,
-        "seller": seller_data,
-        "seller_link": part.seller_link,
+        "seller_links": seller_links_data,
         "cover_url": part.cover_url,
         "package": part.package,
         "pin_count": part.pin_count,
@@ -148,8 +150,6 @@ def create_part(part_service: PartService = Provide[ServiceContainer.part_servic
         tags=data.tags,
         manufacturer=data.manufacturer,
         product_page=data.product_page,
-        seller_id=data.seller_id,
-        seller_link=data.seller_link,
         package=data.package,
         pin_count=data.pin_count,
         pin_pitch=data.pin_pitch,

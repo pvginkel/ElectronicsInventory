@@ -29,6 +29,7 @@ from app.services.kit_shopping_list_service import KitShoppingListService
 from app.services.metrics_service import MetricsService
 from app.services.mouser_service import MouserService
 from app.services.oidc_client_service import OidcClientService
+from app.services.part_seller_service import PartSellerService
 from app.services.part_service import PartService
 from app.services.pick_list_report_service import PickListReportService
 from app.services.s3_service import S3Service
@@ -132,11 +133,18 @@ class ServiceContainer(containers.DeclarativeContainer):
     box_service = providers.Factory(BoxService, db=db_session)
     type_service = providers.Factory(TypeService, db=db_session)
     seller_service = providers.Factory(SellerService, db=db_session)
+    part_seller_service = providers.Factory(
+        PartSellerService,
+        db=db_session,
+        part_service=part_service,
+        seller_service=seller_service,
+    )
     dashboard_service = providers.Factory(DashboardService, db=db_session)
     setup_service = providers.Factory(SetupService, db=db_session)
     shopping_list_service = providers.Factory(
         ShoppingListService,
         db=db_session,
+        part_seller_service=part_seller_service,
     )
 
     # Lifecycle coordinator - Singleton for managing startup and graceful shutdown
@@ -218,6 +226,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         db=db_session,
         seller_service=seller_service,
         inventory_service=inventory_service,
+        part_seller_service=part_seller_service,
     )
     kit_pick_list_service = providers.Factory(
         KitPickListService,
@@ -331,7 +340,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         app_config=app_config,
         temp_file_manager=temp_file_manager,
         type_service=type_service,
-        seller_service=seller_service,
         download_cache_service=download_cache_service,
         document_service=document_service,
         duplicate_search_function=duplicate_search_function,

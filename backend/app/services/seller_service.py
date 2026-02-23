@@ -8,7 +8,7 @@ from app.exceptions import (
     RecordNotFoundException,
     ResourceConflictException,
 )
-from app.models.part import Part
+from app.models.part_seller import PartSeller
 from app.models.seller import Seller
 
 if TYPE_CHECKING:
@@ -109,12 +109,12 @@ class SellerService:
         """
         seller = self.get_seller(seller_id)
 
-        # Check if seller has associated parts
-        parts_count = self.db.scalar(
-            select(Part.id).where(Part.seller_id == seller_id).limit(1)
+        # Check if seller has associated part seller links
+        has_links = self.db.scalar(
+            select(PartSeller.id).where(PartSeller.seller_id == seller_id).limit(1)
         )
 
-        if parts_count:
+        if has_links:
             raise InvalidOperationException(
                 "delete seller",
                 "it has associated parts"

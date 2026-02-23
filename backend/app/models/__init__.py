@@ -11,6 +11,7 @@ from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
+from app.models.part_seller import PartSeller
 from app.models.quantity_history import QuantityHistory
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import (
@@ -27,6 +28,7 @@ __all__: list[str] = [
     "Location",
     "Part",
     "PartLocation",
+    "PartSeller",
     "QuantityHistory",
     "KitContent",
     "Kit",

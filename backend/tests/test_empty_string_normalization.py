@@ -167,7 +167,6 @@ class TestEmptyStringNormalization:
                 manufacturer_code="",
                 manufacturer="",
                 product_page="",
-                seller_link="",
                 package="",
                 pin_pitch="",
                 voltage_rating="",
@@ -183,7 +182,6 @@ class TestEmptyStringNormalization:
             assert part.manufacturer_code is None
             assert part.manufacturer is None
             assert part.product_page is None
-            assert part.seller_link is None
             assert part.package is None
             assert part.pin_pitch is None
             assert part.voltage_rating is None

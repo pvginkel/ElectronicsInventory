@@ -80,11 +80,6 @@ You have access to Mouser Electronics API for part search and data retrieval:
 3. Mouser results include: manufacturer, description, datasheet URL, product page URL, category, lifecycle status.
 4. **Use Mouser data to populate fields**: If Mouser returns good matches, use their data for manufacturer, description, datasheet_urls.
 
-## Seller vs Product Page (IMPORTANT)
-- **seller**: Set to `"Mouser"` when you found the part via Mouser
-- **seller_url**: Set to the Mouser `ProductDetailUrl` (this is where the user can buy the part)
-- **product_page_urls**: Should be the **manufacturer's** product page, NOT Mouser's page. Search for the manufacturer's official page for this part.
-
 ## Mouser Result Priority
 - Prefer Mouser datasheets when available (authoritative and current)
 - If Mouser has the part, it's likely the right match (Mouser is a major distributor)

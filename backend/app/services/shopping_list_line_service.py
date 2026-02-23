@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from prometheus_client import Counter
-from sqlalchemy import and_, or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -20,6 +20,7 @@ from app.services.seller_service import SellerService
 
 if TYPE_CHECKING:
     from app.services.inventory_service import InventoryService
+    from app.services.part_seller_service import PartSellerService
 
 # Shopping list metrics
 SHOPPING_LIST_LINES_MARKED_ORDERED_TOTAL = Counter(
@@ -45,10 +46,12 @@ class ShoppingListLineService:
         db: Session,
         seller_service: SellerService,
         inventory_service: "InventoryService",
+        part_seller_service: "PartSellerService",
     ) -> None:
         self.db = db
         self.seller_service = seller_service
         self.inventory_service = inventory_service
+        self.part_seller_service = part_seller_service
 
     def add_line(
         self,
@@ -285,7 +288,9 @@ class ShoppingListLineService:
         if not include_done:
             stmt = stmt.where(ShoppingListLine.status != ShoppingListLineStatus.DONE)
 
-        return list(self.db.execute(stmt).scalars().all())
+        lines = list(self.db.execute(stmt).scalars().all())
+        self._enrich_seller_links(lines)
+        return lines
 
     def set_line_ordered(
         self,
@@ -519,32 +524,21 @@ class ShoppingListLineService:
                 "list must be Ready to mark a seller group as ordered",
             )
 
+        # seller_id on line IS the seller; no fallback to Part.seller
         stmt = (
             select(ShoppingListLine)
-            .join(Part, Part.id == ShoppingListLine.part_id)
             .where(ShoppingListLine.shopping_list_id == list_id)
         )
 
         if seller_id is None:
-            stmt = stmt.where(
-                ShoppingListLine.seller_id.is_(None),
-                Part.seller_id.is_(None),
-            )
+            stmt = stmt.where(ShoppingListLine.seller_id.is_(None))
         else:
-            stmt = stmt.where(
-                or_(
-                    ShoppingListLine.seller_id == seller_id,
-                    and_(
-                        ShoppingListLine.seller_id.is_(None),
-                        Part.seller_id == seller_id,
-                    ),
-                )
-            )
+            stmt = stmt.where(ShoppingListLine.seller_id == seller_id)
 
         group_lines = list(
             self.db.execute(
                 stmt.options(
-                    selectinload(ShoppingListLine.part).selectinload(Part.seller),
+                    selectinload(ShoppingListLine.part),
                     selectinload(ShoppingListLine.seller),
                 )
             ).scalars().all()
@@ -608,6 +602,27 @@ class ShoppingListLineService:
         )
         return self.db.execute(stmt).scalar_one_or_none() is not None
 
+    def _enrich_seller_links(self, lines: list[ShoppingListLine]) -> None:
+        """Attach seller_link URLs as transient attributes on each line.
+
+        Collects (part_id, seller_id) pairs from lines that have a seller,
+        batch-fetches URLs from the part_sellers table, and sets
+        ``line.seller_link`` on every line (None when no link exists).
+        """
+        pairs: list[tuple[int, int]] = [
+            (line.part_id, line.seller_id)
+            for line in lines
+            if line.seller_id is not None
+        ]
+
+        link_map = self.part_seller_service.bulk_get_seller_links(pairs)
+
+        for line in lines:
+            if line.seller_id is not None:
+                line.seller_link = link_map.get((line.part_id, line.seller_id))
+            else:
+                line.seller_link = None
+
     def _get_line(self, line_id: int) -> ShoppingListLine:
         """Fetch a line with relationships for response payloads."""
         stmt = (
@@ -625,6 +640,7 @@ class ShoppingListLineService:
         if not line:
             raise RecordNotFoundException("Shopping list line", line_id)
         self.db.refresh(line, attribute_names=["seller"])
+        self._enrich_seller_links([line])
         return line
 
     def _get_line_for_update(self, line_id: int) -> ShoppingListLine:

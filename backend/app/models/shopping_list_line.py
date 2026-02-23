@@ -115,22 +115,6 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
         )
 
     @property
-    def effective_seller_id(self) -> int | None:
-        """Return explicit seller override or fall back to the part's seller."""
-
-        if self.seller_id is not None:
-            return self.seller_id
-        if self.part is not None:
-            return getattr(self.part, "seller_id", None)
-        return None
-
-    @property
-    def effective_seller(self) -> Seller | None:
-        """Return the seller entity used for grouping in Ready view."""
-
-        return self.seller or (self.part.seller if self.part is not None else None)
-
-    @property
     def is_orderable(self) -> bool:
         """Indicate whether ordering actions are allowed for this line."""
 

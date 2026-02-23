@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
-from sqlalchemy import and_, case, delete, func, or_, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -25,12 +25,15 @@ from app.models.shopping_list_seller_note import ShoppingListSellerNote
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from app.services.part_seller_service import PartSellerService
+
 
 class ShoppingListService:
     """Service encapsulating shopping list operations and invariants."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, part_seller_service: PartSellerService) -> None:
         self.db = db
+        self.part_seller_service = part_seller_service
 
     def create_list(self, name: str, description: str | None = None) -> ShoppingList:
         """Create a new shopping list in concept status."""
@@ -273,7 +276,7 @@ class ShoppingListService:
             .join(ShoppingList, ShoppingListLine.shopping_list_id == ShoppingList.id)
             .options(
                 selectinload(ShoppingListLine.shopping_list),
-                selectinload(ShoppingListLine.part).selectinload(Part.seller),
+                selectinload(ShoppingListLine.part),
                 selectinload(ShoppingListLine.seller),
             )
             .where(ShoppingListLine.part_id.in_(part_ids))
@@ -328,19 +331,12 @@ class ShoppingListService:
         if seller is None:
             raise RecordNotFoundException("Seller", seller_id)
 
-        # Ensure the seller is relevant to the list via override or default part seller.
+        # Ensure the seller is relevant to the list via line seller_id.
         association_exists = self.db.execute(
             select(ShoppingListLine.id)
-            .join(Part, Part.id == ShoppingListLine.part_id)
             .where(
                 ShoppingListLine.shopping_list_id == list_id,
-                or_(
-                    ShoppingListLine.seller_id == seller_id,
-                    and_(
-                        ShoppingListLine.seller_id.is_(None),
-                        Part.seller_id == seller_id,
-                    ),
-                ),
+                ShoppingListLine.seller_id == seller_id,
             )
             .limit(1)
         ).scalar_one_or_none()
@@ -383,6 +379,20 @@ class ShoppingListService:
         self.db.flush()
         self.db.refresh(existing, attribute_names=["seller"])
         return existing
+
+    def _enrich_seller_links(self, lines: list[ShoppingListLine]) -> None:
+        """Attach seller_link URLs as transient attributes on each line."""
+        pairs: list[tuple[int, int]] = [
+            (line.part_id, line.seller_id)
+            for line in lines
+            if line.seller_id is not None
+        ]
+        link_map = self.part_seller_service.bulk_get_seller_links(pairs)
+        for line in lines:
+            if line.seller_id is not None:
+                line.seller_link = link_map.get((line.part_id, line.seller_id))
+            else:
+                line.seller_link = None
 
     def _get_list_for_update(self, list_id: int) -> ShoppingList:
         """Load a shopping list for updates without eager loading relationships."""
@@ -497,7 +507,6 @@ class ShoppingListService:
             .options(
                 selectinload(ShoppingList.lines).options(
                     selectinload(ShoppingListLine.part).options(
-                        selectinload(Part.seller),
                         selectinload(Part.part_locations).selectinload(
                             PartLocation.location
                         ),
@@ -514,6 +523,9 @@ class ShoppingListService:
         shopping_list = self.db.execute(stmt).scalar_one_or_none()
         if shopping_list is None:
             raise RecordNotFoundException("Shopping list", list_id)
+        # Enrich lines with seller link URLs for schema serialization
+        if shopping_list.lines:
+            self._enrich_seller_links(list(shopping_list.lines))
         return shopping_list
 
     def _attach_ready_payload(self, shopping_list: ShoppingList) -> ShoppingList:
@@ -548,14 +560,15 @@ class ShoppingListService:
 
         groups: dict[str, dict[str, Any]] = {}
         for line in shopping_list.lines:
-            seller_id = line.effective_seller_id
+            # seller_id on the line IS the seller; no fallback to Part.seller
+            seller_id = line.seller_id
             group_key = str(seller_id) if seller_id is not None else "ungrouped"
             group = groups.get(group_key)
             if group is None:
                 group = {
                     "group_key": group_key,
                     "seller_id": seller_id,
-                    "seller": line.effective_seller if seller_id is not None else None,
+                    "seller": line.seller if seller_id is not None else None,
                     "lines": [],
                     "totals": {"needed": 0, "ordered": 0, "received": 0},
                     "order_note": notes_by_seller.get(seller_id)

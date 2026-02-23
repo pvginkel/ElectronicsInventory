@@ -47,7 +47,7 @@ class PartShoppingListMembershipSchema(BaseModel):
         json_schema_extra={"example": 0},
     )
     seller: SellerListSchema | None = Field(
-        description="Seller override or default seller context for the line",
+        description="Seller context for the line",
         default=None,
     )
     note: str | None = Field(
@@ -60,7 +60,7 @@ class PartShoppingListMembershipSchema(BaseModel):
     def from_line(cls, line: ShoppingListLine) -> PartShoppingListMembershipSchema:
         """Build the schema from a fully-loaded shopping list line."""
 
-        seller_obj = line.effective_seller
+        seller_obj = line.seller
         seller_schema = (
             SellerListSchema.model_validate(seller_obj)
             if seller_obj is not None
@@ -101,7 +101,7 @@ class PartShoppingListMembershipCreateSchema(BaseModel):
     )
     seller_id: int | None = Field(
         None,
-        description="Optional seller override for this line",
+        description="Seller for this line",
         json_schema_extra={"example": 4},
     )
     note: str | None = Field(

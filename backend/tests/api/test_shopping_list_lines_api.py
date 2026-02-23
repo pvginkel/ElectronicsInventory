@@ -43,7 +43,7 @@ class TestShoppingListLinesAPI:
         assert created["status"] == ShoppingListLineStatus.NEW.value
         assert created["part_id"] == part_id
         assert created["part"]["key"] == part_key
-        assert created["effective_seller"] is None
+        assert created["seller"] is None
         assert created["is_orderable"] is False
         assert created["is_revertible"] is False
 
@@ -60,8 +60,8 @@ class TestShoppingListLinesAPI:
         assert updated["needed"] == 5
         assert updated["seller"]["id"] == seller.id
         assert updated["note"] == "Prefer DigiKey stock"
-        assert updated["effective_seller"]["id"] == seller.id
-        assert updated["effective_seller_id"] == seller.id
+        assert updated["seller"]["id"] == seller.id
+        assert updated["seller_id"] == seller.id
 
         list_resp = client.get(f"/api/shopping-lists/{shopping_list_id}/lines")
         assert list_resp.status_code == 200
@@ -70,7 +70,7 @@ class TestShoppingListLinesAPI:
         line_entry = lines_payload["lines"][0]
         assert line_entry["needed"] == 5
         assert line_entry["part_id"] == part_id
-        assert "effective_seller_id" in line_entry
+        assert "seller_id" in line_entry
 
         delete_resp = client.delete(f"/api/shopping-list-lines/{line_id}")
         assert delete_resp.status_code == 204
@@ -243,7 +243,7 @@ class TestShoppingListLinesAPI:
         seller_service = container.seller_service()
 
         seller = seller_service.create_seller("Bundle Seller", "https://bundle.example")
-        part_default = part_service.create_part(description="Logic buffer", seller_id=seller.id)
+        part_default = part_service.create_part(description="Logic buffer")
         part_override = part_service.create_part(description="Harness kit")
         part_none = part_service.create_part(description="Cable tie")
 
@@ -252,6 +252,7 @@ class TestShoppingListLinesAPI:
             shopping_list.id,
             part_id=part_default.id,
             needed=3,
+            seller_id=seller.id,
         )
         override_line = shopping_list_line_service.add_line(
             shopping_list.id,
@@ -315,12 +316,13 @@ class TestShoppingListLinesAPI:
         seller_service = container.seller_service()
 
         seller = seller_service.create_seller("Done Vendor", "https://vendor.example")
-        part_default = part_service.create_part(description="Power module", seller_id=seller.id)
+        part_default = part_service.create_part(description="Power module")
         shopping_list = shopping_list_service.create_list("Group Rejection")
         line = shopping_list_line_service.add_line(
             shopping_list.id,
             part_id=part_default.id,
             needed=3,
+            seller_id=seller.id,
         )
         session.commit()
 

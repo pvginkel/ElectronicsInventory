@@ -555,7 +555,6 @@ class TestShoppingListLineService:
         seller = seller_service.create_seller("Ready Seller", "https://seller.example")
         part_default = part_service.create_part(
             description="Logic buffer",
-            seller_id=seller.id,
         )
         part_override = part_service.create_part(
             description="Harness kit",
@@ -569,6 +568,7 @@ class TestShoppingListLineService:
             shopping_list.id,
             part_id=part_default.id,
             needed=4,
+            seller_id=seller.id,
         )
         override_line = shopping_list_line_service.add_line(
             shopping_list.id,
@@ -661,7 +661,6 @@ class TestShoppingListLineService:
         seller = seller_service.create_seller("Done Seller", "https://done.example")
         part_default = part_service.create_part(
             description="Comparator",
-            seller_id=seller.id,
         )
 
         shopping_list = shopping_list_service.create_list("Group Done")
@@ -669,6 +668,7 @@ class TestShoppingListLineService:
             shopping_list.id,
             part_id=part_default.id,
             needed=3,
+            seller_id=seller.id,
         )
         session.commit()
 
@@ -698,7 +698,6 @@ class TestShoppingListLineService:
         seller = seller_service.create_seller("Done Guard Seller", "https://guard.example")
         part_default = part_service.create_part(
             description="Status latch",
-            seller_id=seller.id,
         )
 
         shopping_list = shopping_list_service.create_list("Group Guard")
@@ -706,6 +705,7 @@ class TestShoppingListLineService:
             shopping_list.id,
             part_id=part_default.id,
             needed=2,
+            seller_id=seller.id,
         )
         session.commit()
 

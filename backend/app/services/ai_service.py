@@ -14,7 +14,6 @@ from app.app_config import AppSettings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import AttachmentType
 from app.models.part import Part
-from app.models.seller import Seller
 from app.models.type import Type
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
@@ -27,7 +26,6 @@ from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base_task import ProgressHandle
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
-from app.services.seller_service import SellerService
 from app.services.type_service import TypeService
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
 from app.utils.ai.url_classification import (
@@ -50,7 +48,6 @@ class AIService:
         app_config: AppSettings,
         temp_file_manager: TempFileManager,
         type_service: TypeService,
-        seller_service: SellerService,
         download_cache_service: DownloadCacheService,
         document_service: DocumentService,
         duplicate_search_function: AIFunction,
@@ -63,7 +60,6 @@ class AIService:
         self.config = app_config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service
-        self.seller_service = seller_service
         self.download_cache_service = download_cache_service
         self.document_service = document_service
         self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service, document_service)
@@ -214,12 +210,9 @@ class AIService:
                         if document:
                             documents.append(document)
 
-                # Resolve type and seller against existing records
+                # Resolve type against existing records
                 suggested_type, type_is_existing, existing_type_id = self._resolve_type(
                     analysis_details.product_category, existing_types
-                )
-                suggested_seller, seller_is_existing, existing_seller_id = self._resolve_seller(
-                    analysis_details.seller
                 )
 
                 # Build analysis details schema
@@ -244,12 +237,8 @@ class AIService:
                     series=analysis_details.product_family,
                     dimensions=analysis_details.physical_dimensions,
                     documents=documents,
-                    seller=suggested_seller,
-                    seller_link=analysis_details.seller_url,
                     type_is_existing=type_is_existing,
                     existing_type_id=existing_type_id,
-                    seller_is_existing=seller_is_existing,
-                    existing_seller_id=existing_seller_id,
                 )
 
             # Return all fields (any combination can be populated based on LLM response)
@@ -282,7 +271,6 @@ class AIService:
         # Fetch target part with relationships
         stmt = select(Part).where(Part.key == part_key).options(
             selectinload(Part.type),
-            selectinload(Part.seller)
         )
         target_part = self.db.execute(stmt).scalar_one_or_none()
 
@@ -292,7 +280,6 @@ class AIService:
         # Fetch all other parts for context (excluding target)
         all_parts_stmt = select(Part).where(Part.key != part_key).options(
             selectinload(Part.type),
-            selectinload(Part.seller)
         )
         all_parts = self.db.execute(all_parts_stmt).scalars().all()
 
@@ -326,8 +313,6 @@ class AIService:
                 "series": part.series,
                 "dimensions": part.dimensions,
                 "product_page": part.product_page,
-                "seller": part.seller.name if part.seller else None,
-                "seller_link": part.seller_link
             }
 
         context_parts = [serialize_part(p) for p in all_parts]
@@ -408,11 +393,6 @@ Review the target part against the field normalization rules and improve data qu
                 analysis_details.product_category, existing_types
             )
 
-            # For cleanup, preserve existing seller from original part data
-            suggested_seller = target_part_json.get("seller")
-            seller_link = target_part_json.get("seller_link")
-            _, seller_is_existing, existing_seller_id = self._resolve_seller(suggested_seller)
-
             # Map to CleanedPartDataSchema
             cleaned_part = CleanedPartDataSchema(
                 key=part_key,
@@ -431,12 +411,8 @@ Review the target part against the field normalization rules and improve data qu
                 series=analysis_details.product_family,
                 dimensions=analysis_details.physical_dimensions,
                 product_page=analysis_details.product_page_urls[0] if analysis_details.product_page_urls else None,
-                seller=suggested_seller,
-                seller_link=seller_link,
                 type_is_existing=type_is_existing,
                 existing_type_id=existing_type_id,
-                seller_is_existing=seller_is_existing,
-                existing_seller_id=existing_seller_id,
             )
 
             return cleaned_part
@@ -485,39 +461,6 @@ Review the target part against the field normalization rules and improve data qu
                 return suggested_type, True, type_obj.id
 
         return suggested_type, False, None
-
-    def _resolve_seller(self, suggested_seller: str | None) -> tuple[str | None, bool, int | None]:
-        """
-        Resolve a suggested seller name against existing sellers.
-
-        Tries exact match first (case-insensitive), then partial match
-        if there's exactly one result.
-
-        Returns:
-            Tuple of (seller_name, is_existing, existing_id)
-        """
-        if not suggested_seller:
-            return None, False, None
-
-        existing_sellers = self.seller_service.get_all_sellers()
-        suggested_lower = suggested_seller.lower()
-
-        # Try exact match first (case-insensitive)
-        for seller_obj in existing_sellers:
-            if seller_obj.name.lower() == suggested_lower:
-                return suggested_seller, True, seller_obj.id
-
-        # Try partial match - only use if exactly one match
-        partial_matches: list[Seller] = []
-        for seller_obj in existing_sellers:
-            seller_name_lower = seller_obj.name.lower()
-            if suggested_lower in seller_name_lower or seller_name_lower in suggested_lower:
-                partial_matches.append(seller_obj)
-
-        if len(partial_matches) == 1:
-            return suggested_seller, True, partial_matches[0].id
-
-        return suggested_seller, False, None
 
     def _document_from_link(self, url: str, document_type: str) -> DocumentSuggestionSchema | None:
         try:

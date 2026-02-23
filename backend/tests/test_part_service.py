@@ -64,8 +64,7 @@ class TestPartService:
             assert part.manufacturer_code is None
             assert part.type_id is None
             assert part.tags is None
-            assert part.seller is None
-            assert part.seller_link is None
+            assert part.seller_links == []
             # Extended fields should be None by default
             assert part.package is None
             assert part.pin_count is None
@@ -87,7 +86,7 @@ class TestPartService:
 
             # Create a seller first
             seller_service = container.seller_service()
-            seller = seller_service.create_seller("Digi-Key", "https://www.digikey.com")
+            seller_service.create_seller("Digi-Key", "https://www.digikey.com")
             session.flush()
 
             part_service = container.part_service()
@@ -98,8 +97,6 @@ class TestPartService:
                 tags=["1k", "5%", "THT"],
                 manufacturer="Vishay",
                 product_page="https://www.vishay.com/en/resistors/",
-                seller_id=seller.id,
-                seller_link="https://digikey.com/product/123",
                 package="0805",
                 pin_count=2,
                 voltage_rating="50V",
@@ -117,8 +114,6 @@ class TestPartService:
             assert part.tags == ["1k", "5%", "THT"]
             assert part.manufacturer == "Vishay"
             assert part.product_page == "https://www.vishay.com/en/resistors/"
-            assert part.seller_id == seller.id
-            assert part.seller_link == "https://digikey.com/product/123"
             # Extended fields
             assert part.package == "0805"
             assert part.pin_count == 2
@@ -377,8 +372,7 @@ class TestPartService:
             assert part.manufacturer_code is None
             assert part.type_id is None
             assert part.tags is None
-            assert part.seller is None
-            assert part.seller_link is None
+            assert part.seller_links == []
 
     def test_update_part_extended_fields(self, app: Flask, session: Session, container: ServiceContainer):
         """Test updating a part's extended fields."""

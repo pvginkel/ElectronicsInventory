@@ -241,7 +241,6 @@ class TestShoppingListService:
 
         part_with_seller = part_service.create_part(
             description="Precision regulator",
-            seller_id=seller_alpha.id,
         )
         part_with_override = part_service.create_part(
             description="Shield can kit",
@@ -261,6 +260,7 @@ class TestShoppingListService:
             shopping_list.id,
             part_id=part_with_seller.id,
             needed=4,
+            seller_id=seller_alpha.id,
         )
         ungrouped_line = shopping_list_line_service.add_line(
             shopping_list.id,
@@ -460,13 +460,14 @@ class TestShoppingListService:
 
         seller_primary = seller_service.create_seller("Primary", "https://primary.example")
         seller_unused = seller_service.create_seller("Unused", "https://unused.example")
-        part = part_service.create_part(description="Latch IC", seller_id=seller_primary.id)
+        part = part_service.create_part(description="Latch IC")
 
         shopping_list = shopping_list_service.create_list("Seller Notes")
         shopping_list_line_service.add_line(
             shopping_list.id,
             part_id=part.id,
             needed=7,
+            seller_id=seller_primary.id,
         )
         session.commit()
 
