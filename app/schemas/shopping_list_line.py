@@ -19,7 +19,7 @@ class ShoppingListLineCreateSchema(BaseModel):
     )
     seller_id: int | None = Field(
         None,
-        description="Optional seller override",
+        description="Seller for this line",
         json_schema_extra={"example": 3}
     )
     needed: int = Field(
@@ -40,7 +40,7 @@ class ShoppingListLineUpdateSchema(BaseModel):
 
     seller_id: int | None = Field(
         None,
-        description="Optional seller override",
+        description="Seller for this line",
         json_schema_extra={"example": 5}
     )
     needed: int | None = Field(
@@ -71,7 +71,7 @@ class ShoppingListLineListSchema(BaseModel):
         json_schema_extra={"example": 101}
     )
     seller_id: int | None = Field(
-        description="Seller override identifier",
+        description="Seller identifier for this line",
         json_schema_extra={"example": 3}
     )
     needed: int = Field(description="Requested quantity", json_schema_extra={"example": 4})
@@ -87,10 +87,6 @@ class ShoppingListLineListSchema(BaseModel):
     )
     created_at: datetime = Field(description="Timestamp when the line was created")
     updated_at: datetime = Field(description="Timestamp when the line was last updated")
-    effective_seller_id: int | None = Field(
-        description="Seller identifier used for grouping (override or part seller)",
-        json_schema_extra={"example": 4},
-    )
     can_receive: bool = Field(
         description="True when the line can accept stock receipt actions",
         json_schema_extra={"example": True},
@@ -109,6 +105,11 @@ class ShoppingListLineListSchema(BaseModel):
     has_quantity_mismatch: bool = Field(
         description="True when ordered and received totals differ",
         json_schema_extra={"example": False},
+    )
+    seller_link: str | None = Field(
+        default=None,
+        description="Seller product page URL from the part-seller link table",
+        json_schema_extra={"example": "https://www.mouser.com/ProductDetail/123"},
     )
 
 
@@ -144,11 +145,7 @@ class ShoppingListLineResponseSchema(ShoppingListLineListSchema):
         description="Details about the requested part"
     )
     seller: SellerListSchema | None = Field(
-        description="Seller override details if specified"
-    )
-    effective_seller: SellerListSchema | None = Field(
-        description="Seller entity used for Ready grouping",
-        default=None,
+        description="Seller details for this line"
     )
     is_orderable: bool = Field(
         description="True when the line can be marked as ordered",

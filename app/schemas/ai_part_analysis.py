@@ -118,18 +118,6 @@ class PartAnalysisDetailsSchema(BaseModel):
         json_schema_extra={"example": []}
     )
 
-    # Seller fields
-    seller: str | None = Field(
-        default=None,
-        description="AI-suggested seller name (e.g., 'Mouser')",
-        json_schema_extra={"example": "Mouser"}
-    )
-    seller_link: str | None = Field(
-        default=None,
-        description="AI-suggested seller product page URL",
-        json_schema_extra={"example": "https://www.mouser.com/ProductDetail/123456"}
-    )
-
     # Metadata
     type_is_existing: bool = Field(
         default=False,
@@ -140,16 +128,6 @@ class PartAnalysisDetailsSchema(BaseModel):
         default=None,
         description="ID of existing type if type_is_existing is True",
         json_schema_extra={"example": 5}
-    )
-    seller_is_existing: bool = Field(
-        default=False,
-        description="Whether the suggested seller matches an existing seller in the system",
-        json_schema_extra={"example": True}
-    )
-    existing_seller_id: int | None = Field(
-        default=None,
-        description="ID of existing seller if seller_is_existing is True",
-        json_schema_extra={"example": 1}
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -286,18 +264,6 @@ class AIPartCreateSchema(BaseModel):
         description="Manufacturer product page URL from AI analysis",
         json_schema_extra={"example": "https://www.arduino.cc/en/Main/arduinoBoardUno"}
     )
-    seller_id: int | None = Field(
-        default=None,
-        description="Seller ID reference (user provided)",
-        json_schema_extra={"example": 1}
-    )
-    seller_link: str | None = Field(
-        default=None,
-        max_length=500,
-        description="Seller product page URL (user provided)",
-        json_schema_extra={"example": "https://www.digikey.com/en/products/detail/arduino/A000066"}
-    )
-
     # Extended technical fields
     package: str | None = Field(
         default=None,

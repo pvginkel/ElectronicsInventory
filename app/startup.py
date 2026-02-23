@@ -92,6 +92,7 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
         from app.api.kit_shopping_list_links import kit_shopping_list_links_bp
         from app.api.kits import kits_bp
         from app.api.locations import locations_bp
+        from app.api.part_seller_links import part_seller_links_bp
         from app.api.parts import parts_bp
         from app.api.pick_lists import pick_lists_bp
         from app.api.sellers import sellers_bp
@@ -111,6 +112,7 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
         api_bp.register_blueprint(kit_shopping_list_links_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(locations_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(pick_lists_bp)  # type: ignore[attr-defined]
+        api_bp.register_blueprint(part_seller_links_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(parts_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(sellers_bp)  # type: ignore[attr-defined]
         api_bp.register_blueprint(shopping_lists_bp)  # type: ignore[attr-defined]

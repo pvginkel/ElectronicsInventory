@@ -72,8 +72,6 @@ class TestAIPartCleanupTask:
             series="STM32F1",
             dimensions="7x7mm",
             product_page="https://www.st.com/stm32f103.html",
-            seller=None,
-            seller_link=None,
         )
         mock_ai_service.cleanup_part.return_value = mock_cleaned_part
 
@@ -205,8 +203,6 @@ class TestAIPartCleanupTask:
                 series=None,
                 dimensions=None,
                 product_page=None,
-                seller=None,
-                seller_link=None,
             )
 
         mock_ai_service.cleanup_part.side_effect = mock_cleanup_part
@@ -264,8 +260,6 @@ class TestAIPartCleanupTask:
             series=None,
             dimensions=None,
             product_page=None,
-            seller=None,
-            seller_link=None,
         )
         mock_ai_service.cleanup_part.return_value = mock_cleaned_part
 

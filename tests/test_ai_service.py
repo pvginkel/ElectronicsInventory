@@ -77,16 +77,8 @@ def mock_document_service() -> DocumentService:
 
 
 @pytest.fixture
-def mock_seller_service(session: Session):
-    """Create a seller service for testing."""
-    from app.services.seller_service import SellerService
-    return SellerService(db=session)
-
-
-@pytest.fixture
 def ai_service(session: Session, ai_test_settings: AppSettings,
                temp_file_manager: TempFileManager, mock_type_service: TypeService,
-               mock_seller_service,
                mock_download_cache_service: DownloadCacheService,
                mock_document_service: DocumentService):
     """Create AI service instance for testing."""
@@ -112,7 +104,6 @@ def ai_service(session: Session, ai_test_settings: AppSettings,
         app_config=ai_test_settings,
         temp_file_manager=temp_file_manager,
         type_service=mock_type_service,
-        seller_service=mock_seller_service,
         download_cache_service=mock_download_cache_service,
         document_service=mock_document_service,
         duplicate_search_function=mock_duplicate_search_function,
@@ -159,7 +150,7 @@ class TestAIService:
     """Test cases for AIService."""
 
     def test_init_without_api_key(self, session: Session, temp_file_manager: TempFileManager,
-                                  mock_type_service: TypeService, mock_seller_service,
+                                  mock_type_service: TypeService,
                                   mock_download_cache_service: DownloadCacheService,
                                   mock_document_service: DocumentService):
         """Test AI service initialization without API key (should not raise error - runner is injected)."""
@@ -180,7 +171,7 @@ class TestAIService:
             app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
-            seller_service=mock_seller_service,
+
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
 
@@ -338,7 +329,6 @@ class TestAIService:
         session: Session,
         temp_file_manager: TempFileManager,
         mock_type_service: TypeService,
-        mock_seller_service,
         mock_download_cache_service: DownloadCacheService,
         mock_document_service: DocumentService,
 
@@ -361,7 +351,7 @@ class TestAIService:
             app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
-            seller_service=mock_seller_service,
+
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
 
@@ -382,7 +372,6 @@ class TestAIService:
         session: Session,
         temp_file_manager: TempFileManager,
         mock_type_service: TypeService,
-        mock_seller_service,
         mock_download_cache_service: DownloadCacheService,
         mock_document_service: DocumentService,
 
@@ -413,7 +402,7 @@ class TestAIService:
             app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
-            seller_service=mock_seller_service,
+
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
 
@@ -434,7 +423,7 @@ class TestAIService:
         assert result.duplicate_parts is None
 
     def test_conditional_function_registration_with_mouser_key(
-        self, session: Session, mock_seller_service, mock_download_cache_service,
+        self, session: Session, mock_download_cache_service,
         mock_document_service
     ):
         """Test that Mouser search functions are registered when API key is configured."""
@@ -457,7 +446,7 @@ class TestAIService:
             app_config=app_cfg,
             temp_file_manager=Mock(),
             type_service=Mock(),
-            seller_service=mock_seller_service,
+
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
 
@@ -505,7 +494,7 @@ class TestAIService:
             assert len(function_tools) == 4
 
     def test_conditional_function_registration_without_mouser_key(
-        self, session: Session, mock_seller_service, mock_download_cache_service,
+        self, session: Session, mock_download_cache_service,
         mock_document_service
     ):
         """Test that Mouser search functions are NOT registered when API key is missing."""
@@ -528,7 +517,7 @@ class TestAIService:
             app_config=app_cfg,
             temp_file_manager=Mock(),
             type_service=Mock(),
-            seller_service=mock_seller_service,
+
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
 
@@ -1124,7 +1113,7 @@ class TestAIServiceCleanupPart:
             ai_service.cleanup_part(part_key="ZZZZ", progress_handle=mock_progress)
 
     def test_cleanup_part_ai_disabled(self, session: Session, temp_file_manager: TempFileManager,
-                                       mock_type_service: TypeService, mock_seller_service,
+                                       mock_type_service: TypeService,
                                        mock_download_cache_service: DownloadCacheService,
                                        mock_document_service: DocumentService):
         """Test cleanup_part raises InvalidOperationException when AI is disabled."""
@@ -1147,7 +1136,7 @@ class TestAIServiceCleanupPart:
             app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
-            seller_service=mock_seller_service,
+
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
 
@@ -1217,19 +1206,13 @@ class TestAIServiceCleanupPart:
         # Verify it's the URL classifier by checking class name, not the duplicate search
         assert "URLClassifier" in type(tools[0]).__name__
 
-    def test_cleanup_part_preserves_seller_data(self, ai_service: AIService, session: Session):
-        """Test that cleanup_part preserves existing seller data."""
+    def test_cleanup_part_returns_result_without_seller_fields(self, ai_service: AIService, session: Session):
+        """Test that cleanup_part returns a result without seller fields (seller is managed separately)."""
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
-        from app.models.seller import Seller
         from app.utils.ai.ai_runner import AIResponse
 
-        # Create a seller
-        seller = Seller(name="DigiKey", website="https://digikey.com")
-        session.add(seller)
-        session.flush()
-
-        # Create a part with seller
+        # Create a part
         attachment_set = AttachmentSet()
         session.add(attachment_set)
         session.flush()
@@ -1237,8 +1220,6 @@ class TestAIServiceCleanupPart:
         part = Part(
             key="TEST",
             description="Test part",
-            seller_id=seller.id,
-            seller_link="https://digikey.com/product/123",
             attachment_set_id=attachment_set.id
         )
         session.add(part)
@@ -1260,9 +1241,9 @@ class TestAIServiceCleanupPart:
         mock_progress = Mock()
         result = ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
 
-        # Verify seller data is preserved
-        assert result.seller == "DigiKey"
-        assert result.seller_link == "https://digikey.com/product/123"
+        # Verify seller fields are not in the result (seller is managed via PartSeller links)
+        assert not hasattr(result, 'seller')
+        assert not hasattr(result, 'seller_link')
 
     def test_cleanup_part_builds_context_with_all_other_parts(
         self, ai_service: AIService, session: Session
@@ -1360,25 +1341,19 @@ class TestAIServiceCleanupPart:
         # Should NOT have duplicate detection instructions (that's analysis mode)
         assert "find_duplicates" not in system_prompt
 
-    def test_cleanup_part_resolves_type_and_seller(self, ai_service: AIService, session: Session):
-        """Test that cleanup_part resolves type and seller against existing records."""
+    def test_cleanup_part_resolves_type(self, ai_service: AIService, session: Session):
+        """Test that cleanup_part resolves type against existing records."""
         from sqlalchemy import select
 
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
-        from app.models.seller import Seller
         from app.models.type import Type
         from app.utils.ai.ai_runner import AIResponse
 
         # Get existing "Relay" type (loaded from types.txt)
         relay_type = session.execute(select(Type).where(Type.name == "Relay")).scalar_one()
 
-        # Create a seller for testing
-        digikey_seller = Seller(name="DigiKey", website="https://digikey.com")
-        session.add(digikey_seller)
-        session.flush()
-
-        # Create a part with the existing type and seller
+        # Create a part with the existing type
         attachment_set = AttachmentSet()
         session.add(attachment_set)
         session.flush()
@@ -1387,8 +1362,6 @@ class TestAIServiceCleanupPart:
             key="TEST",
             description="Test Relay",
             type_id=relay_type.id,
-            seller_id=digikey_seller.id,
-            seller_link="https://digikey.com/product/123",
             attachment_set_id=attachment_set.id
         )
         session.add(part)
@@ -1418,11 +1391,9 @@ class TestAIServiceCleanupPart:
         assert result.type_is_existing is True
         assert result.existing_type_id == relay_type.id
 
-        # Verify seller resolution - should match existing seller
-        assert result.seller == "DigiKey"
-        assert result.seller_is_existing is True
-        assert result.existing_seller_id == digikey_seller.id
-        assert result.seller_link == "https://digikey.com/product/123"
+        # Verify seller fields are not in the result (managed via PartSeller links)
+        assert not hasattr(result, 'seller')
+        assert not hasattr(result, 'seller_link')
 
     def test_cleanup_part_new_type_not_existing(self, ai_service: AIService, session: Session):
         """Test that cleanup_part correctly identifies when AI suggests a new type."""

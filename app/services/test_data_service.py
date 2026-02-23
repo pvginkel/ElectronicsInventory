@@ -23,6 +23,7 @@ from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
+from app.models.part_seller import PartSeller
 from app.models.quantity_history import QuantityHistory
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
@@ -176,15 +177,6 @@ class TestDataService:
                 else:
                     raise InvalidOperationException("load parts data", f"unknown type '{type_name}' in part {part_data['key']}")
 
-            # Get seller_id from sellers map
-            seller_id = None
-            if part_data.get("seller_id") is not None:
-                seller_obj = sellers.get(part_data["seller_id"])
-                if seller_obj:
-                    seller_id = seller_obj.id
-                else:
-                    raise InvalidOperationException("load parts data", f"unknown seller_id '{part_data['seller_id']}' in part {part_data['key']}")
-
             # Create attachment set for this part
             attachment_set = AttachmentSet()
             self.db.add(attachment_set)
@@ -198,8 +190,6 @@ class TestDataService:
                 tags=part_data.get("tags"),
                 manufacturer=part_data.get("manufacturer"),
                 product_page=part_data.get("product_page"),
-                seller_id=seller_id,
-                seller_link=part_data.get("seller_link"),
                 attachment_set_id=attachment_set.id,
                 package=part_data.get("package"),
                 pin_count=part_data.get("pin_count"),
@@ -214,6 +204,23 @@ class TestDataService:
             self.db.add(part)
             self.db.flush()  # Get ID immediately
             parts_map[part_data["key"]] = part
+
+            # Create seller links from seller_links array
+            for sl in part_data.get("seller_links", []):
+                raw_seller_id = sl.get("seller_id")
+                seller_obj = sellers.get(raw_seller_id)
+                if seller_obj is None:
+                    raise InvalidOperationException(
+                        "load parts data",
+                        f"unknown seller_id '{raw_seller_id}' in seller_links for part {part_data['key']}",
+                    )
+                part_seller = PartSeller(
+                    part_id=part.id,
+                    seller_id=seller_obj.id,
+                    link=sl["link"],
+                )
+                self.db.add(part_seller)
+            self.db.flush()
 
         return parts_map
 

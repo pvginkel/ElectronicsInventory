@@ -331,11 +331,12 @@ class InventoryService:
             List of PartWithTotalModel instances with optional related data attached
         """
         from app.models.part import Part
+        from app.models.part_seller import PartSeller
         from app.schemas.part import PartWithTotalModel
 
         # Base query for parts with total quantity calculation
-        # Eager-load seller since the API serializes it for every part
-        options = [selectinload(Part.seller)]
+        # Eager-load seller_links since the API serializes them for every part
+        options = [selectinload(Part.seller_links).selectinload(PartSeller.seller)]
         if include_cover:
             # Eager-load attachment_set and its cover_attachment
             from app.models.attachment_set import AttachmentSet

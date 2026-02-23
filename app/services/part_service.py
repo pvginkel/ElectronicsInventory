@@ -49,8 +49,6 @@ class PartService:
         tags: list[str] | None = None,
         manufacturer: str | None = None,
         product_page: str | None = None,
-        seller_id: int | None = None,
-        seller_link: str | None = None,
         package: str | None = None,
         pin_count: int | None = None,
         pin_pitch: str | None = None,
@@ -80,8 +78,6 @@ class PartService:
             tags=tags,
             manufacturer=manufacturer,
             product_page=product_page,
-            seller_id=seller_id,
-            seller_link=seller_link,
             package=package,
             pin_count=pin_count,
             pin_pitch=pin_pitch,
@@ -99,9 +95,11 @@ class PartService:
 
     def get_part(self, part_key: str) -> Part:
         """Get part by 4-character key with relationships for full details."""
+        from app.models.part_seller import PartSeller
+
         stmt = select(Part).options(
             selectinload(Part.type),
-            selectinload(Part.seller),
+            selectinload(Part.seller_links).selectinload(PartSeller.seller),
         ).where(Part.key == part_key)
         part: Part = self.db.execute(stmt).scalar_one_or_none()
         if not part:

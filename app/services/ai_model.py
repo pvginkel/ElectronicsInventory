@@ -47,17 +47,15 @@ class PartAnalysisSpecDetails(BaseModel):
 
 
 class PartAnalysisDetails(PartAnalysisSpecDetails):
-    """Full part analysis details from LLM including URLs and seller info.
+    """Full part analysis details from LLM including URLs.
 
-    Extends PartAnalysisSpecDetails with URL and seller fields that come
+    Extends PartAnalysisSpecDetails with URL fields that come
     from web searches and tool calls during full AI analysis.
     """
 
     product_page_urls: list[str] = Field(...)
     datasheet_urls: list[str] = Field(...)
     pinout_urls: list[str] = Field(...)
-    seller: str | None = Field(default=None, description="Seller name (e.g., 'Mouser')")
-    seller_url: str | None = Field(default=None, description="Seller product page URL")
 
 
 class PartAnalysisSuggestion(BaseModel):

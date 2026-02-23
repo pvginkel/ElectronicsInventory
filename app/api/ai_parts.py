@@ -155,8 +155,6 @@ def create_part_from_ai_analysis(
         tags=data.tags,
         manufacturer=data.manufacturer,
         product_page=data.product_page,
-        seller_id=data.seller_id,
-        seller_link=data.seller_link,
         package=data.package,
         pin_count=data.pin_count,
         pin_pitch=data.pin_pitch,

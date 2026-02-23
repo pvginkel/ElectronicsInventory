@@ -7,6 +7,7 @@ from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.models.part import Part
+from app.models.part_seller import PartSeller
 from app.models.seller import Seller
 from app.models.type import Type
 from app.services.container import ServiceContainer
@@ -315,16 +316,23 @@ class TestSellerAPI:
         session.add(test_type)
         session.flush()
 
-        # Create part with this seller
+        # Create part and link it to this seller via PartSeller
         attachment_set = make_attachment_set()
         part = Part(
             key="TEST",
             description="Test part",
-            seller_id=seller.id,
             type_id=test_type.id,
             attachment_set_id=attachment_set.id
         )
         session.add(part)
+        session.flush()
+
+        part_seller = PartSeller(
+            part_id=part.id,
+            seller_id=seller.id,
+            link="https://www.digikey.com/en/products/detail/test",
+        )
+        session.add(part_seller)
         session.commit()
 
         response = client.delete(f"/api/sellers/{seller.id}")

@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.schemas.part_kits import PartKitUsageSchema
+from app.schemas.part_seller import PartSellerLinkSchema
 from app.schemas.part_shopping_list import PartShoppingListMembershipSchema
-from app.schemas.seller import SellerListSchema
 from app.schemas.type import TypeResponseSchema
 
 if TYPE_CHECKING:
@@ -53,17 +53,6 @@ class PartCreateSchema(BaseModel):
         max_length=500,
         description="Manufacturer's product page URL",
         json_schema_extra={"example": "https://www.ti.com/product/SN74HC595"}
-    )
-    seller_id: int | None = Field(
-        None,
-        description="ID of the seller/vendor",
-        json_schema_extra={"example": 1}
-    )
-    seller_link: str | None = Field(
-        None,
-        max_length=500,
-        description="Product page URL at seller",
-        json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
     )
 
     # Extended technical fields
@@ -160,17 +149,6 @@ class PartUpdateSchema(BaseModel):
         description="Updated manufacturer's product page URL",
         json_schema_extra={"example": "https://www.espressif.com/en/products/modules/esp32"}
     )
-    seller_id: int | None = Field(
-        None,
-        description="Updated seller ID",
-        json_schema_extra={"example": 2}
-    )
-    seller_link: str | None = Field(
-        None,
-        max_length=500,
-        description="Updated product page URL",
-        json_schema_extra={"example": "https://www.mouser.com/ProductDetail/G5Q-1A4"}
-    )
 
     # Extended technical fields
     package: str | None = Field(
@@ -266,13 +244,9 @@ class PartResponseSchema(BaseModel):
         description="Manufacturer's product page URL",
         json_schema_extra={"example": "https://www.ti.com/product/SN74HC595"}
     )
-    seller: SellerListSchema | None = Field(
-        description="Seller/vendor details",
-        default=None
-    )
-    seller_link: str | None = Field(
-        description="Product page URL",
-        json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
+    seller_links: list[PartSellerLinkSchema] = Field(
+        default_factory=list,
+        description="Seller links with product URLs",
     )
     attachment_set_id: int = Field(
         description="ID of the attachment set for this part",
@@ -417,14 +391,9 @@ class PartWithTotalSchema(BaseModel):
         description="Manufacturer company name",
         json_schema_extra={"example": "Texas Instruments"}
     )
-    seller: SellerListSchema | None = Field(
-        description="Seller/vendor details",
-        default=None
-    )
-    seller_link: str | None = Field(
-        default=None,
-        description="Product page URL at seller",
-        json_schema_extra={"example": "https://www.digikey.com/product-detail/..."}
+    seller_links: list[PartSellerLinkSchema] = Field(
+        default_factory=list,
+        description="Seller links with product URLs",
     )
     # Extended technical fields
     package: str | None = Field(

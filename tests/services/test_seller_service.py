@@ -10,6 +10,7 @@ from app.exceptions import (
     ResourceConflictException,
 )
 from app.models.part import Part
+from app.models.part_seller import PartSeller
 from app.models.type import Type
 from app.services.container import ServiceContainer
 
@@ -217,7 +218,7 @@ class TestSellerService:
             service.get_seller(seller_id)
 
     def test_delete_seller_with_associated_parts(self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set):
-        """Test deleting a seller that has associated parts raises InvalidOperationException."""
+        """Test deleting a seller that has seller links raises InvalidOperationException."""
         service = container.seller_service()
 
         # Create seller
@@ -231,19 +232,26 @@ class TestSellerService:
         session.add(test_type)
         session.flush()
 
-        # Create part with this seller
+        # Create part and link it to this seller via PartSeller
         attachment_set = make_attachment_set()
         part = Part(
             key="TEST",
             description="Test part",
-            seller_id=seller.id,
             type_id=test_type.id,
             attachment_set_id=attachment_set.id,
         )
         session.add(part)
         session.flush()
 
-        # Try to delete seller with associated part
+        part_seller = PartSeller(
+            part_id=part.id,
+            seller_id=seller.id,
+            link="https://www.digikey.com/en/products/detail/test",
+        )
+        session.add(part_seller)
+        session.flush()
+
+        # Try to delete seller with associated part seller link
         with pytest.raises(InvalidOperationException) as exc_info:
             service.delete_seller(seller.id)
 

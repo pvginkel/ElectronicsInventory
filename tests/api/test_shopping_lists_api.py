@@ -200,13 +200,14 @@ class TestShoppingListsAPI:
         seller_service = container.seller_service()
 
         seller = seller_service.create_seller("Signal Shop", "https://signals.example")
-        part = part_service.create_part(description="Precision op-amp", seller_id=seller.id)
+        part = part_service.create_part(description="Precision op-amp")
 
         shopping_list = shopping_list_service.create_list("Note Flow")
         shopping_list_line_service.add_line(
             shopping_list.id,
             part_id=part.id,
             needed=4,
+            seller_id=seller.id,
         )
         session.commit()
 

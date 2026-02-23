@@ -140,8 +140,9 @@ class TestTestDataService:
                     "tags": ["10k", "1/4W"],
                     "manufacturer": "Vishay",
                     "product_page": "https://www.vishay.com/resistors/",
-                    "seller_id": 1,
-                    "seller_link": "https://example.com"
+                    "seller_links": [
+                        {"seller_id": 1, "link": "https://example.com"}
+                    ]
                 },
                 {
                     "key": "EFGH",
@@ -176,14 +177,14 @@ class TestTestDataService:
                 assert part_abcd.tags == ["10k", "1/4W"]
                 assert part_abcd.manufacturer == "Vishay"
                 assert part_abcd.product_page == "https://www.vishay.com/resistors/"
-                assert part_abcd.seller_id == digikey_seller.id
-                assert part_abcd.seller.name == "Digi-Key"
-                assert part_abcd.seller_link == "https://example.com"
+                assert len(part_abcd.seller_links) == 1
+                assert part_abcd.seller_links[0].seller_id == digikey_seller.id
+                assert part_abcd.seller_links[0].link == "https://example.com"
 
                 part_efgh = parts_map["EFGH"]
             assert part_efgh.manufacturer == "Texas Instruments"
             assert part_efgh.product_page == "https://www.ti.com/product/LM358"
-            assert part_efgh.seller_id is None
+            assert part_efgh.seller_links == []
 
     def test_load_shopping_list_seller_notes_success(self, app: Flask, session: Session, container: ServiceContainer):
         """Test loading of seller notes tied to shopping lists."""
