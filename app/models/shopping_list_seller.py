@@ -1,10 +1,12 @@
-"""Seller note model for shopping list ready view."""
+"""Seller group model for shopping list kanban workflow."""
 
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,10 +17,17 @@ if TYPE_CHECKING:
     from app.models.shopping_list import ShoppingList
 
 
-class ShoppingListSellerNote(db.Model):  # type: ignore[name-defined]
-    """Stores per-seller order notes for a shopping list."""
+class ShoppingListSellerStatus(StrEnum):
+    """Possible states for a seller group within a shopping list."""
 
-    __tablename__ = "shopping_list_seller_notes"
+    ACTIVE = "active"
+    ORDERED = "ordered"
+
+
+class ShoppingListSeller(db.Model):  # type: ignore[name-defined]
+    """Persisted seller group for a shopping list with ordering status."""
+
+    __tablename__ = "shopping_list_sellers"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     shopping_list_id: Mapped[int] = mapped_column(
@@ -31,11 +40,17 @@ class ShoppingListSellerNote(db.Model):  # type: ignore[name-defined]
         nullable=False,
         index=True,
     )
-    note: Mapped[str] = mapped_column(
-        Text,
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ShoppingListSellerStatus] = mapped_column(
+        SQLEnum(
+            ShoppingListSellerStatus,
+            name="shopping_list_seller_status",
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+            native_enum=False,
+        ),
         nullable=False,
-        default="",
-        server_default="",
+        default=ShoppingListSellerStatus.ACTIVE,
+        server_default=ShoppingListSellerStatus.ACTIVE.value,
     )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False,
@@ -48,7 +63,7 @@ class ShoppingListSellerNote(db.Model):  # type: ignore[name-defined]
     )
 
     shopping_list: Mapped[ShoppingList] = relationship(
-        "ShoppingList", back_populates="seller_notes", lazy="selectin"
+        "ShoppingList", back_populates="seller_groups", lazy="selectin"
     )
     seller: Mapped[Seller] = relationship("Seller", lazy="selectin")
 
@@ -56,11 +71,12 @@ class ShoppingListSellerNote(db.Model):  # type: ignore[name-defined]
         UniqueConstraint(
             "shopping_list_id",
             "seller_id",
-            name="uq_shopping_list_seller_notes_list_seller",
+            name="uq_shopping_list_sellers_list_seller",
         ),
     )
 
     def __repr__(self) -> str:
         return (
-            f"<ShoppingListSellerNote id={self.id} list_id={self.shopping_list_id} seller_id={self.seller_id}>"
+            f"<ShoppingListSeller id={self.id} list_id={self.shopping_list_id} "
+            f"seller_id={self.seller_id} status={self.status.value}>"
         )

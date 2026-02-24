@@ -17,7 +17,7 @@ from app.models.location import Location
 from app.models.part import Part
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
-from app.models.shopping_list_seller_note import ShoppingListSellerNote
+from app.models.shopping_list_seller import ShoppingListSeller
 
 
 class TestDatabaseConstraints:
@@ -310,15 +310,15 @@ class TestDatabaseConstraints:
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()
 
-    def test_shopping_list_seller_note_unique_constraint(self, app: Flask):
-        """Ensure seller notes are unique per list and seller."""
+    def test_shopping_list_seller_unique_constraint(self, app: Flask):
+        """Ensure seller groups are unique per list and seller."""
         with app.app_context():
             shopping_list = ShoppingList(name="Constraint List")
             seller = Seller(name="Constraint Seller", website="https://constraint.example")
             db.session.add_all([shopping_list, seller])
             db.session.flush()
 
-            first = ShoppingListSellerNote(
+            first = ShoppingListSeller(
                 shopping_list_id=shopping_list.id,
                 seller_id=seller.id,
                 note="Original",
@@ -326,7 +326,7 @@ class TestDatabaseConstraints:
             db.session.add(first)
             db.session.commit()
 
-            duplicate = ShoppingListSellerNote(
+            duplicate = ShoppingListSeller(
                 shopping_list_id=shopping_list.id,
                 seller_id=seller.id,
                 note="Duplicate",
@@ -336,26 +336,26 @@ class TestDatabaseConstraints:
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()
 
-    def test_shopping_list_seller_note_cascade_delete(self, app: Flask):
-        """Deleting a shopping list cascades to seller notes."""
+    def test_shopping_list_seller_cascade_delete(self, app: Flask):
+        """Deleting a shopping list cascades to seller groups."""
         with app.app_context():
-            shopping_list = ShoppingList(name="Cascade Notes")
+            shopping_list = ShoppingList(name="Cascade Groups")
             seller = Seller(name="Cascade Seller", website="https://cascade.example")
             db.session.add_all([shopping_list, seller])
             db.session.flush()
 
-            note = ShoppingListSellerNote(
+            group = ShoppingListSeller(
                 shopping_list_id=shopping_list.id,
                 seller_id=seller.id,
                 note="To be removed",
             )
-            db.session.add(note)
+            db.session.add(group)
             db.session.commit()
 
             db.session.delete(shopping_list)
             db.session.commit()
 
-            assert db.session.query(ShoppingListSellerNote).count() == 0
+            assert db.session.query(ShoppingListSeller).count() == 0
 
     def test_kit_name_uniqueness(self, app: Flask, make_attachment_set_flask):
         """Kit names must remain unique."""
@@ -437,7 +437,7 @@ class TestDatabaseConstraints:
         with app.app_context():
             attachment_set = make_attachment_set_flask()
             kit = Kit(name="Link Kit", build_target=1, attachment_set_id=attachment_set.id)
-            shopping_list = ShoppingList(name="Link List", status=ShoppingListStatus.CONCEPT)
+            shopping_list = ShoppingList(name="Link List", status=ShoppingListStatus.ACTIVE)
             db.session.add_all([kit, shopping_list])
             db.session.flush()
 
@@ -469,7 +469,7 @@ class TestDatabaseConstraints:
         with app.app_context():
             attachment_set = make_attachment_set_flask()
             kit = Kit(name="Cascade Kit", build_target=1, attachment_set_id=attachment_set.id)
-            shopping_list = ShoppingList(name="Cascade List", status=ShoppingListStatus.CONCEPT)
+            shopping_list = ShoppingList(name="Cascade List", status=ShoppingListStatus.ACTIVE)
             db.session.add_all([kit, shopping_list])
             db.session.flush()
 

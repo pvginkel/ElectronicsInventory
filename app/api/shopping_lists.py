@@ -8,6 +8,7 @@ from spectree import Response as SpectreeResponse
 
 from app.exceptions import InvalidOperationException
 from app.models.shopping_list import ShoppingListStatus
+from app.models.shopping_list_seller import ShoppingListSellerStatus
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.shopping_list import (
     KitChipSchema,
@@ -15,12 +16,13 @@ from app.schemas.shopping_list import (
     ShoppingListListQuerySchema,
     ShoppingListListSchema,
     ShoppingListResponseSchema,
+    ShoppingListSellerGroupSchema,
     ShoppingListStatusUpdateSchema,
     ShoppingListUpdateSchema,
 )
-from app.schemas.shopping_list_seller_note import (
-    ShoppingListSellerOrderNoteSchema,
-    ShoppingListSellerOrderNoteUpdateSchema,
+from app.schemas.shopping_list_seller import (
+    ShoppingListSellerGroupCreateSchema,
+    ShoppingListSellerGroupUpdateSchema,
 )
 from app.services.container import ServiceContainer
 from app.services.kit_shopping_list_service import KitShoppingListService
@@ -199,37 +201,116 @@ def update_shopping_list_status(
     return ShoppingListResponseSchema.model_validate(shopping_list).model_dump()
 
 
-@shopping_lists_bp.route(
-    "/<int:list_id>/seller-groups/<int:seller_id>/order-note",
-    methods=["PUT"],
-)
+# -- Seller group CRUD endpoints --
+
+
+@shopping_lists_bp.route("/<int:list_id>/seller-groups", methods=["POST"])
 @api.validate(
-    json=ShoppingListSellerOrderNoteUpdateSchema,
+    json=ShoppingListSellerGroupCreateSchema,
     resp=SpectreeResponse(
-        HTTP_200=ShoppingListSellerOrderNoteSchema,
-        HTTP_204=None,
+        HTTP_201=ShoppingListSellerGroupSchema,
         HTTP_400=ErrorResponseSchema,
         HTTP_404=ErrorResponseSchema,
         HTTP_409=ErrorResponseSchema,
     ),
 )
 @inject
-def upsert_seller_order_note(
+def create_seller_group(
+    list_id: int,
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
+    """Create a new seller group on a shopping list."""
+    data = ShoppingListSellerGroupCreateSchema.model_validate(request.get_json())
+    seller_group = shopping_list_service.create_seller_group(
+        list_id=list_id,
+        seller_id=data.seller_id,
+    )
+    return (
+        ShoppingListSellerGroupSchema.model_validate(seller_group).model_dump(),
+        201,
+    )
+
+
+@shopping_lists_bp.route(
+    "/<int:list_id>/seller-groups/<int:seller_id>",
+    methods=["GET"],
+)
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=ShoppingListSellerGroupSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@inject
+def get_seller_group(
     list_id: int,
     seller_id: int,
     shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
 ) -> Any:
-    """Create, update, or delete a seller order note for a Ready view seller group."""
-    data = ShoppingListSellerOrderNoteUpdateSchema.model_validate(
-        request.get_json()
-    )
-    note = shopping_list_service.upsert_seller_note(
+    """Fetch a seller group with its lines and totals."""
+    seller_group = shopping_list_service.get_seller_group(
         list_id=list_id,
         seller_id=seller_id,
-        note=data.note,
     )
+    return ShoppingListSellerGroupSchema.model_validate(seller_group).model_dump()
 
-    if note is None:
-        return "", 204
 
-    return ShoppingListSellerOrderNoteSchema.model_validate(note).model_dump()
+@shopping_lists_bp.route(
+    "/<int:list_id>/seller-groups/<int:seller_id>",
+    methods=["PUT"],
+)
+@api.validate(
+    json=ShoppingListSellerGroupUpdateSchema,
+    resp=SpectreeResponse(
+        HTTP_200=ShoppingListSellerGroupSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+        HTTP_409=ErrorResponseSchema,
+    ),
+)
+@inject
+def update_seller_group(
+    list_id: int,
+    seller_id: int,
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
+    """Update a seller group's note and/or status."""
+    data = ShoppingListSellerGroupUpdateSchema.model_validate(request.get_json())
+    updates = data.model_dump(exclude_unset=True)
+
+    status = None
+    if "status" in updates and updates["status"] is not None:
+        status = ShoppingListSellerStatus(updates["status"])
+
+    seller_group = shopping_list_service.update_seller_group(
+        list_id=list_id,
+        seller_id=seller_id,
+        note=updates.get("note"),
+        status=status,
+    )
+    return ShoppingListSellerGroupSchema.model_validate(seller_group).model_dump()
+
+
+@shopping_lists_bp.route(
+    "/<int:list_id>/seller-groups/<int:seller_id>",
+    methods=["DELETE"],
+)
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_204=None,
+        HTTP_404=ErrorResponseSchema,
+        HTTP_409=ErrorResponseSchema,
+    ),
+)
+@inject
+def delete_seller_group(
+    list_id: int,
+    seller_id: int,
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
+    """Delete a seller group, resetting non-DONE lines to ungrouped."""
+    shopping_list_service.delete_seller_group(
+        list_id=list_id,
+        seller_id=seller_id,
+    )
+    return "", 204

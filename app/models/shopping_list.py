@@ -1,4 +1,4 @@
-"""Shopping list model for concept purchase planning."""
+"""Shopping list model for purchase planning."""
 
 from __future__ import annotations
 
@@ -15,19 +15,18 @@ from app.extensions import db
 if TYPE_CHECKING:
     from app.models.kit_shopping_list_link import KitShoppingListLink
     from app.models.shopping_list_line import ShoppingListLine
-    from app.models.shopping_list_seller_note import ShoppingListSellerNote
+    from app.models.shopping_list_seller import ShoppingListSeller
 
 
 class ShoppingListStatus(StrEnum):
     """Possible lifecycle states for a shopping list."""
 
-    CONCEPT = "concept"
-    READY = "ready"
+    ACTIVE = "active"
     DONE = "done"
 
 
 class ShoppingList(db.Model):  # type: ignore[name-defined]
-    """Persistent representation of a concept shopping list."""
+    """Persistent representation of a shopping list."""
 
     __tablename__ = "shopping_lists"
 
@@ -42,8 +41,8 @@ class ShoppingList(db.Model):  # type: ignore[name-defined]
             native_enum=False,
         ),
         nullable=False,
-        default=ShoppingListStatus.CONCEPT,
-        server_default=ShoppingListStatus.CONCEPT.value,
+        default=ShoppingListStatus.ACTIVE,
+        server_default=ShoppingListStatus.ACTIVE.value,
     )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
@@ -60,8 +59,8 @@ class ShoppingList(db.Model):  # type: ignore[name-defined]
         cascade="all, delete-orphan",
         lazy="select",
     )
-    seller_notes: Mapped[list[ShoppingListSellerNote]] = relationship(
-        "ShoppingListSellerNote",
+    seller_groups: Mapped[list[ShoppingListSeller]] = relationship(
+        "ShoppingListSeller",
         back_populates="shopping_list",
         cascade="all, delete-orphan",
         lazy="select",

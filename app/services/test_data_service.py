@@ -28,7 +28,7 @@ from app.models.quantity_history import QuantityHistory
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
-from app.models.shopping_list_seller_note import ShoppingListSellerNote
+from app.models.shopping_list_seller import ShoppingListSeller, ShoppingListSellerStatus
 from app.models.type import Type
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ class TestDataService:
         )
         pick_lists = self.load_kit_pick_lists(data_dir, kits)
         self.load_shopping_list_lines(data_dir, shopping_lists, parts, sellers)
-        self.load_shopping_list_seller_notes(data_dir, shopping_lists, sellers)
+        self.load_shopping_list_sellers(data_dir, shopping_lists, sellers)
         self.load_part_locations(data_dir, parts, boxes)
         self.load_quantity_history(data_dir, parts)
         self.load_kit_pick_list_lines(
@@ -238,7 +238,7 @@ class TestDataService:
 
         shopping_lists_map: dict[str, ShoppingList] = {}
         for shopping_list_data in shopping_lists_data:
-            raw_status = shopping_list_data.get("status", ShoppingListStatus.CONCEPT.value)
+            raw_status = shopping_list_data.get("status", ShoppingListStatus.ACTIVE.value)
             try:
                 status = ShoppingListStatus(raw_status)
             except ValueError as exc:
@@ -701,48 +701,50 @@ class TestDataService:
             self.db.add(line)
             self.db.flush()
 
-    def load_shopping_list_seller_notes(
+    def load_shopping_list_sellers(
         self,
         data_dir: Path,
         shopping_lists: dict[str, ShoppingList],
         sellers: dict[int, Seller],
     ) -> None:
-        """Load seller order notes for ready-state shopping lists."""
-        notes_file = data_dir / "shopping_list_seller_notes.json"
+        """Load seller groups for shopping lists."""
+        sellers_file = data_dir / "shopping_list_sellers.json"
         try:
-            with notes_file.open() as f:
-                notes_data = json.load(f)
+            with sellers_file.open() as f:
+                sellers_data = json.load(f)
         except FileNotFoundError:
             return
         except json.JSONDecodeError as e:
             raise InvalidOperationException(
-                "load shopping list seller notes data",
-                f"failed to parse {notes_file}: {e}",
+                "load shopping list sellers data",
+                f"failed to parse {sellers_file}: {e}",
             ) from e
 
-        for note_data in notes_data:
-            list_name = note_data["shopping_list_name"]
+        for seller_data in sellers_data:
+            list_name = seller_data["shopping_list_name"]
             shopping_list = shopping_lists.get(list_name)
             if shopping_list is None:
                 raise InvalidOperationException(
-                    "load shopping list seller notes data",
+                    "load shopping list sellers data",
                     f"unknown shopping list '{list_name}'",
                 )
 
-            seller_key = note_data.get("seller_id")
+            seller_key = seller_data.get("seller_id")
             seller = sellers.get(seller_key)
             if seller is None:
                 raise InvalidOperationException(
-                    "load shopping list seller notes data",
+                    "load shopping list sellers data",
                     f"unknown seller id '{seller_key}'",
                 )
 
-            seller_note = ShoppingListSellerNote(
+            status = ShoppingListSellerStatus(seller_data.get("status", "active"))
+            seller_group = ShoppingListSeller(
                 shopping_list_id=shopping_list.id,
                 seller_id=seller.id,
-                note=note_data.get("note", ""),
+                note=seller_data.get("note", ""),
+                status=status,
             )
-            self.db.add(seller_note)
+            self.db.add(seller_group)
             self.db.flush()
 
     def load_part_locations(self, data_dir: Path, parts: dict[str, Part], boxes: dict[int, Box]) -> None:

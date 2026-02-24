@@ -73,12 +73,12 @@ class TestKitShoppingListService:
         assert link.requested_units == kit.build_target
         assert link.honor_reserved is False
         assert link.shopping_list_name == "Concept Push"
-        assert link.status == ShoppingListStatus.CONCEPT
+        assert link.status == ShoppingListStatus.ACTIVE
         assert link.is_stale is False
 
         shopping_list = result.shopping_list
         assert shopping_list is not None
-        assert shopping_list.status == ShoppingListStatus.CONCEPT
+        assert shopping_list.status == ShoppingListStatus.ACTIVE
         assert len(shopping_list.lines) == 1
         line = shopping_list.lines[0]
         assert line.needed == kit.build_target * content.required_per_unit
@@ -239,12 +239,12 @@ class TestKitShoppingListService:
                 new_list_name="Should Fail",
             )
 
-    def test_non_concept_target_rejected(self, session, container, make_attachment_set):
+    def test_non_active_target_rejected(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
         kit, _ = _create_kit_with_content(session, make_attachment_set)
         shopping_list = ShoppingList(
-            name="Ready List",
-            status=ShoppingListStatus.READY,
+            name="Done List",
+            status=ShoppingListStatus.DONE,
         )
         session.add(shopping_list)
         session.commit()
@@ -276,7 +276,7 @@ class TestKitShoppingListService:
         kit_links = service.list_links_for_kit(kit.id)
         assert len(kit_links) == 1
         assert kit_links[0].shopping_list_name == "Metadata"
-        assert kit_links[0].status == ShoppingListStatus.CONCEPT
+        assert kit_links[0].status == ShoppingListStatus.ACTIVE
 
         list_links = service.list_kits_for_shopping_list(link.shopping_list_id)
         assert len(list_links) == 1
@@ -393,7 +393,9 @@ class TestKitShoppingListService:
         )
         shopping_list = result.shopping_list
         assert shopping_list is not None
-        shopping_list.status = ShoppingListStatus.DONE
+
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_service.set_list_status(shopping_list.id, ShoppingListStatus.DONE)
         session.commit()
 
         filtered = service.list_links_for_kits_bulk(

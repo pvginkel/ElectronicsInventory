@@ -44,8 +44,6 @@ class TestShoppingListLinesAPI:
         assert created["part_id"] == part_id
         assert created["part"]["key"] == part_key
         assert created["seller"] is None
-        assert created["is_orderable"] is False
-        assert created["is_revertible"] is False
 
         update_resp = client.put(
             f"/api/shopping-list-lines/{line_id}",
@@ -159,6 +157,77 @@ class TestShoppingListLinesAPI:
         assert update_resp.status_code == 200
         assert update_resp.get_json()["note"] == "Should survive"
 
+    def test_update_line_sets_ordered_field(self, client, session, container):
+        """PUT accepts ordered field on NEW lines."""
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 4},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        update_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"ordered": 3},
+        )
+        assert update_resp.status_code == 200
+        assert update_resp.get_json()["ordered"] == 3
+
+    def test_update_line_ordered_rejects_on_ordered_line(self, client, session, container):
+        """PUT rejects ordered field changes on ORDERED lines."""
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 4},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        # Manually set line to ORDERED
+        stored_line = session.get(ShoppingListLine, line_id)
+        stored_line.status = ShoppingListLineStatus.ORDERED
+        stored_line.ordered = 4
+        session.flush()
+
+        update_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"ordered": 2},
+        )
+        assert update_resp.status_code == 409
+
+    def test_update_line_seller_blocked_on_ordered(self, client, session, container):
+        """PUT rejects seller_id changes on ORDERED lines."""
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+        seller_a = container.seller_service().create_seller(
+            f"A-{uuid.uuid4()}", "https://a.example"
+        )
+        seller_b = container.seller_service().create_seller(
+            f"B-{uuid.uuid4()}", "https://b.example"
+        )
+        session.commit()
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 4, "seller_id": seller_a.id},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        # Manually set line to ORDERED
+        stored_line = session.get(ShoppingListLine, line_id)
+        stored_line.status = ShoppingListLineStatus.ORDERED
+        stored_line.ordered = 4
+        session.flush()
+
+        update_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"seller_id": seller_b.id},
+        )
+        assert update_resp.status_code == 409
+
     def test_duplicate_line_returns_conflict(self, client, session, container):
         shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
 
@@ -224,202 +293,26 @@ class TestShoppingListLinesAPI:
         )
         assert update_resp.status_code == 404
 
-    def test_mark_line_ordered_and_revert_endpoint(self, client, session, container):
-        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
-        shopping_list_service = container.shopping_list_service()
-
-        create_resp = client.post(
-            f"/api/shopping-lists/{shopping_list_id}/lines",
-            json={"part_id": part_id, "needed": 4},
-        )
-        line_id = create_resp.get_json()["id"]
-
-        shopping_list_service.set_list_status(
-            shopping_list_id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        order_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/order",
-            json={"ordered_qty": 4, "comment": "Rush order"},
-        )
-        assert order_resp.status_code == 200
-        ordered_payload = order_resp.get_json()
-        assert ordered_payload["status"] == ShoppingListLineStatus.ORDERED.value
-        assert ordered_payload["ordered"] == 4
-        assert ordered_payload["note"] == "Rush order"
-        assert ordered_payload["is_revertible"] is True
-
-        revert_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/revert",
-            json={"status": ShoppingListLineStatus.NEW.value},
-        )
-        assert revert_resp.status_code == 200
-        reverted_payload = revert_resp.get_json()
-        assert reverted_payload["status"] == ShoppingListLineStatus.NEW.value
-        assert reverted_payload["ordered"] == 0
-
-    def test_mark_line_ordered_rejects_done_line(self, client, session, container):
-        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
-        shopping_list_service = container.shopping_list_service()
-
-        create_resp = client.post(
-            f"/api/shopping-lists/{shopping_list_id}/lines",
-            json={"part_id": part_id, "needed": 2},
-        )
-        assert create_resp.status_code == 201
-        line_id = create_resp.get_json()["id"]
-
-        shopping_list_service.set_list_status(
-            shopping_list_id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        stored_line = session.get(ShoppingListLine, line_id)
-        assert stored_line is not None
-        stored_line.status = ShoppingListLineStatus.DONE
-        session.flush()
-
-        order_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/order",
-            json={"ordered_qty": 2},
-        )
-        assert order_resp.status_code == 409
-
-    def test_group_order_endpoint_updates_lines(self, client, session, container):
-        shopping_list_service = container.shopping_list_service()
-        shopping_list_line_service = container.shopping_list_line_service()
-        part_service = container.part_service()
-        seller_service = container.seller_service()
-
-        seller = seller_service.create_seller("Bundle Seller", "https://bundle.example")
-        part_default = part_service.create_part(description="Logic buffer")
-        part_override = part_service.create_part(description="Harness kit")
-        part_none = part_service.create_part(description="Cable tie")
-
-        shopping_list = shopping_list_service.create_list("Group API")
-        default_line = shopping_list_line_service.add_line(
-            shopping_list.id,
-            part_id=part_default.id,
-            needed=3,
-            seller_id=seller.id,
-        )
-        override_line = shopping_list_line_service.add_line(
-            shopping_list.id,
-            part_id=part_override.id,
-            needed=6,
-            seller_id=seller.id,
-        )
-        ungrouped_line = shopping_list_line_service.add_line(
-            shopping_list.id,
-            part_id=part_none.id,
-            needed=5,
-        )
-        session.commit()
-
-        shopping_list_service.set_list_status(
-            shopping_list.id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        payload = {
-            "lines": [
-                {"line_id": default_line.id, "ordered_qty": 4},
-                {"line_id": override_line.id, "ordered_qty": None},
-            ]
-        }
-        order_resp = client.post(
-            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order",
-            json=payload,
-        )
-        assert order_resp.status_code == 200
-        ordered_lines = order_resp.get_json()
-        assert {line["id"] for line in ordered_lines} == {default_line.id, override_line.id}
-        for line in ordered_lines:
-            assert line["status"] == ShoppingListLineStatus.ORDERED.value
-
-        default_api_line = next(line for line in ordered_lines if line["id"] == default_line.id)
-        override_api_line = next(line for line in ordered_lines if line["id"] == override_line.id)
-        assert default_api_line["ordered"] == 4
-        assert override_api_line["ordered"] == 6
-
-        ungrouped_payload = {
-            "lines": [
-                {"line_id": ungrouped_line.id, "ordered_qty": 2},
-            ]
-        }
-        ungrouped_resp = client.post(
-            f"/api/shopping-lists/{shopping_list.id}/seller-groups/ungrouped/order",
-            json=ungrouped_payload,
-        )
-        assert ungrouped_resp.status_code == 200
-        ungrouped_lines = ungrouped_resp.get_json()
-        assert ungrouped_lines[0]["id"] == ungrouped_line.id
-        assert ungrouped_lines[0]["ordered"] == 2
-        assert ungrouped_lines[0]["status"] == ShoppingListLineStatus.ORDERED.value
-
-    def test_group_order_endpoint_rejects_done_lines(self, client, session, container):
-        shopping_list_service = container.shopping_list_service()
-        shopping_list_line_service = container.shopping_list_line_service()
-        part_service = container.part_service()
-        seller_service = container.seller_service()
-
-        seller = seller_service.create_seller("Done Vendor", "https://vendor.example")
-        part_default = part_service.create_part(description="Power module")
-        shopping_list = shopping_list_service.create_list("Group Rejection")
-        line = shopping_list_line_service.add_line(
-            shopping_list.id,
-            part_id=part_default.id,
-            needed=3,
-            seller_id=seller.id,
-        )
-        session.commit()
-
-        shopping_list_service.set_list_status(
-            shopping_list.id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        stored_line = session.get(ShoppingListLine, line.id)
-        assert stored_line is not None
-        stored_line.status = ShoppingListLineStatus.DONE
-        session.flush()
-
-        payload = {"lines": [{"line_id": line.id, "ordered_qty": 3}]}
-        resp = client.post(
-            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order",
-            json=payload,
-        )
-        assert resp.status_code == 409
-
     def test_receive_line_stock_endpoint_success(self, client, session, container):
         shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
         box = container.box_service().create_box("API Receive Box", 5)
+        seller = container.seller_service().create_seller(
+            f"Recv-{uuid.uuid4()}", "https://recv.example"
+        )
         session.commit()
 
         create_resp = client.post(
             f"/api/shopping-lists/{shopping_list_id}/lines",
-            json={"part_id": part_id, "needed": 4},
+            json={"part_id": part_id, "needed": 4, "seller_id": seller.id},
         )
         assert create_resp.status_code == 201
         line_id = create_resp.get_json()["id"]
 
-        shopping_list_service = container.shopping_list_service()
-        shopping_list_service.set_list_status(
-            shopping_list_id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        order_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/order",
-            json={"ordered_qty": 4},
-        )
-        assert order_resp.status_code == 200
+        # Manually set to ORDERED for receiving
+        stored_line = session.get(ShoppingListLine, line_id)
+        stored_line.status = ShoppingListLineStatus.ORDERED
+        stored_line.ordered = 4
+        session.flush()
 
         receive_payload = {
             "receive_qty": 3,
@@ -480,10 +373,6 @@ class TestShoppingListLinesAPI:
 
         shopping_list_service.set_list_status(
             shopping_list_id,
-            ShoppingListStatus.READY,
-        )
-        shopping_list_service.set_list_status(
-            shopping_list_id,
             ShoppingListStatus.DONE,
         )
         session.commit()
@@ -511,26 +400,6 @@ class TestShoppingListLinesAPI:
             == "Cannot update shopping list line because lines cannot be modified on a list that is marked done"
         )
 
-        order_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/order",
-            json={"ordered_qty": 2},
-        )
-        assert order_resp.status_code == 409
-        assert (
-            order_resp.get_json()["error"]
-            == "Cannot mark line ordered because lines cannot be modified on a list that is marked done"
-        )
-
-        revert_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/revert",
-            json={"status": ShoppingListLineStatus.NEW.value},
-        )
-        assert revert_resp.status_code == 409
-        assert (
-            revert_resp.get_json()["error"]
-            == "Cannot revert line to new because lines cannot be modified on a list that is marked done"
-        )
-
         delete_resp = client.delete(f"/api/shopping-list-lines/{line_id}")
         assert delete_resp.status_code == 409
         assert (
@@ -548,26 +417,22 @@ class TestShoppingListLinesAPI:
     def test_complete_line_endpoint_requires_mismatch_reason(self, client, session, container):
         shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
         box = container.box_service().create_box("API Mismatch Box", 2)
+        seller = container.seller_service().create_seller(
+            f"CL-{uuid.uuid4()}", "https://cl.example"
+        )
         session.commit()
 
         create_resp = client.post(
             f"/api/shopping-lists/{shopping_list_id}/lines",
-            json={"part_id": part_id, "needed": 3},
+            json={"part_id": part_id, "needed": 3, "seller_id": seller.id},
         )
         line_id = create_resp.get_json()["id"]
 
-        shopping_list_service = container.shopping_list_service()
-        shopping_list_service.set_list_status(
-            shopping_list_id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        order_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/order",
-            json={"ordered_qty": 3},
-        )
-        assert order_resp.status_code == 200
+        # Manually set to ORDERED
+        stored_line = session.get(ShoppingListLine, line_id)
+        stored_line.status = ShoppingListLineStatus.ORDERED
+        stored_line.ordered = 3
+        session.flush()
 
         receive_resp = client.post(
             f"/api/shopping-list-lines/{line_id}/receive",
@@ -600,26 +465,22 @@ class TestShoppingListLinesAPI:
     def test_complete_line_endpoint_success_when_totals_match(self, client, session, container):
         shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
         box = container.box_service().create_box("API Completion Box", 3)
+        seller = container.seller_service().create_seller(
+            f"CM-{uuid.uuid4()}", "https://cm.example"
+        )
         session.commit()
 
         create_resp = client.post(
             f"/api/shopping-lists/{shopping_list_id}/lines",
-            json={"part_id": part_id, "needed": 4},
+            json={"part_id": part_id, "needed": 4, "seller_id": seller.id},
         )
         line_id = create_resp.get_json()["id"]
 
-        shopping_list_service = container.shopping_list_service()
-        shopping_list_service.set_list_status(
-            shopping_list_id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        order_resp = client.post(
-            f"/api/shopping-list-lines/{line_id}/order",
-            json={"ordered_qty": 4},
-        )
-        assert order_resp.status_code == 200
+        # Manually set to ORDERED
+        stored_line = session.get(ShoppingListLine, line_id)
+        stored_line.status = ShoppingListLineStatus.ORDERED
+        stored_line.ordered = 4
+        session.flush()
 
         receive_resp = client.post(
             f"/api/shopping-list-lines/{line_id}/receive",

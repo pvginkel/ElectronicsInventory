@@ -425,10 +425,10 @@ def add_part_shopping_list_membership(
     part_service: PartService = Provide[ServiceContainer.part_service],
     shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
 ) -> Any:
-    """Add a part to a Concept shopping list and return the new membership."""
+    """Add a part to an Active shopping list and return the new membership."""
     payload = PartShoppingListMembershipCreateSchema.model_validate(request.get_json())
     part = part_service.get_part(part_key)
-    line = shopping_list_line_service.add_part_to_concept_list(
+    line = shopping_list_line_service.add_part_to_active_list(
         list_id=payload.shopping_list_id,
         part_id=part.id,
         needed=payload.needed,

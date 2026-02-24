@@ -257,7 +257,7 @@ class KitShoppingListService:
             )
 
         if shopping_list_id is not None:
-            shopping_list = self.shopping_list_service.get_concept_list_for_append(
+            shopping_list = self.shopping_list_service.get_active_list_for_append(
                 shopping_list_id
             )
             created_new_list = False
@@ -275,7 +275,7 @@ class KitShoppingListService:
 
         total_needed = 0
         for entry in needed_entries:
-            self.shopping_list_line_service.merge_line_for_concept_list(
+            self.shopping_list_line_service.merge_line_for_active_list(
                 shopping_list,
                 part_id=entry.content.part_id,
                 needed=entry.needed,
@@ -463,8 +463,8 @@ class KitShoppingListService:
             link.status = shopping_list.status
         else:
             link.shopping_list_name = ""
-            link.shopping_list_status = ShoppingListStatus.CONCEPT
-            link.status = ShoppingListStatus.CONCEPT
+            link.shopping_list_status = ShoppingListStatus.ACTIVE
+            link.status = ShoppingListStatus.ACTIVE
 
         kit = getattr(link, "kit", None)
         if kit is not None:

@@ -132,19 +132,19 @@ class TestKitService:
         kit_service: KitService,
         make_attachment_set,
     ):
-        concept_list = ShoppingList(
-            name="Concept BOM",
-            status=ShoppingListStatus.CONCEPT,
+        active_list_1 = ShoppingList(
+            name="Active BOM 1",
+            status=ShoppingListStatus.ACTIVE,
         )
-        ready_list = ShoppingList(
-            name="Ready BOM",
-            status=ShoppingListStatus.READY,
+        active_list_2 = ShoppingList(
+            name="Active BOM 2",
+            status=ShoppingListStatus.ACTIVE,
         )
         done_list = ShoppingList(
             name="Legacy BOM",
             status=ShoppingListStatus.DONE,
         )
-        session.add_all([concept_list, ready_list, done_list])
+        session.add_all([active_list_1, active_list_2, done_list])
 
         active_kit_attachment_set = make_attachment_set()
         active_kit = Kit(
@@ -170,14 +170,14 @@ class TestKitService:
             [
                 KitShoppingListLink(
                     kit_id=active_kit.id,
-                    shopping_list_id=concept_list.id,
+                    shopping_list_id=active_list_1.id,
                     requested_units=active_kit.build_target,
                     honor_reserved=False,
                     snapshot_kit_updated_at=datetime.now(UTC),
                 ),
                 KitShoppingListLink(
                     kit_id=active_kit.id,
-                    shopping_list_id=ready_list.id,
+                    shopping_list_id=active_list_2.id,
                     requested_units=active_kit.build_target,
                     honor_reserved=True,
                     snapshot_kit_updated_at=datetime.now(UTC),
@@ -217,7 +217,7 @@ class TestKitService:
         assert len(results) == 1
         result = results[0]
         assert result.name == "Synth Demo Kit"
-        assert result.shopping_list_badge_count == 2  # concept + ready only
+        assert result.shopping_list_badge_count == 2  # active lists only (not done)
         assert result.pick_list_badge_count == 2  # open pick lists remain
 
         archived_results = kit_service.list_kits(status=KitStatus.ARCHIVED)
@@ -609,7 +609,7 @@ class TestKitService:
         kit = Kit(name="Kit With Links", build_target=1, attachment_set_id=attachment_set.id)
         shopping_list = ShoppingList(
             name="Test List",
-            status=ShoppingListStatus.CONCEPT,
+            status=ShoppingListStatus.ACTIVE,
         )
         session.add_all([kit, shopping_list])
         session.flush()
