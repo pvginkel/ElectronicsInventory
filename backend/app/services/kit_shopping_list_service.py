@@ -17,6 +17,7 @@ from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
+from app.services.shopping_list_dtos import ShoppingListDetail
 from app.services.shopping_list_line_service import ShoppingListLineService
 from app.services.shopping_list_service import ShoppingListService
 
@@ -43,7 +44,7 @@ class KitShoppingListOperationResult:
     """Structured result for create-or-append operations."""
 
     link: KitShoppingListLink | None
-    shopping_list: ShoppingList | None
+    shopping_list: ShoppingList | ShoppingListDetail | None
     created_new_list: bool
     lines_modified: int
     total_needed_quantity: int
@@ -267,10 +268,13 @@ class KitShoppingListService:
                     "create kit shopping list",
                     "new shopping list name is required when shopping_list_id is not provided",
                 )
-            shopping_list = self.shopping_list_service.create_list(
+            # create_list returns a ShoppingListDetail DTO; extract the
+            # underlying ORM model for merge/upsert calls below.
+            detail = self.shopping_list_service.create_list(
                 new_list_name,
                 new_list_description,
             )
+            shopping_list = detail._shopping_list
             created_new_list = True
 
         total_needed = 0

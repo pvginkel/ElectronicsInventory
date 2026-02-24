@@ -68,6 +68,8 @@ class ShoppingListStatusUpdateSchema(BaseModel):
 class ShoppingListLineCountsSchema(BaseModel):
     """Aggregated counts of shopping list lines by status."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     new: int = Field(description="Number of lines in NEW status")
     ordered: int = Field(description="Number of lines marked ORDERED")
     done: int = Field(description="Number of lines marked DONE")
@@ -194,6 +196,8 @@ class KitChipSchema(BaseModel):
 
 class ShoppingListSellerGroupTotalsSchema(BaseModel):
     """Aggregated totals for a seller grouping."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     needed: int = Field(
         description="Total needed quantity for the group",
