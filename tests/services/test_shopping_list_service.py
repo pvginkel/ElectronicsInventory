@@ -12,6 +12,12 @@ from app.exceptions import (
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.models.shopping_list_seller import ShoppingListSeller, ShoppingListSellerStatus
+from app.services.shopping_list_dtos import (
+    LineCounts,
+    SellerGroupTotals,
+    ShoppingListDetail,
+    ShoppingListSummary,
+)
 
 
 class TestShoppingListService:
@@ -20,11 +26,11 @@ class TestShoppingListService:
     def test_create_list_defaults(self, session, container):
         shopping_list_service = container.shopping_list_service()
 
-        shopping_list = shopping_list_service.create_list("SMD Rework Kit")
+        result = shopping_list_service.create_list("SMD Rework Kit")
 
-        assert shopping_list.status == ShoppingListStatus.ACTIVE
-        assert shopping_list.line_counts == {"new": 0, "ordered": 0, "done": 0}
-        assert shopping_list.has_ordered_lines is False
+        assert isinstance(result, ShoppingListDetail)
+        assert result.status == ShoppingListStatus.ACTIVE
+        assert result.line_counts == LineCounts(new=0, ordered=0, done=0)
 
     def test_duplicate_name_raises_conflict(self, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -44,6 +50,7 @@ class TestShoppingListService:
             shopping_list.id,
             ShoppingListStatus.DONE,
         )
+        assert isinstance(updated, ShoppingListDetail)
         assert updated.status == ShoppingListStatus.DONE
 
     def test_set_list_status_rejects_reopening_done(self, session, container):
@@ -76,6 +83,7 @@ class TestShoppingListService:
             shopping_list.id,
             ShoppingListStatus.ACTIVE,
         )
+        assert isinstance(result, ShoppingListDetail)
         assert result.status == ShoppingListStatus.ACTIVE
 
     def test_set_list_status_rejects_invalid_transition(self, session, container):
@@ -102,12 +110,13 @@ class TestShoppingListService:
         shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
 
         visible_lists = shopping_list_service.list_lists()
-        names = {shopping_list.name for shopping_list in visible_lists}
+        assert all(isinstance(sl, ShoppingListSummary) for sl in visible_lists)
+        names = {sl.name for sl in visible_lists}
         assert active_list.name in names
         assert done_list.name not in names
 
         all_lists = shopping_list_service.list_lists(include_done=True)
-        all_names = {shopping_list.name for shopping_list in all_lists}
+        all_names = {sl.name for sl in all_lists}
         assert done_list.name in all_names
 
     def test_list_lists_orders_by_updated_at(self, session, container):
@@ -125,18 +134,18 @@ class TestShoppingListService:
 
         ordered = shopping_list_service.list_lists()
         relevant = [
-            shopping_list
-            for shopping_list in ordered
-            if shopping_list.name
+            sl
+            for sl in ordered
+            if sl.name
             in {"Early Workbench", "Mid Workbench", "Recent Workbench"}
         ]
 
-        assert [shopping_list.name for shopping_list in relevant] == [
+        assert [sl.name for sl in relevant] == [
             "Recent Workbench",
             "Mid Workbench",
             "Early Workbench",
         ]
-        timestamps = [shopping_list.updated_at for shopping_list in relevant]
+        timestamps = [sl.updated_at for sl in relevant]
         assert timestamps == sorted(timestamps, reverse=True)
 
     def test_delete_list_cascades_lines(self, session, container):
@@ -177,6 +186,21 @@ class TestShoppingListService:
             exc.value.message
             == "Cannot update shopping list because lists marked as done cannot be modified"
         )
+
+    def test_update_list_returns_detail(self, session, container):
+        """update_list returns a ShoppingListDetail with seller groups and line counts."""
+        shopping_list_service = container.shopping_list_service()
+
+        result = shopping_list_service.create_list("Before Update")
+        updated = shopping_list_service.update_list(
+            result.id,
+            description="After Update",
+        )
+
+        assert isinstance(updated, ShoppingListDetail)
+        assert updated.description == "After Update"
+        assert updated.line_counts == LineCounts(new=0, ordered=0, done=0)
+        assert updated.seller_groups == []
 
     def test_get_list_includes_seller_groups(self, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -224,19 +248,20 @@ class TestShoppingListService:
 
         fetched_list = shopping_list_service.get_list(shopping_list.id)
 
-        groups = {group["group_key"]: group for group in fetched_list.seller_groups}
+        # seller_groups is now a list of SellerGroupDetail dataclasses
+        groups = {group.group_key: group for group in fetched_list.seller_groups}
         assert str(seller_beta.id) in groups
         assert str(seller_alpha.id) in groups
         assert "ungrouped" in groups
 
         beta_group = groups[str(seller_beta.id)]
-        assert beta_group["totals"]["needed"] == 5
+        assert beta_group.totals.needed == 5
 
         alpha_group = groups[str(seller_alpha.id)]
-        assert alpha_group["totals"]["needed"] == 4
+        assert alpha_group.totals.needed == 4
 
         ungrouped_group = groups["ungrouped"]
-        assert ungrouped_group["totals"]["needed"] == ungrouped_line.needed
+        assert ungrouped_group.totals.needed == ungrouped_line.needed
 
     def test_list_part_memberships_filters_and_orders(self, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -412,7 +437,7 @@ class TestSellerGroupService:
         )
 
         assert seller_group.group_key == str(seller.id)
-        assert seller_group.totals == {"needed": 0, "ordered": 0, "received": 0}
+        assert seller_group.totals == SellerGroupTotals(needed=0, ordered=0, received=0)
         assert seller_group.completed is False
 
     def test_create_seller_group_duplicate_raises_conflict(self, session, container):
@@ -461,7 +486,7 @@ class TestSellerGroupService:
 
         assert seller_group.group_key == str(seller.id)
         assert len(seller_group.lines) == 2
-        assert seller_group.totals["needed"] == 10
+        assert seller_group.totals.needed == 10
 
     def test_get_seller_group_not_found(self, session, container):
         shopping_list_service = container.shopping_list_service()

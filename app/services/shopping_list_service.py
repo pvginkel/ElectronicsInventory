@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from prometheus_client import Counter
 from sqlalchemy import case, delete, func, select
@@ -22,6 +22,13 @@ from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.models.shopping_list_seller import ShoppingListSeller, ShoppingListSellerStatus
+from app.services.shopping_list_dtos import (
+    LineCounts,
+    SellerGroupDetail,
+    SellerGroupTotals,
+    ShoppingListDetail,
+    ShoppingListSummary,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -43,7 +50,9 @@ class ShoppingListService:
         self.db = db
         self.part_seller_service = part_seller_service
 
-    def create_list(self, name: str, description: str | None = None) -> ShoppingList:
+    def create_list(
+        self, name: str, description: str | None = None
+    ) -> ShoppingListDetail:
         """Create a new shopping list in active status."""
         shopping_list = ShoppingList(name=name, description=description)
         self.db.add(shopping_list)
@@ -52,13 +61,15 @@ class ShoppingListService:
         except IntegrityError as exc:
             self.db.rollback()
             raise ResourceConflictException("shopping list", name) from exc
-        return self._attach_line_counts(shopping_list)
+        return ShoppingListDetail(
+            _shopping_list=shopping_list,
+            line_counts=LineCounts(new=0, ordered=0, done=0),
+            seller_groups=[],
+        )
 
-    def get_list(self, list_id: int) -> ShoppingList:
+    def get_list(self, list_id: int) -> ShoppingListDetail:
         """Retrieve a shopping list with its associated lines."""
-        shopping_list = self._load_list_with_lines(list_id)
-        shopping_list = self._attach_seller_group_payload(shopping_list)
-        return self._attach_line_counts(shopping_list)
+        return self._build_detail(list_id)
 
     def get_active_list_for_append(self, list_id: int) -> ShoppingList:
         """Fetch a shopping list for append workflows ensuring Active status."""
@@ -83,7 +94,7 @@ class ShoppingListService:
         *,
         name: str | None = None,
         description: str | None = None,
-    ) -> ShoppingList:
+    ) -> ShoppingListDetail:
         """Update shopping list metadata."""
         shopping_list = self._get_list_for_update(list_id)
 
@@ -106,7 +117,7 @@ class ShoppingListService:
         except IntegrityError as exc:
             self.db.rollback()
             raise ResourceConflictException("shopping list", name or shopping_list.name) from exc
-        return self._attach_line_counts(shopping_list)
+        return self._build_detail(list_id)
 
     def delete_list(self, list_id: int) -> None:
         """Delete a shopping list and cascade delete its lines."""
@@ -119,12 +130,18 @@ class ShoppingListService:
         self.db.delete(shopping_list)
         self.db.flush()
 
-    def set_list_status(self, list_id: int, status: ShoppingListStatus) -> ShoppingList:
+    def set_list_status(
+        self, list_id: int, status: ShoppingListStatus
+    ) -> ShoppingListDetail:
         """Update list workflow status: only active -> done is allowed."""
         shopping_list = self._get_list_for_update(list_id)
 
         if shopping_list.status == status:
-            return self._attach_line_counts(shopping_list)
+            line_counts = self._compute_line_counts(shopping_list.id)
+            return ShoppingListDetail(
+                _shopping_list=shopping_list,
+                line_counts=line_counts,
+            )
 
         if shopping_list.status == ShoppingListStatus.DONE:
             raise InvalidOperationException(
@@ -142,23 +159,16 @@ class ShoppingListService:
         shopping_list.status = status
         self._touch_list(shopping_list)
         self.db.flush()
-        refreshed = self._attach_seller_group_payload(
-            self._load_list_with_lines(shopping_list.id)
-        )
-        return self._attach_line_counts(refreshed)
+        return self._build_detail(shopping_list.id)
 
     def list_lists(
         self,
         include_done: bool = False,
         *,
         statuses: Sequence[ShoppingListStatus] | None = None,
-    ) -> list[ShoppingList]:
+    ) -> list[ShoppingListSummary]:
         """Return shopping lists filtered by workflow status with derived counts."""
-        stmt = select(ShoppingList).options(
-            selectinload(ShoppingList.seller_groups).selectinload(
-                ShoppingListSeller.seller
-            )
-        )
+        stmt = select(ShoppingList)
         if not include_done:
             stmt = stmt.where(ShoppingList.status != ShoppingListStatus.DONE)
 
@@ -170,10 +180,13 @@ class ShoppingListService:
 
         stmt = stmt.order_by(ShoppingList.updated_at.desc(), ShoppingList.id.desc())
         shopping_lists = list(self.db.execute(stmt).scalars().all())
-        counts_map = self._counts_for_lists([shopping_list.id for shopping_list in shopping_lists])
+        counts_map = self._counts_for_lists([sl.id for sl in shopping_lists])
         return [
-            self._attach_line_counts(shopping_list, counts_map)
-            for shopping_list in shopping_lists
+            ShoppingListSummary(
+                _shopping_list=sl,
+                line_counts=self._line_counts_from_map(sl.id, counts_map),
+            )
+            for sl in shopping_lists
         ]
 
     def get_list_stats(self, list_id: int) -> dict[ShoppingListLineStatus, int]:
@@ -220,7 +233,7 @@ class ShoppingListService:
 
     # -- Seller group CRUD --
 
-    def create_seller_group(self, list_id: int, seller_id: int) -> ShoppingListSeller:
+    def create_seller_group(self, list_id: int, seller_id: int) -> SellerGroupDetail:
         """Create a new seller group on a shopping list."""
         shopping_list = self._get_list_for_update(list_id)
         if shopping_list.status == ShoppingListStatus.DONE:
@@ -251,12 +264,12 @@ class ShoppingListService:
         self.db.flush()
 
         SHOPPING_LIST_SELLER_GROUP_OPERATIONS_TOTAL.labels(operation="create").inc()
-        return self._get_seller_group_with_lines(list_id, seller_id)
+        return self._build_seller_group_detail(list_id, seller_id)
 
-    def get_seller_group(self, list_id: int, seller_id: int) -> ShoppingListSeller:
+    def get_seller_group(self, list_id: int, seller_id: int) -> SellerGroupDetail:
         """Retrieve a seller group with lines and totals."""
         self._ensure_list_exists(list_id)
-        return self._get_seller_group_with_lines(list_id, seller_id)
+        return self._build_seller_group_detail(list_id, seller_id)
 
     def update_seller_group(
         self,
@@ -265,7 +278,7 @@ class ShoppingListService:
         *,
         note: str | None = None,
         status: ShoppingListSellerStatus | None = None,
-    ) -> ShoppingListSeller:
+    ) -> SellerGroupDetail:
         """Update a seller group's note and/or status."""
         shopping_list = self._get_list_for_update(list_id)
         if shopping_list.status == ShoppingListStatus.DONE:
@@ -287,7 +300,7 @@ class ShoppingListService:
 
         self._touch_list(shopping_list)
         self.db.flush()
-        return self._get_seller_group_with_lines(list_id, seller_id)
+        return self._build_seller_group_detail(list_id, seller_id)
 
     def delete_seller_group(self, list_id: int, seller_id: int) -> None:
         """Delete a seller group, resetting non-DONE lines to ungrouped."""
@@ -423,10 +436,10 @@ class ShoppingListService:
             raise RecordNotFoundException("Seller group", f"list={list_id} seller={seller_id}")
         return seller_group
 
-    def _get_seller_group_with_lines(
+    def _build_seller_group_detail(
         self, list_id: int, seller_id: int
-    ) -> ShoppingListSeller:
-        """Load a seller group with its lines and attach derived fields."""
+    ) -> SellerGroupDetail:
+        """Load a seller group with its lines and return a SellerGroupDetail DTO."""
         stmt = (
             select(ShoppingListSeller)
             .options(selectinload(ShoppingListSeller.seller))
@@ -461,19 +474,22 @@ class ShoppingListService:
         if lines:
             self._enrich_seller_links(lines)
 
-        # Attach derived fields as transient attributes
-        seller_group.group_key = str(seller_id)
-        seller_group.lines = lines
-        seller_group.totals = {
-            "needed": sum(line.needed for line in lines),
-            "ordered": sum(line.ordered for line in lines),
-            "received": sum(line.received for line in lines),
-        }
-        seller_group.completed = all(
-            line.status == ShoppingListLineStatus.DONE for line in lines
-        ) if lines else False
-
-        return seller_group
+        return SellerGroupDetail(
+            group_key=str(seller_id),
+            seller_id=seller_group.seller_id,
+            seller=seller_group.seller,
+            lines=lines,
+            totals=SellerGroupTotals(
+                needed=sum(line.needed for line in lines),
+                ordered=sum(line.ordered for line in lines),
+                received=sum(line.received for line in lines),
+            ),
+            note=seller_group.note,
+            status=seller_group.status,
+            completed=all(
+                line.status == ShoppingListLineStatus.DONE for line in lines
+            ) if lines else False,
+        )
 
     # -- Part membership queries --
 
@@ -556,35 +572,37 @@ class ShoppingListService:
         if exists is None:
             raise RecordNotFoundException("Shopping list", list_id)
 
-    def _attach_line_counts(
+    def _compute_line_counts(
         self,
-        shopping_list: ShoppingList,
+        list_id: int,
         counts_map: dict[int, dict[ShoppingListLineStatus, int]] | None = None,
-    ) -> ShoppingList:
-        """Attach computed line counts to the shopping list instance.
-
-        This helper is the single place that populates the derived counters so
-        both detail and overview payloads stay perfectly aligned.
-        """
+    ) -> LineCounts:
+        """Compute line counts for a single shopping list via database query."""
         if counts_map is None:
-            counts_map = self._counts_for_lists([shopping_list.id])
-        counts = counts_map.get(shopping_list.id)
-        if counts is None:
-            counts = {
-                ShoppingListLineStatus.NEW: 0,
-                ShoppingListLineStatus.ORDERED: 0,
-                ShoppingListLineStatus.DONE: 0,
-            }
+            counts_map = self._counts_for_lists([list_id])
+        return self._line_counts_from_map(list_id, counts_map)
 
-        shopping_list.line_counts = {
-            "new": counts[ShoppingListLineStatus.NEW],
-            "ordered": counts[ShoppingListLineStatus.ORDERED],
-            "done": counts[ShoppingListLineStatus.DONE],
-        }
-        shopping_list.has_ordered_lines = counts[
-            ShoppingListLineStatus.ORDERED
-        ] > 0
-        return shopping_list
+    @staticmethod
+    def _line_counts_from_map(
+        list_id: int,
+        counts_map: dict[int, dict[ShoppingListLineStatus, int]],
+    ) -> LineCounts:
+        """Extract a LineCounts DTO from a pre-fetched counts map."""
+        counts = counts_map.get(list_id)
+        if counts is None:
+            return LineCounts(new=0, ordered=0, done=0)
+        return LineCounts(
+            new=counts[ShoppingListLineStatus.NEW],
+            ordered=counts[ShoppingListLineStatus.ORDERED],
+            done=counts[ShoppingListLineStatus.DONE],
+        )
+
+    def _count_lines(self, lines: list[ShoppingListLine]) -> LineCounts:
+        """Compute line counts from a loaded list of lines."""
+        new = sum(1 for line in lines if line.status == ShoppingListLineStatus.NEW)
+        ordered = sum(1 for line in lines if line.status == ShoppingListLineStatus.ORDERED)
+        done = sum(1 for line in lines if line.status == ShoppingListLineStatus.DONE)
+        return LineCounts(new=new, ordered=ordered, done=done)
 
     def _counts_for_lists(
         self, list_ids: Iterable[int]
@@ -675,75 +693,83 @@ class ShoppingListService:
             self._enrich_seller_links(list(shopping_list.lines))
         return shopping_list
 
-    def _attach_seller_group_payload(self, shopping_list: ShoppingList) -> ShoppingList:
-        """Build seller groups from persisted ShoppingListSeller rows and lines.
+    def _build_seller_groups(
+        self, shopping_list: ShoppingList
+    ) -> list[SellerGroupDetail]:
+        """Build seller group DTOs from persisted ShoppingListSeller rows and lines.
 
-        Expunges the shopping list from the session before replacing the
-        seller_groups relationship with dict-based payloads.  This prevents
-        the non-ORM dicts from polluting the session identity map and
-        causing IntegrityErrors on later flushes.
+        Returns a list of SellerGroupDetail dataclasses instead of mutating
+        the ORM model. No expunge or __dict__ hack required.
         """
-        if shopping_list.lines:
-            shopping_list.lines.sort(key=lambda line: line.created_at)
+        all_lines = list(shopping_list.lines or [])
+        all_lines.sort(key=lambda line: line.created_at)
 
-        # Build groups from the persisted seller group rows
-        groups: list[dict[str, Any]] = []
+        groups: list[SellerGroupDetail] = []
 
         # Index lines by seller_id for fast lookup
         lines_by_seller: dict[int | None, list[ShoppingListLine]] = {}
-        for line in (shopping_list.lines or []):
+        for line in all_lines:
             lines_by_seller.setdefault(line.seller_id, []).append(line)
 
         # Named seller groups from the shopping_list_sellers table
         for sg in (shopping_list.seller_groups or []):
             sg_lines = lines_by_seller.get(sg.seller_id, [])
-            groups.append({
-                "group_key": str(sg.seller_id),
-                "seller_id": sg.seller_id,
-                "seller": sg.seller,
-                "lines": sg_lines,
-                "totals": {
-                    "needed": sum(ln.needed for ln in sg_lines),
-                    "ordered": sum(ln.ordered for ln in sg_lines),
-                    "received": sum(ln.received for ln in sg_lines),
-                },
-                "note": sg.note,
-                "status": sg.status.value if sg.status else None,
-                "completed": all(
+            groups.append(SellerGroupDetail(
+                group_key=str(sg.seller_id),
+                seller_id=sg.seller_id,
+                seller=sg.seller,
+                lines=sg_lines,
+                totals=SellerGroupTotals(
+                    needed=sum(ln.needed for ln in sg_lines),
+                    ordered=sum(ln.ordered for ln in sg_lines),
+                    received=sum(ln.received for ln in sg_lines),
+                ),
+                note=sg.note,
+                status=sg.status,
+                completed=all(
                     ln.status == ShoppingListLineStatus.DONE for ln in sg_lines
                 ) if sg_lines else False,
-            })
+            ))
 
         # Sort named groups alphabetically by seller name
-        groups.sort(key=lambda g: (g["seller"].name.lower() if g["seller"] else "", g["group_key"]))
+        groups.sort(key=lambda g: (g.seller.name.lower() if g.seller else "", g.group_key))
 
         # Add ungrouped bucket (lines with seller_id = NULL)
         ungrouped_lines = lines_by_seller.get(None, [])
         if ungrouped_lines:
-            groups.append({
-                "group_key": "ungrouped",
-                "seller_id": None,
-                "seller": None,
-                "lines": ungrouped_lines,
-                "totals": {
-                    "needed": sum(ln.needed for ln in ungrouped_lines),
-                    "ordered": sum(ln.ordered for ln in ungrouped_lines),
-                    "received": sum(ln.received for ln in ungrouped_lines),
-                },
-                "note": None,
-                "status": None,
-                "completed": all(
+            groups.append(SellerGroupDetail(
+                group_key="ungrouped",
+                seller_id=None,
+                seller=None,
+                lines=ungrouped_lines,
+                totals=SellerGroupTotals(
+                    needed=sum(ln.needed for ln in ungrouped_lines),
+                    ordered=sum(ln.ordered for ln in ungrouped_lines),
+                    received=sum(ln.received for ln in ungrouped_lines),
+                ),
+                note=None,
+                status=None,
+                completed=all(
                     ln.status == ShoppingListLineStatus.DONE for ln in ungrouped_lines
                 ),
-            })
+            ))
 
-        # Detach from session before replacing the relationship attribute
-        # with dict-based payloads to avoid corrupting the identity map.
-        # Use __dict__ to bypass the instrumented descriptor which would
-        # try to process the dicts through backref event handlers.
-        self.db.expunge(shopping_list)
-        shopping_list.__dict__["seller_groups"] = groups
-        return shopping_list
+        return groups
+
+    def _build_detail(self, list_id: int) -> ShoppingListDetail:
+        """Load a shopping list and assemble a full ShoppingListDetail DTO.
+
+        This is the single entry point for producing detail responses,
+        combining the ORM model, line counts, and seller group DTOs.
+        """
+        shopping_list = self._load_list_with_lines(list_id)
+        seller_groups = self._build_seller_groups(shopping_list)
+        line_counts = self._compute_line_counts(shopping_list.id)
+        return ShoppingListDetail(
+            _shopping_list=shopping_list,
+            line_counts=line_counts,
+            seller_groups=seller_groups,
+        )
 
     def _touch_list(self, shopping_list: ShoppingList) -> None:
         """Update list timestamp to reflect related mutations."""
