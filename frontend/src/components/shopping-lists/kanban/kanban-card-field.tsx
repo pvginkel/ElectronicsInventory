@@ -191,14 +191,14 @@ export function KanbanCardField({
       >
         <span
           className={cn(
-            'inline-block rounded px-1 py-0.5 transition-colors text-sm',
+            'inline-block rounded px-1 py-0.5 text-sm',
             // Hover border affordance (only when editable)
-            !readOnly && 'group-hover/field:ring-1 group-hover/field:ring-green-400/40',
-            isEmpty ? 'text-green-200/40 italic' : displayClassName,
+            !readOnly && 'group-hover/field:ring-1 group-hover/field:ring-primary/40',
+            isEmpty ? 'text-slate-500 italic' : displayClassName,
           )}
         >
           {isEmpty ? (placeholder ?? '') : displayValue}
-          {suffix && <span className="text-green-200/60 ml-1">{suffix}</span>}
+          {suffix && <span className="text-slate-400 ml-1">{suffix}</span>}
         </span>
       </div>
     );
@@ -208,7 +208,7 @@ export function KanbanCardField({
   const sharedInputClasses = cn(
     'rounded border border-input bg-background px-1 py-0.5 text-sm',
     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
-    type === 'number' ? 'w-[40px] text-right' : 'w-full',
+    type === 'number' ? 'w-[60px] text-right' : 'w-full',
     isSaving && 'opacity-50 cursor-wait',
   );
 

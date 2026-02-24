@@ -3,11 +3,14 @@
  *
  * Three rendering modes based on the column context:
  *   - "unassigned": editable needed + note, trash icon, no ordered field
- *   - "ordering":   editable needed + note + ordered, seller link icon, trash (hidden when ordered)
+ *   - "ordering":   editable needed + note + ordered, seller link icon, trash (disabled when ordered)
  *   - "receiving":  read-only ordered + received, receive button (hidden when done)
  *
  * The entire card is the drag handle for DnD. Cards with line status "ordered"
  * are not draggable (backend blocks seller change on ordered lines).
+ *
+ * Part info mirrors the reusable PartListItem layout: description as the title
+ * line, part key below it in mono font.
  */
 import { useCallback } from 'react';
 import { ExternalLink, Package, Trash2 } from 'lucide-react';
@@ -83,18 +86,19 @@ export function KanbanCard({
   const orderedWarning = line.ordered > 0 && line.ordered < line.needed;
   const sellerLinkUrl = line.sellerLink;
   const instrumentationMeta = { lineId: line.id, listId };
+  // Note is editable in unassigned/ordering when not read-only
+  const noteEditable = (mode === 'unassigned' || mode === 'ordering') && !isReadOnly;
 
   return (
     <div
       data-testid={testIdBase}
       className={cn(
-        'group/card rounded-md bg-green-950/80 p-3',
-        'transition-shadow hover:shadow-md',
+        'group/card rounded-md bg-slate-900/80 p-3',
         isPending && 'opacity-60 pointer-events-none',
         highlightClassName,
       )}
     >
-      {/* Top row: cover image + part info */}
+      {/* Top row: cover image + part info (description first, key below in mono) */}
       <div className="flex gap-2 mb-2">
         {line.part.coverUrl && (
           <CoverImageDisplay
@@ -106,8 +110,8 @@ export function KanbanCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-1">
-            <span className="font-semibold text-sm truncate text-green-50" title={line.part.key}>
-              {line.part.key}
+            <span className="font-semibold text-sm truncate text-slate-50" title={line.part.description}>
+              {line.part.description}
             </span>
             {/* Seller link icon (ordering mode only, when seller link exists) */}
             {mode === 'ordering' && sellerLinkUrl && (
@@ -116,7 +120,7 @@ export function KanbanCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid={`${testIdBase}.seller-link`}
-                className="text-green-300 hover:text-green-100 shrink-0"
+                className="text-blue-400 hover:text-slate-200 shrink-0"
                 title="Open seller product page"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -124,8 +128,8 @@ export function KanbanCard({
               </a>
             )}
           </div>
-          <p className="text-xs text-green-200/70 truncate" title={line.part.description}>
-            {line.part.description}
+          <p className="text-xs text-slate-400 truncate font-mono" title={line.part.key}>
+            {line.part.key}
           </p>
         </div>
       </div>
@@ -135,7 +139,7 @@ export function KanbanCard({
         {/* Needed field -- editable in unassigned and ordering modes */}
         {(mode === 'unassigned' || mode === 'ordering') && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-green-200/60 text-xs">Needed</span>
+            <span className="text-slate-400 text-xs">Needed</span>
             <KanbanCardField
               formId={`KanbanCard:needed`}
               value={line.needed}
@@ -146,7 +150,7 @@ export function KanbanCard({
               readOnly={isReadOnly}
               metadata={instrumentationMeta}
               className="text-right"
-              displayClassName="text-green-50"
+              displayClassName="text-slate-50"
             />
           </div>
         )}
@@ -158,7 +162,7 @@ export function KanbanCard({
             enabled={orderedWarning}
           >
             <div className="flex items-center justify-between text-sm">
-              <span className="text-green-200/60 text-xs">Ordered</span>
+              <span className="text-slate-400 text-xs">Ordered</span>
               <KanbanCardField
                 formId={`KanbanCard:ordered`}
                 value={line.ordered}
@@ -170,7 +174,7 @@ export function KanbanCard({
                 showDashForZero
                 metadata={instrumentationMeta}
                 className="text-right"
-                displayClassName={orderedWarning ? 'text-amber-400' : 'text-green-50'}
+                displayClassName={orderedWarning ? 'text-amber-400' : 'text-slate-50'}
               />
             </div>
           </Tooltip>
@@ -180,7 +184,7 @@ export function KanbanCard({
         {mode === 'receiving' && (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-green-200/60 text-xs">Ordered</span>
+              <span className="text-slate-400 text-xs">Ordered</span>
               <KanbanCardField
                 formId={`KanbanCard:ordered`}
                 value={line.ordered}
@@ -191,13 +195,13 @@ export function KanbanCard({
                 showDashForZero
                 metadata={instrumentationMeta}
                 className="text-right"
-                displayClassName="text-green-50"
+                displayClassName="text-slate-50"
               />
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-green-200/60 text-xs">Received</span>
+              <span className="text-slate-400 text-xs">Received</span>
               <span
-                className="px-1 py-0.5 text-sm text-green-50"
+                className="px-1 py-0.5 text-sm text-slate-50"
                 data-testid={`${testIdBase}.field.received`}
               >
                 {line.received}
@@ -205,51 +209,30 @@ export function KanbanCard({
             </div>
           </>
         )}
-
-        {/* Note field -- editable in unassigned and ordering modes */}
-        {(mode === 'unassigned' || mode === 'ordering') && (
-          <div className="mt-1">
-            <KanbanCardField
-              formId={`KanbanCard:note`}
-              value={line.note ?? ''}
-              onSave={handleNoteSave}
-              type="text"
-              maxLength={500}
-              testId={`${testIdBase}.field.note`}
-              readOnly={isReadOnly}
-              multiline
-              metadata={instrumentationMeta}
-              className={cn(
-                'text-xs text-green-200/70',
-                // 3-line clamp with expand on hover
-                'line-clamp-3 group-hover/card:line-clamp-none',
-              )}
-              placeholder="Add a note..."
-            />
-          </div>
-        )}
       </div>
 
-      {/* Bottom actions row */}
-      <div className="flex items-center justify-end gap-1 mt-2">
-        {/* Receive button (receiving mode only, when line can receive) */}
-        {canReceive && (
-          <button
-            type="button"
-            onClick={handleReceive}
-            data-testid={`${testIdBase}.receive`}
+      {/* Note + trash row -- always visible (read-only when receiving or completed) */}
+      <div className="flex items-start gap-1 mt-1">
+        <div className="flex-1 min-w-0">
+          <KanbanCardField
+            formId={`KanbanCard:note`}
+            value={line.note ?? ''}
+            onSave={handleNoteSave}
+            type="text"
+            maxLength={500}
+            testId={`${testIdBase}.field.note`}
+            readOnly={!noteEditable}
+            multiline
+            metadata={instrumentationMeta}
             className={cn(
-              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium cursor-pointer',
-              'bg-primary text-primary-foreground hover:bg-primary/90',
-              'transition-colors',
+              'text-xs text-slate-400',
+              // 3-line clamp with expand on hover
+              'line-clamp-3 group-hover/card:line-clamp-none',
             )}
-          >
-            <Package className="h-3 w-3" />
-            Receive
-          </button>
-        )}
-
-        {/* Trash icon (hidden for receiving mode, hidden when ordered/done) */}
+            placeholder={noteEditable ? 'Add a note...' : undefined}
+          />
+        </div>
+        {/* Trash icon sits next to the note */}
         {canDelete && (
           <button
             type="button"
@@ -257,10 +240,10 @@ export function KanbanCard({
             disabled={deleteDisabled}
             data-testid={`${testIdBase}.delete`}
             className={cn(
-              'rounded p-1 transition-colors cursor-pointer',
+              'shrink-0 rounded p-1 cursor-pointer mt-0.5',
               deleteDisabled
-                ? 'text-green-200/30 cursor-default'
-                : 'text-green-200/60 hover:text-red-400 hover:bg-red-950/40',
+                ? 'text-slate-600 cursor-default'
+                : 'text-slate-400 hover:text-red-400 hover:bg-red-950/40',
             )}
             title="Delete line"
           >
@@ -268,6 +251,24 @@ export function KanbanCard({
           </button>
         )}
       </div>
+
+      {/* Bottom actions row (receive button only) */}
+      {canReceive && (
+        <div className="flex items-center justify-end mt-2">
+          <button
+            type="button"
+            onClick={handleReceive}
+            data-testid={`${testIdBase}.receive`}
+            className={cn(
+              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium cursor-pointer',
+              'bg-primary text-primary-foreground hover:bg-primary/90',
+            )}
+          >
+            <Package className="h-3 w-3" />
+            Receive
+          </button>
+        </div>
+      )}
     </div>
   );
 }

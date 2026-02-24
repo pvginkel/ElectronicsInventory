@@ -14,7 +14,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, type DialogContentProps } from '@/components/primitives/dialog';
 import { KanbanColumn } from './kanban-column';
@@ -72,7 +71,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'transition-shadow rounded-lg',
+        'rounded-lg',
         isOver && 'ring-2 ring-primary/40',
       )}
     >
@@ -108,23 +107,20 @@ function DraggableCardWrapper({
     [line, groupKey, sellerId],
   );
 
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `card-${line.id}`,
     data: dragData,
     disabled,
   });
 
-  const style = transform
-    ? { transform: CSS.Translate.toString(transform) }
-    : undefined;
-
+  // No transform applied here -- DragOverlay handles the visual movement.
+  // The original card stays in place as a gap placeholder.
   return (
     <div
       ref={setNodeRef}
-      style={style}
       className={cn(
         isDragging && 'opacity-30',
-        disabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
+        disabled ? 'cursor-default' : 'cursor-grab',
       )}
       {...listeners}
       {...attributes}
@@ -162,6 +158,14 @@ export function KanbanBoard({
   // -- DnD hook --
   const dnd = useKanbanDnd({ groups, isCompleted, onMoveLine });
 
+  // -- Set cursor-grabbing on body during drag --
+  useEffect(() => {
+    if (dnd.isDragging) {
+      document.body.style.cursor = 'grabbing';
+      return () => { document.body.style.cursor = ''; };
+    }
+  }, [dnd.isDragging]);
+
   // -- Derived: unassigned lines exist (for "assign remaining" in seller columns) --
   const hasUnassignedLines = useMemo(
     () => groups.some((g) => g.sellerId === null && g.lines.length > 0),
@@ -187,8 +191,12 @@ export function KanbanBoard({
     let scrollStart = 0;
 
     const onPointerDown = (event: PointerEvent) => {
-      // Only start scroll-drag when clicking directly on the board background
-      if (event.target !== board) return;
+      // Start scroll-drag when clicking the board background (directly on this
+      // element or on the gap between columns which is part of the flex gap).
+      const target = event.target as HTMLElement;
+      if (target !== board && target.parentElement !== board) return;
+      // Don't scroll-drag if the target is an interactive element inside a column
+      if (target !== board) return;
       isScrollDragging = true;
       startX = event.clientX;
       scrollStart = board.scrollLeft;
@@ -325,10 +333,11 @@ export function KanbanBoard({
           )}
         </div>
 
-        {/* Drag overlay -- renders a clone of the dragged card outside the normal flow */}
-        <DragOverlay>
+        {/* Drag overlay -- renders a clone of the dragged card outside the normal flow.
+            dropAnimation={null} prevents the overlay from animating back to origin on drop. */}
+        <DragOverlay dropAnimation={null}>
           {activeLine ? (
-            <div className="w-80 opacity-90 shadow-xl rounded-md">
+            <div className="w-[calc(20rem-1.5rem)] opacity-90 shadow-xl rounded-md">
               <KanbanCard
                 line={activeLine}
                 mode={activeLineMode}

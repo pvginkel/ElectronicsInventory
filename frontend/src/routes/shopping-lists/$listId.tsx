@@ -528,7 +528,25 @@ function ShoppingListDetailRoute() {
         phase: 'success',
         metadata: { sellerId, action: 'order' },
       });
-      showSuccess('Seller group marked as ordered');
+      showSuccess('Seller group marked as ordered', {
+        action: {
+          id: 'undo',
+          label: 'Undo',
+          testId: `shopping-lists.kanban.toast.undo-complete.${sellerId}`,
+          onClick: () => {
+            void updateGroupMutation.mutateAsync({
+              listId: normalizedListId,
+              sellerId,
+              status: 'active',
+            }).then(() => {
+              showSuccess('Seller group reopened');
+            }).catch((undoErr) => {
+              const msg = undoErr instanceof Error ? undoErr.message : 'Failed to reopen';
+              showException(msg, undoErr);
+            });
+          },
+        },
+      });
     }).catch((err) => {
       emitUiState({
         kind: 'ui_state',
@@ -853,7 +871,7 @@ function ShoppingListDetailRoute() {
         supplementary={detailHeaderSlots.supplementary}
         metadataRow={detailHeaderSlots.metadataRow}
         actions={detailHeaderSlots.actions}
-        contentProps={{ className: 'p-0 overflow-hidden' }}
+        contentProps={{ className: 'p-0 overflow-hidden flex flex-col' }}
       >
         {contentNode}
       </DetailScreenLayout>

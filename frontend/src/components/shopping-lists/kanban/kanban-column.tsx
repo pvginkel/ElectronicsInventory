@@ -9,6 +9,9 @@
  * vertically, and registers as a droppable zone via the `droppableId` prop
  * (wired up by the parent KanbanBoard in Slice 7).
  *
+ * Cards are sorted by part description (case-insensitive, numeric) so order
+ * stays consistent across loads, refreshes, and drag-and-drop operations.
+ *
  * This component is intentionally "dumb" -- it receives callbacks for all
  * actions and delegates to the board/route for mutation orchestration.
  */
@@ -21,6 +24,9 @@ import {
 } from './kanban-column-header';
 import { deriveCardMode } from './kanban-utils';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
+
+/** Collator for stable, case-insensitive, numeric card ordering. */
+const cardCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 /**
  * Render-prop that wraps each card with DnD behavior (provided by KanbanBoard).
@@ -91,6 +97,13 @@ export function KanbanColumn({
   const mode = deriveCardMode(group.status);
   const testIdBase = `shopping-lists.kanban.column.${group.groupKey}`;
 
+  // -- Sorted lines: stable order by part description --
+  const sortedLines = useMemo(() => {
+    return [...group.lines].sort((a, b) =>
+      cardCollator.compare(a.part.description, b.part.description),
+    );
+  }, [group.lines]);
+
   // -- Derived preconditions for seller column actions --
   const canComplete = useMemo(() => {
     if (mode !== 'ordering') return false;
@@ -113,7 +126,7 @@ export function KanbanColumn({
     <div
       data-testid={testIdBase}
       className={cn(
-        'flex flex-col w-80 shrink-0 rounded-lg bg-green-600',
+        'flex flex-col w-80 shrink-0 rounded-lg bg-slate-700',
         'max-h-full',
         className,
       )}
@@ -146,12 +159,12 @@ export function KanbanColumn({
         />
       )}
 
-      {/* Scrollable card list -- hide horizontal scrollbar */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-2 min-h-0">
-        {group.lines.length === 0 ? (
+      {/* Scrollable card list -- clip horizontal overflow from DnD transforms */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-3 min-h-0">
+        {sortedLines.length === 0 ? (
           <EmptyColumnMessage isUnassigned={isUnassigned} />
         ) : (
-          group.lines.map((line: ShoppingListConceptLine) => {
+          sortedLines.map((line: ShoppingListConceptLine) => {
             const card = (
               <KanbanCard
                 key={line.id}
@@ -166,7 +179,7 @@ export function KanbanColumn({
                 onReceive={onReceiveLine}
                 highlightClassName={
                   highlightedLineId === line.id
-                    ? 'ring-2 ring-primary/50 animate-pulse'
+                    ? 'ring-2 ring-primary/50'
                     : undefined
                 }
               />
@@ -192,7 +205,7 @@ export function KanbanColumn({
 function EmptyColumnMessage({ isUnassigned }: { isUnassigned: boolean }) {
   return (
     <div className="flex items-center justify-center px-3 py-6 text-center">
-      <p className="text-xs text-green-200/60">
+      <p className="text-xs text-slate-300">
         {isUnassigned
           ? 'No items yet -- use the + button to add parts.'
           : 'No items. Drag cards here or use "Assign remaining."'}

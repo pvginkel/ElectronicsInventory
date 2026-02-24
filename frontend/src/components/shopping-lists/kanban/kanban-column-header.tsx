@@ -52,11 +52,11 @@ export function UnassignedColumnHeader({
 }: UnassignedColumnHeaderProps) {
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2"
+      className="flex items-center gap-2 px-3 pt-3"
       data-testid={`${testIdBase}.header`}
     >
-      <h3 className="text-sm font-semibold truncate text-green-50">Unassigned</h3>
-      <span className="shrink-0 rounded-full bg-green-700 px-2 py-0.5 text-xs text-green-100">
+      <h3 className="text-sm font-semibold truncate text-slate-50">Unassigned</h3>
+      <span className="shrink-0 rounded-full bg-slate-600 px-2 py-0.5 text-xs text-slate-200">
         {lineCount}
       </span>
       <div className="flex-1" />
@@ -67,8 +67,7 @@ export function UnassignedColumnHeader({
           data-testid={`${testIdBase}.add-part`}
           className={cn(
             'shrink-0 rounded p-1 cursor-pointer',
-            'text-green-200 hover:text-green-50 hover:bg-green-500/50',
-            'transition-colors',
+            'text-slate-300 hover:text-slate-50 hover:bg-slate-500/40',
           )}
           title="Add part"
         >
@@ -158,7 +157,7 @@ export function SellerColumnHeader({
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2"
+      className="flex items-center gap-2 px-3 pt-3"
       data-testid={`${testIdBase}.header`}
     >
       {/* Seller logo + name + external link */}
@@ -169,7 +168,7 @@ export function SellerColumnHeader({
           className="h-5 w-5 shrink-0 rounded object-contain"
         />
       )}
-      <h3 className="text-sm font-semibold truncate text-green-50" title={group.sellerName ?? undefined}>
+      <h3 className="text-sm font-semibold truncate text-slate-50" title={group.sellerName ?? undefined}>
         {group.sellerName}
       </h3>
       {group.sellerWebsite && (
@@ -177,16 +176,18 @@ export function SellerColumnHeader({
           href={group.sellerWebsite}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 text-green-200 hover:text-green-50 transition-colors"
+          className="shrink-0 text-slate-300 hover:text-slate-50"
           title={group.sellerWebsite}
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
       )}
       {isOrdered && (
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-green-300" />
+        <Tooltip title="Order placed" enabled>
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+        </Tooltip>
       )}
-      <span className="shrink-0 rounded-full bg-green-700 px-2 py-0.5 text-xs text-green-100">
+      <span className="shrink-0 rounded-full bg-slate-600 px-2 py-0.5 text-xs text-slate-200">
         {lineCount}
       </span>
 
@@ -201,7 +202,7 @@ export function SellerColumnHeader({
             type="button"
             onClick={onAddPart}
             data-testid={`${testIdBase}.add-part`}
-            className="shrink-0 rounded p-1 cursor-pointer text-green-200 hover:text-green-50 hover:bg-green-500/50 transition-colors"
+            className="shrink-0 rounded p-1 cursor-pointer text-slate-300 hover:text-slate-50 hover:bg-slate-500/40"
             title="Add part"
           >
             <Plus className="h-4 w-4" />
@@ -217,8 +218,8 @@ export function SellerColumnHeader({
               onClick={onEditNote}
               data-testid={`${testIdBase}.order-note`}
               className={cn(
-                'relative shrink-0 rounded p-1 cursor-pointer transition-colors',
-                'text-green-200 hover:text-green-50 hover:bg-green-500/50',
+                'relative shrink-0 rounded p-1 cursor-pointer',
+                'text-slate-300 hover:text-slate-50 hover:bg-slate-500/40',
               )}
             >
               <NotebookPen className="h-4 w-4" />
@@ -243,10 +244,10 @@ export function SellerColumnHeader({
                 data-testid={`${testIdBase}.complete`}
                 title={canComplete ? 'Mark as ordered' : undefined}
                 className={cn(
-                  'shrink-0 rounded p-1 transition-colors',
+                  'shrink-0 rounded p-1',
                   canComplete
-                    ? 'cursor-pointer text-green-200 hover:text-green-50 hover:bg-green-500/50'
-                    : 'text-green-200/30 cursor-not-allowed',
+                    ? 'cursor-pointer text-slate-300 hover:text-slate-50 hover:bg-slate-500/40'
+                    : 'text-slate-500 cursor-not-allowed',
                 )}
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -257,7 +258,7 @@ export function SellerColumnHeader({
           {/* Overflow menu */}
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger
-              className="shrink-0 rounded p-1 cursor-pointer text-green-200 hover:text-green-50 hover:bg-green-500/50 transition-colors"
+              className="shrink-0 rounded p-1 cursor-pointer text-slate-300 hover:text-slate-50 hover:bg-slate-500/40"
               data-testid={`${testIdBase}.menu`}
             >
               <MoreHorizontal className="h-4 w-4" />
