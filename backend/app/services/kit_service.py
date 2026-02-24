@@ -258,8 +258,8 @@ class KitService:
                 link.status = link.shopping_list.status
             else:
                 link.shopping_list_name = ""
-                link.shopping_list_status = ShoppingListStatus.CONCEPT
-                link.status = ShoppingListStatus.CONCEPT
+                link.shopping_list_status = ShoppingListStatus.ACTIVE
+                link.status = ShoppingListStatus.ACTIVE
         kit.pick_lists[:] = sorted(
             kit.pick_lists,
             key=lambda pick_list: (
@@ -614,7 +614,4 @@ class KitService:
     @staticmethod
     def _shopping_badge_statuses() -> Sequence[ShoppingListStatus]:
         """Statuses that count towards the shopping list badge."""
-        return (
-            ShoppingListStatus.CONCEPT,
-            ShoppingListStatus.READY,
-        )
+        return (ShoppingListStatus.ACTIVE,)

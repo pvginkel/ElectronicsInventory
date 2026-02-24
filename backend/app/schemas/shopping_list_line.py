@@ -54,6 +54,12 @@ class ShoppingListLineUpdateSchema(BaseModel):
         description="Updated note about this line item",
         json_schema_extra={"example": "Need ROHS compliant"}
     )
+    ordered: int | None = Field(
+        None,
+        ge=0,
+        description="Planned order quantity; only settable while line is NEW",
+        json_schema_extra={"example": 10}
+    )
 
 
 class ShoppingListLineListSchema(BaseModel):
@@ -147,14 +153,6 @@ class ShoppingListLineResponseSchema(ShoppingListLineListSchema):
     seller: SellerListSchema | None = Field(
         description="Seller details for this line"
     )
-    is_orderable: bool = Field(
-        description="True when the line can be marked as ordered",
-        json_schema_extra={"example": True},
-    )
-    is_revertible: bool = Field(
-        description="True when the line can revert from ordered back to new",
-        json_schema_extra={"example": False},
-    )
     part_locations: list[PartLocationInlineSchema] = Field(
         default_factory=list,
         description="Locations currently holding stock for the part",
@@ -212,52 +210,4 @@ class ShoppingListLineCompleteSchema(BaseModel):
         None,
         description="Explanation required when received quantity differs from ordered",
         json_schema_extra={"example": "Supplier discontinued remaining units"},
-    )
-
-
-class ShoppingListLineOrderSchema(BaseModel):
-    """Schema for marking a line as ordered."""
-
-    ordered_qty: int | None = Field(
-        None,
-        ge=0,
-        description="Quantity marked as ordered; defaults to needed when omitted",
-        json_schema_extra={"example": 5},
-    )
-    comment: str | None = Field(
-        None,
-        description="Optional note update to accompany ordering",
-        json_schema_extra={"example": "Combine with enclosure order"},
-    )
-
-
-class ShoppingListLineStatusUpdateSchema(BaseModel):
-    """Schema for updating the workflow status of a line."""
-
-    status: ShoppingListLineStatus = Field(
-        description="Target status for the line",
-        json_schema_extra={"example": ShoppingListLineStatus.NEW.value},
-    )
-
-
-class ShoppingListGroupOrderLineSchema(BaseModel):
-    """Schema representing a single line entry in a group order action."""
-
-    line_id: int = Field(
-        description="Identifier of the line to update",
-        json_schema_extra={"example": 42},
-    )
-    ordered_qty: int | None = Field(
-        None,
-        ge=0,
-        description="Quantity to set as ordered; defaults to current needed quantity",
-        json_schema_extra={"example": 10},
-    )
-
-
-class ShoppingListGroupOrderSchema(BaseModel):
-    """Request schema for marking a seller group as ordered."""
-
-    lines: list[ShoppingListGroupOrderLineSchema] = Field(
-        description="Line-specific ordered quantities for the seller group",
     )

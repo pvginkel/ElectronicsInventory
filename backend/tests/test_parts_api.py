@@ -891,8 +891,6 @@ class TestPartsAPI:
                 needed=2,
             )
 
-            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
-            shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.READY)
             shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
 
             stored_done_line = session.get(ShoppingListLine, done_line.id)
@@ -910,7 +908,7 @@ class TestPartsAPI:
             assert response.status_code == 200
             data = json.loads(response.data)
             assert [entry["line_id"] for entry in data] == [ready_line.id, concept_line.id]
-            assert data[0]["shopping_list_status"] == ShoppingListStatus.READY.value
+            assert data[0]["shopping_list_status"] == ShoppingListStatus.ACTIVE.value
             assert data[1]["note"] == "Try alternate vendor if stock is low"
             assert data[1]["seller"]["id"] == seller.id
 
@@ -941,8 +939,6 @@ class TestPartsAPI:
                 part_id=primary_part.id,
                 needed=4,
             )
-
-            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
 
             now = datetime.now(UTC)
             session.get(ShoppingListLine, ready_line.id).updated_at = now
@@ -995,8 +991,6 @@ class TestPartsAPI:
                 needed=5,
             )
 
-            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
-            shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.READY)
             shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
 
             stored_done_line = session.get(ShoppingListLine, done_line.id)
@@ -1140,23 +1134,16 @@ class TestPartsAPI:
             )
             assert duplicate_data["details"]["message"] == "The requested operation cannot be performed"
 
-    def test_post_part_shopping_list_memberships_requires_concept_list(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
-        """Non-concept lists should be rejected by the memberships endpoint."""
+    def test_post_part_shopping_list_memberships_requires_active_list(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Non-active lists should be rejected by the memberships endpoint."""
         with app.app_context():
             part_service = container.part_service()
             shopping_list_service = container.shopping_list_service()
-            shopping_list_line_service = container.shopping_list_line_service()
             part = part_service.create_part("Microcontroller")
-            ready_list = shopping_list_service.create_list("MCU ready list")
-            filler_part = part_service.create_part("Support resistor")
-            shopping_list_line_service.add_line(
-                ready_list.id,
-                part_id=filler_part.id,
-                needed=1,
-            )
-            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+            done_list = shopping_list_service.create_list("MCU done list")
+            shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
 
-            payload = {"shopping_list_id": ready_list.id, "needed": 3}
+            payload = {"shopping_list_id": done_list.id, "needed": 3}
 
             response = client.post(
                 f"/api/parts/{part.key}/shopping-list-memberships",

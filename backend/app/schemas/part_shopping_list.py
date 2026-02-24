@@ -24,7 +24,7 @@ class PartShoppingListMembershipSchema(BaseModel):
     )
     shopping_list_status: ShoppingListStatus = Field(
         description="Workflow status of the parent shopping list",
-        json_schema_extra={"example": ShoppingListStatus.CONCEPT.value},
+        json_schema_extra={"example": ShoppingListStatus.ACTIVE.value},
     )
     line_id: int = Field(
         description="Identifier of the shopping list line",

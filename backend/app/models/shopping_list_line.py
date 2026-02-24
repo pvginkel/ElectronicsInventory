@@ -29,7 +29,7 @@ from app.models.part_location import PartLocation
 if TYPE_CHECKING:
     from app.models.part import Part
     from app.models.seller import Seller
-from app.models.shopping_list import ShoppingList, ShoppingListStatus
+from app.models.shopping_list import ShoppingList
 
 
 class ShoppingListLineStatus(StrEnum):
@@ -115,36 +115,18 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
         )
 
     @property
-    def is_orderable(self) -> bool:
-        """Indicate whether ordering actions are allowed for this line."""
+    def can_receive(self) -> bool:
+        """Return True when stock intake actions are allowed for this line.
 
-        if self.shopping_list is None:
-            return False
-        if self.shopping_list.status != ShoppingListStatus.READY:
-            return False
-        return self.status in {
-            ShoppingListLineStatus.NEW,
-            ShoppingListLineStatus.ORDERED,
-        }
+        Requires both ORDERED status and a seller assignment. Ungrouped lines
+        (seller_id is None) can never be received even if they somehow reach
+        ORDERED status.
+        """
 
-    @property
-    def is_revertible(self) -> bool:
-        """Indicate whether the line can revert from ORDERED back to NEW."""
-
-        if self.shopping_list is None:
-            return False
-        if self.shopping_list.status != ShoppingListStatus.READY:
-            return False
         return (
             self.status == ShoppingListLineStatus.ORDERED
-            and self.received == 0
+            and self.seller_id is not None
         )
-
-    @property
-    def can_receive(self) -> bool:
-        """Return True when stock intake actions are allowed for this line."""
-
-        return self.status == ShoppingListLineStatus.ORDERED
 
     @property
     def has_quantity_mismatch(self) -> bool:

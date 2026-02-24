@@ -1,13 +1,13 @@
 [
   {
     "name": "Spring Synth Build",
-    "description": "Concept list for sourcing parts for the spring synthesizer prototype.",
-    "status": "concept"
+    "description": "Active list for sourcing parts for the spring synthesizer prototype.",
+    "status": "active"
   },
   {
     "name": "Bench Replenishment",
-    "description": "Ready-to-order list for regular workshop consumables.",
-    "status": "ready"
+    "description": "Active list for regular workshop consumables.",
+    "status": "active"
   },
   {
     "name": "Audio Mixer Beta",

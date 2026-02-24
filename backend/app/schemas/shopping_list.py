@@ -2,17 +2,22 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.models.kit import KitStatus
 from app.models.shopping_list import ShoppingListStatus
+from app.models.shopping_list_seller import ShoppingListSellerStatus
 from app.schemas.seller import SellerListSchema
 from app.schemas.shopping_list_line import (
     ShoppingListLineListSchema,
     ShoppingListLineResponseSchema,
-)
-from app.schemas.shopping_list_seller_note import (
-    ShoppingListSellerOrderNoteSchema,
 )
 
 
@@ -56,7 +61,7 @@ class ShoppingListStatusUpdateSchema(BaseModel):
     status: ShoppingListStatus = Field(
         ...,
         description="New status for the shopping list",
-        json_schema_extra={"example": ShoppingListStatus.READY.value}
+        json_schema_extra={"example": ShoppingListStatus.DONE.value}
     )
 
 
@@ -89,7 +94,7 @@ class ShoppingListListSchema(BaseModel):
     )
     status: ShoppingListStatus = Field(
         description="Workflow status",
-        json_schema_extra={"example": ShoppingListStatus.CONCEPT.value}
+        json_schema_extra={"example": ShoppingListStatus.ACTIVE.value}
     )
     updated_at: datetime = Field(
         description="Timestamp when the list was last updated",
@@ -100,10 +105,6 @@ class ShoppingListListSchema(BaseModel):
         json_schema_extra={
             "example": {"new": 3, "ordered": 1, "done": 2},
         },
-    )
-    seller_notes: list[ShoppingListSellerOrderNoteSchema] = Field(
-        default_factory=list,
-        description="Seller-specific notes associated with the list",
     )
 
     @computed_field
@@ -130,8 +131,7 @@ class ShoppingListListQuerySchema(BaseModel):
         description="Filter by one or more shopping list statuses",
         json_schema_extra={
             "example": [
-                ShoppingListStatus.CONCEPT.value,
-                ShoppingListStatus.READY.value,
+                ShoppingListStatus.ACTIVE.value,
             ]
         },
     )
@@ -210,11 +210,13 @@ class ShoppingListSellerGroupTotalsSchema(BaseModel):
 
 
 class ShoppingListSellerGroupSchema(BaseModel):
-    """Schema representing seller-based grouping in Ready view."""
+    """Schema representing a seller group (persisted or virtual ungrouped bucket)."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     group_key: str = Field(
         description="Identifier for the seller grouping (seller id or 'ungrouped')",
-        json_schema_extra={"example": "seller-4"},
+        json_schema_extra={"example": "4"},
     )
     seller_id: int | None = Field(
         description="Seller identifier if group is seller-backed",
@@ -229,10 +231,24 @@ class ShoppingListSellerGroupSchema(BaseModel):
     totals: ShoppingListSellerGroupTotalsSchema = Field(
         description="Aggregated quantities for the group",
     )
-    order_note: ShoppingListSellerOrderNoteSchema | None = Field(
-        description="Seller note if the group is associated with a seller",
-        default=None,
+    note: str = Field(
+        default="",
+        description="Per-seller order note",
     )
+    status: ShoppingListSellerStatus | None = Field(
+        default=None,
+        description="Seller group status (active/ordered); null for ungrouped",
+    )
+    completed: bool = Field(
+        default=False,
+        description="True when all lines in the group are DONE",
+    )
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def _coalesce_note(cls, v: str | None) -> str:
+        """Convert NULL notes from the database to empty string for the API."""
+        return v or ""
 
 
 class ShoppingListResponseSchema(BaseModel):
@@ -251,7 +267,7 @@ class ShoppingListResponseSchema(BaseModel):
     )
     status: ShoppingListStatus = Field(
         description="Workflow status",
-        json_schema_extra={"example": ShoppingListStatus.READY.value}
+        json_schema_extra={"example": ShoppingListStatus.ACTIVE.value}
     )
     created_at: datetime = Field(description="Timestamp when the list was created")
     updated_at: datetime = Field(description="Timestamp when the list was last updated")
@@ -261,13 +277,9 @@ class ShoppingListResponseSchema(BaseModel):
     lines: list[ShoppingListLineResponseSchema] = Field(
         description="Line items associated with this list"
     )
-    seller_notes: list[ShoppingListSellerOrderNoteSchema] = Field(
-        default_factory=list,
-        description="Seller-specific notes for Ready view",
-    )
     seller_groups: list[ShoppingListSellerGroupSchema] = Field(
         default_factory=list,
-        description="Grouping of lines by seller for Ready planning",
+        description="Grouping of lines by seller for kanban planning",
     )
 
     @computed_field

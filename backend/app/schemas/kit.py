@@ -312,7 +312,7 @@ class KitShoppingListLinkSchema(BaseModel):
     )
     status: ShoppingListStatus = Field(
         description="Current status of the linked shopping list",
-        json_schema_extra={"example": ShoppingListStatus.READY.value},
+        json_schema_extra={"example": ShoppingListStatus.ACTIVE.value},
     )
     requested_units: int = Field(
         description="Number of kit build units used when pushing to the list",

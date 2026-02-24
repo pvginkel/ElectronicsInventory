@@ -6,6 +6,7 @@ from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.part import Part
 from app.models.shopping_list import ShoppingListStatus
+from app.models.shopping_list_seller import ShoppingListSellerStatus
 
 
 class TestShoppingListsAPI:
@@ -26,7 +27,6 @@ class TestShoppingListsAPI:
         list_id = created["id"]
         assert created["line_counts"] == {"new": 0, "ordered": 0, "done": 0, "total": 0}
         assert created["seller_groups"] == []
-        assert created["seller_notes"] == []
         assert created["has_ordered_lines"] is False
 
         fetch_resp = client.get(f"/api/shopping-lists/{list_id}")
@@ -34,7 +34,6 @@ class TestShoppingListsAPI:
         fetched = fetch_resp.get_json()
         assert fetched["name"] == name
         assert fetched["seller_groups"] == []
-        assert fetched["seller_notes"] == []
         assert fetched["has_ordered_lines"] is False
 
         update_resp = client.put(
@@ -53,22 +52,11 @@ class TestShoppingListsAPI:
 
     def test_list_endpoint_filters_done(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
-        shopping_list_line_service = container.shopping_list_line_service()
-        part_service = container.part_service()
 
-        concept_list = shopping_list_service.create_list(f"Concept-{uuid.uuid4()}")
-        session.commit()
-
-        ready_list = shopping_list_service.create_list(f"Ready-{uuid.uuid4()}")
-        ready_part = part_service.create_part(description="Ready resistor kit")
-        shopping_list_line_service.add_line(ready_list.id, part_id=ready_part.id, needed=1)
-        shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+        active_list = shopping_list_service.create_list(f"Active-{uuid.uuid4()}")
         session.commit()
 
         done_list = shopping_list_service.create_list(f"Done-{uuid.uuid4()}")
-        done_part = part_service.create_part(description="Done capacitor set")
-        shopping_list_line_service.add_line(done_list.id, part_id=done_part.id, needed=1)
-        shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.READY)
         shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
         session.commit()
 
@@ -76,13 +64,11 @@ class TestShoppingListsAPI:
         assert list_resp.status_code == 200
         overview_payload = list_resp.get_json()
         names = {entry["name"] for entry in overview_payload}
-        assert concept_list.name in names
-        assert ready_list.name in names
+        assert active_list.name in names
         assert done_list.name not in names
         for entry in overview_payload:
             counts = entry["line_counts"]
             assert counts["total"] == counts["new"] + counts["ordered"] + counts["done"]
-            assert "seller_notes" in entry
             assert "has_ordered_lines" in entry
             assert "last_updated" in entry
             assert entry["last_updated"] == entry["updated_at"]
@@ -95,32 +81,22 @@ class TestShoppingListsAPI:
         for entry in list_all_payload:
             counts = entry["line_counts"]
             assert counts["total"] == counts["new"] + counts["ordered"] + counts["done"]
-            assert "seller_notes" in entry
             assert "has_ordered_lines" in entry
             assert "last_updated" in entry
             assert entry["last_updated"] == entry["updated_at"]
 
     def test_list_endpoint_status_filter(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
-        part_service = container.part_service()
-        shopping_list_line_service = container.shopping_list_line_service()
 
-        concept = shopping_list_service.create_list(f"Concept-{uuid.uuid4()}")
-        ready = shopping_list_service.create_list(f"Ready-{uuid.uuid4()}")
+        active = shopping_list_service.create_list(f"Active-{uuid.uuid4()}")
         done = shopping_list_service.create_list(f"Done-{uuid.uuid4()}")
-        part = part_service.create_part(description="Filter resistor")
-        shopping_list_line_service.add_line(ready.id, part_id=part.id, needed=1)
-        shopping_list_line_service.add_line(done.id, part_id=part.id, needed=1)
-        shopping_list_service.set_list_status(ready.id, ShoppingListStatus.READY)
-        shopping_list_service.set_list_status(done.id, ShoppingListStatus.READY)
         shopping_list_service.set_list_status(done.id, ShoppingListStatus.DONE)
         session.commit()
 
-        filtered = client.get("/api/shopping-lists?status=concept&status=ready")
+        filtered = client.get("/api/shopping-lists?status=active")
         assert filtered.status_code == 200
         names = {entry["name"] for entry in filtered.get_json()}
-        assert concept.name in names
-        assert ready.name in names
+        assert active.name in names
         assert done.name not in names
 
         done_only = client.get("/api/shopping-lists?status=done")
@@ -137,55 +113,24 @@ class TestShoppingListsAPI:
 
     def test_status_transitions_validate_rules(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
-        shopping_list_line_service = container.shopping_list_line_service()
-        part_service = container.part_service()
 
         shopping_list = shopping_list_service.create_list(f"Transitions-{uuid.uuid4()}")
         list_id = shopping_list.id
         session.commit()
 
-        invalid_ready_resp = client.put(
-            f"/api/shopping-lists/{list_id}/status",
-            json={"status": ShoppingListStatus.READY.value},
-        )
-        assert invalid_ready_resp.status_code == 409
-        assert "at least one line item" in invalid_ready_resp.get_json()["error"].lower()
-
-        invalid_done_resp = client.put(
-            f"/api/shopping-lists/{list_id}/status",
-            json={"status": ShoppingListStatus.DONE.value},
-        )
-        assert invalid_done_resp.status_code == 409
-        assert "before completion" in invalid_done_resp.get_json()["error"].lower()
-
-        part = part_service.create_part(description="Transition widget")
-        part_id = part.id
-        shopping_list_line_service.add_line(
-            list_id,
-            part_id=part_id,
-            needed=1,
-        )
-        session.commit()
-
-        ready_resp = client.put(
-            f"/api/shopping-lists/{list_id}/status",
-            json={"status": ShoppingListStatus.READY.value},
-        )
-        assert ready_resp.status_code == 200
-        assert ready_resp.get_json()["status"] == ShoppingListStatus.READY.value
-        assert "seller_groups" in ready_resp.get_json()
-
+        # Active -> done should work (no preconditions)
         done_resp = client.put(
             f"/api/shopping-lists/{list_id}/status",
             json={"status": ShoppingListStatus.DONE.value},
         )
         assert done_resp.status_code == 200
         assert done_resp.get_json()["status"] == ShoppingListStatus.DONE.value
-        assert "seller_notes" in done_resp.get_json()
+        assert "seller_groups" in done_resp.get_json()
 
+        # Done -> active should be rejected
         reopen_resp = client.put(
             f"/api/shopping-lists/{list_id}/status",
-            json={"status": ShoppingListStatus.READY.value},
+            json={"status": ShoppingListStatus.ACTIVE.value},
         )
         assert reopen_resp.status_code == 409
         assert (
@@ -193,82 +138,10 @@ class TestShoppingListsAPI:
             == "Cannot change shopping list status because lists marked as done cannot change status"
         )
 
-    def test_upsert_seller_order_note_endpoint(self, client, session, container):
-        shopping_list_service = container.shopping_list_service()
-        shopping_list_line_service = container.shopping_list_line_service()
-        part_service = container.part_service()
-        seller_service = container.seller_service()
-
-        seller = seller_service.create_seller("Signal Shop", "https://signals.example")
-        part = part_service.create_part(description="Precision op-amp")
-
-        shopping_list = shopping_list_service.create_list("Note Flow")
-        shopping_list_line_service.add_line(
-            shopping_list.id,
-            part_id=part.id,
-            needed=4,
-            seller_id=seller.id,
-        )
-        session.commit()
-
-        shopping_list_service.set_list_status(
-            shopping_list.id,
-            ShoppingListStatus.READY,
-        )
-        session.commit()
-
-        create_resp = client.put(
-            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order-note",
-            json={"note": "Combine with enclosure order"},
-        )
-        assert create_resp.status_code == 200
-        note_payload = create_resp.get_json()
-        assert note_payload["seller_id"] == seller.id
-        assert note_payload["note"] == "Combine with enclosure order"
-        assert note_payload["seller"]["name"] == "Signal Shop"
-
-        clear_resp = client.put(
-            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order-note",
-            json={"note": ""},
-        )
-        assert clear_resp.status_code == 204
-
-        fetch_resp = client.get(f"/api/shopping-lists/{shopping_list.id}")
-        assert fetch_resp.status_code == 200
-        assert fetch_resp.get_json()["seller_notes"] == []
-
-        shopping_list_service.set_list_status(
-            shopping_list.id,
-            ShoppingListStatus.DONE,
-        )
-        session.commit()
-
-        locked_resp = client.put(
-            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order-note",
-            json={"note": "Should be rejected"},
-        )
-        assert locked_resp.status_code == 409
-        assert (
-            locked_resp.get_json()["error"]
-            == "Cannot update seller note because lists marked as done cannot be modified"
-        )
-
     def test_update_endpoint_rejects_done_lists(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
-        shopping_list_line_service = container.shopping_list_line_service()
-        part_service = container.part_service()
 
         shopping_list = shopping_list_service.create_list(f"Metadata-{uuid.uuid4()}")
-        part = part_service.create_part(description="Metadata resistor")
-        shopping_list_line_service.add_line(
-            shopping_list.id,
-            part_id=part.id,
-            needed=1,
-        )
-        shopping_list_service.set_list_status(
-            shopping_list.id,
-            ShoppingListStatus.READY,
-        )
         shopping_list_service.set_list_status(
             shopping_list.id,
             ShoppingListStatus.DONE,
@@ -316,3 +189,187 @@ class TestShoppingListsAPI:
 
         missing = client.get("/api/shopping-lists/99999/kits")
         assert missing.status_code == 404
+
+
+class TestSellerGroupAPI:
+    """API tests for seller group CRUD endpoints."""
+
+    def _setup_list_with_seller(self, container, session):
+        """Create an active list, a seller, and a part with that seller."""
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+        seller_service = container.seller_service()
+
+        seller = seller_service.create_seller(
+            f"Seller-{uuid.uuid4()}", "https://seller.example"
+        )
+        shopping_list = shopping_list_service.create_list(f"SG-{uuid.uuid4()}")
+        part = part_service.create_part(description="Seller group part")
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=4,
+            seller_id=seller.id,
+        )
+        session.commit()
+        return shopping_list, seller
+
+    def test_create_seller_group_endpoint(self, client, session, container):
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+
+        resp = client.post(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups",
+            json={"seller_id": seller.id},
+        )
+        assert resp.status_code == 201
+        payload = resp.get_json()
+        assert payload["group_key"] == str(seller.id)
+        assert payload["seller"]["id"] == seller.id
+        assert payload["totals"]["needed"] == 4
+        assert payload["status"] == ShoppingListSellerStatus.ACTIVE.value
+
+    def test_create_seller_group_duplicate_returns_conflict(self, client, session, container):
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+
+        first = client.post(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups",
+            json={"seller_id": seller.id},
+        )
+        assert first.status_code == 201
+
+        duplicate = client.post(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups",
+            json={"seller_id": seller.id},
+        )
+        assert duplicate.status_code == 409
+
+    def test_get_seller_group_endpoint(self, client, session, container):
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_service.create_seller_group(shopping_list.id, seller.id)
+        session.commit()
+
+        resp = client.get(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}"
+        )
+        assert resp.status_code == 200
+        payload = resp.get_json()
+        assert payload["group_key"] == str(seller.id)
+        assert len(payload["lines"]) == 1
+
+    def test_get_seller_group_not_found(self, client, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list = shopping_list_service.create_list(f"SG-NotFound-{uuid.uuid4()}")
+        session.commit()
+
+        resp = client.get(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/99999"
+        )
+        assert resp.status_code == 404
+
+    def test_update_seller_group_note(self, client, session, container):
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_service.create_seller_group(shopping_list.id, seller.id)
+        session.commit()
+
+        resp = client.put(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}",
+            json={"note": "Combine with bench order"},
+        )
+        assert resp.status_code == 200
+        assert "lines" in resp.get_json()
+
+    def test_update_seller_group_order_flow(self, client, session, container):
+        """Order flow: set ordered qty on lines, then order the group."""
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        shopping_list_service.create_seller_group(shopping_list.id, seller.id)
+        session.commit()
+
+        # Set ordered qty on lines
+        lines = shopping_list_line_service.list_lines(shopping_list.id)
+        for line in lines:
+            if line.seller_id == seller.id:
+                shopping_list_line_service.update_line(line.id, ordered=line.needed)
+        session.commit()
+
+        resp = client.put(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}",
+            json={"status": ShoppingListSellerStatus.ORDERED.value},
+        )
+        assert resp.status_code == 200
+        payload = resp.get_json()
+        assert payload["status"] == ShoppingListSellerStatus.ORDERED.value
+
+    def test_update_seller_group_reopen_flow(self, client, session, container):
+        """Reopen flow: order then reopen."""
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        shopping_list_service.create_seller_group(shopping_list.id, seller.id)
+        session.commit()
+
+        lines = shopping_list_line_service.list_lines(shopping_list.id)
+        for line in lines:
+            if line.seller_id == seller.id:
+                shopping_list_line_service.update_line(line.id, ordered=line.needed)
+        session.commit()
+
+        shopping_list_service.update_seller_group(
+            shopping_list.id, seller.id, status=ShoppingListSellerStatus.ORDERED
+        )
+        session.commit()
+
+        resp = client.put(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}",
+            json={"status": ShoppingListSellerStatus.ACTIVE.value},
+        )
+        assert resp.status_code == 200
+        payload = resp.get_json()
+        assert payload["status"] == ShoppingListSellerStatus.ACTIVE.value
+
+    def test_delete_seller_group_endpoint(self, client, session, container):
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_service.create_seller_group(shopping_list.id, seller.id)
+        session.commit()
+
+        resp = client.delete(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}"
+        )
+        assert resp.status_code == 204
+
+        # Verify it's gone
+        get_resp = client.get(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}"
+        )
+        assert get_resp.status_code == 404
+
+    def test_delete_seller_group_blocks_ordered(self, client, session, container):
+        shopping_list, seller = self._setup_list_with_seller(container, session)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        shopping_list_service.create_seller_group(shopping_list.id, seller.id)
+        session.commit()
+
+        lines = shopping_list_line_service.list_lines(shopping_list.id)
+        for line in lines:
+            if line.seller_id == seller.id:
+                shopping_list_line_service.update_line(line.id, ordered=line.needed)
+        session.commit()
+
+        shopping_list_service.update_seller_group(
+            shopping_list.id, seller.id, status=ShoppingListSellerStatus.ORDERED
+        )
+        session.commit()
+
+        resp = client.delete(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}"
+        )
+        assert resp.status_code == 409

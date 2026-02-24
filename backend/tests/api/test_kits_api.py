@@ -12,10 +12,10 @@ from app.models.shopping_list import ShoppingList, ShoppingListStatus
 
 def _seed_badge_data(session, make_attachment_set) -> Kit:
     """Create a kit with linked shopping lists and pick lists for GET tests."""
-    concept_list = ShoppingList(name="Concept List", status=ShoppingListStatus.CONCEPT)
-    ready_list = ShoppingList(name="Ready List", status=ShoppingListStatus.READY)
+    active_list_1 = ShoppingList(name="Active List 1", status=ShoppingListStatus.ACTIVE)
+    active_list_2 = ShoppingList(name="Active List 2", status=ShoppingListStatus.ACTIVE)
     done_list = ShoppingList(name="Done List", status=ShoppingListStatus.DONE)
-    session.add_all([concept_list, ready_list, done_list])
+    session.add_all([active_list_1, active_list_2, done_list])
 
     attachment_set = make_attachment_set()
     kit = Kit(
@@ -32,14 +32,14 @@ def _seed_badge_data(session, make_attachment_set) -> Kit:
         [
             KitShoppingListLink(
                 kit_id=kit.id,
-                shopping_list_id=concept_list.id,
+                shopping_list_id=active_list_1.id,
                 requested_units=kit.build_target,
                 honor_reserved=False,
                 snapshot_kit_updated_at=datetime.now(UTC),
             ),
             KitShoppingListLink(
                 kit_id=kit.id,
-                shopping_list_id=ready_list.id,
+                shopping_list_id=active_list_2.id,
                 requested_units=kit.build_target,
                 honor_reserved=True,
                 snapshot_kit_updated_at=datetime.now(UTC),
@@ -261,7 +261,7 @@ class TestKitsApi:
         payload = response.get_json()
         assert isinstance(payload, list)
         names = {entry["shopping_list_name"] for entry in payload}
-        assert names == {"Concept List", "Ready List", "Done List"}
+        assert names == {"Active List 1", "Active List 2", "Done List"}
         for entry in payload:
             assert "requested_units" in entry
             assert "honor_reserved" in entry
@@ -286,7 +286,7 @@ class TestKitsApi:
         assert data["link"]["shopping_list_name"] == "API Push"
         assert data["link"]["requested_units"] == kit.build_target
         assert data["link"]["shopping_list_id"] is not None
-        assert data["shopping_list"]["status"] == ShoppingListStatus.CONCEPT.value
+        assert data["shopping_list"]["status"] == ShoppingListStatus.ACTIVE.value
         line_payload = data["shopping_list"]["lines"][0]
         assert line_payload["part_id"] == part.id
         assert line_payload["needed"] == kit.build_target * 2
@@ -324,9 +324,9 @@ class TestKitsApi:
         assert data["lines_modified"] == 1
         assert data["shopping_list"]["lines"][0]["needed"] == base_needed + 2
 
-    def test_post_kit_shopping_lists_rejects_non_concept(self, client, session, make_attachment_set):
+    def test_post_kit_shopping_lists_rejects_non_active(self, client, session, make_attachment_set):
         kit, _, _ = _seed_kit_with_content(session, make_attachment_set)
-        shopping_list = ShoppingList(name="Ready Target", status=ShoppingListStatus.READY)
+        shopping_list = ShoppingList(name="Done Target", status=ShoppingListStatus.DONE)
         session.add(shopping_list)
         session.commit()
 
@@ -340,7 +340,7 @@ class TestKitsApi:
         )
 
         assert response.status_code == 409
-        assert "concept" in response.get_json()["error"].lower()
+        assert "active" in response.get_json()["error"].lower()
 
     def test_post_kit_shopping_lists_rejects_archived_kits(self, client, session, make_attachment_set):
         attachment_set = make_attachment_set()
@@ -381,7 +381,7 @@ class TestKitsApi:
         assert payload["memberships"][0]["kit_id"] == kit_with_links.id
         first_memberships = payload["memberships"][0]["memberships"]
         names = [entry["shopping_list_name"] for entry in first_memberships]
-        assert set(names) == {"Concept List", "Ready List"}
+        assert set(names) == {"Active List 1", "Active List 2"}
         assert payload["memberships"][1]["kit_id"] == empty_kit.id
         assert payload["memberships"][1]["memberships"] == []
 
@@ -449,7 +449,7 @@ class TestKitsApi:
     def test_get_kit_detail_endpoint_returns_computed_fields(self, client, session, make_attachment_set):
         kit, part, _ = _seed_kit_with_content(session, make_attachment_set)
 
-        shopping_list = ShoppingList(name="Detail Link", status=ShoppingListStatus.CONCEPT)
+        shopping_list = ShoppingList(name="Detail Link", status=ShoppingListStatus.ACTIVE)
         session.add(shopping_list)
         session.flush()
         session.add(
@@ -483,7 +483,7 @@ class TestKitsApi:
         link_payload = payload["shopping_list_links"][0]
         assert link_payload["shopping_list_id"] == shopping_list.id
         assert link_payload["shopping_list_name"] == shopping_list.name
-        assert link_payload["status"] == ShoppingListStatus.CONCEPT.value
+        assert link_payload["status"] == ShoppingListStatus.ACTIVE.value
         assert link_payload["requested_units"] == kit.build_target
         assert link_payload["honor_reserved"] is False
         assert link_payload["is_stale"] is False
@@ -635,7 +635,7 @@ class TestKitsApi:
         part_attachment_set = make_attachment_set()
         kit = Kit(name="Kit With Children", build_target=1, attachment_set_id=kit_attachment_set.id)
         part = Part(key="DK01", description="Delete test part", attachment_set_id=part_attachment_set.id)
-        shopping_list = ShoppingList(name="Delete List", status=ShoppingListStatus.CONCEPT)
+        shopping_list = ShoppingList(name="Delete List", status=ShoppingListStatus.ACTIVE)
         session.add_all([kit, part, shopping_list])
         session.flush()
 

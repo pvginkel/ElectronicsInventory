@@ -6,19 +6,14 @@ from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
 
-from app.exceptions import InvalidOperationException
-from app.models.shopping_list_line import ShoppingListLineStatus
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.shopping_list import ShoppingListLinesResponseSchema
 from app.schemas.shopping_list_line import (
-    ShoppingListGroupOrderSchema,
     ShoppingListLineCompleteSchema,
     ShoppingListLineCreateSchema,
     ShoppingListLineListSchema,
-    ShoppingListLineOrderSchema,
     ShoppingListLineReceiveSchema,
     ShoppingListLineResponseSchema,
-    ShoppingListLineStatusUpdateSchema,
     ShoppingListLineUpdateSchema,
 )
 from app.services.container import ServiceContainer
@@ -81,6 +76,7 @@ def update_shopping_list_line(
         seller_id_provided="seller_id" in updates,
         needed=updates.get("needed"),
         note=updates.get("note"),
+        ordered=updates.get("ordered"),
     )
     return ShoppingListLineResponseSchema.model_validate(line).model_dump()
 
@@ -129,107 +125,6 @@ def list_shopping_list_lines(
             for line in lines
         ]
     ).model_dump()
-
-
-@shopping_list_lines_bp.route(
-    "/shopping-list-lines/<int:line_id>/order",
-    methods=["POST"],
-)
-@api.validate(
-    json=ShoppingListLineOrderSchema,
-    resp=SpectreeResponse(
-        HTTP_200=ShoppingListLineResponseSchema,
-        HTTP_400=ErrorResponseSchema,
-        HTTP_404=ErrorResponseSchema,
-        HTTP_409=ErrorResponseSchema,
-    ),
-)
-@inject
-def mark_line_ordered(
-    line_id: int,
-    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
-) -> Any:
-    """Mark a single shopping list line as ordered."""
-    data = ShoppingListLineOrderSchema.model_validate(request.get_json() or {})
-    line = shopping_list_line_service.set_line_ordered(
-        line_id,
-        ordered_qty=data.ordered_qty,
-        comment=data.comment,
-    )
-    return ShoppingListLineResponseSchema.model_validate(line).model_dump()
-
-
-@shopping_list_lines_bp.route(
-    "/shopping-list-lines/<int:line_id>/revert",
-    methods=["POST"],
-)
-@api.validate(
-    json=ShoppingListLineStatusUpdateSchema,
-    resp=SpectreeResponse(
-        HTTP_200=ShoppingListLineResponseSchema,
-        HTTP_400=ErrorResponseSchema,
-        HTTP_404=ErrorResponseSchema,
-        HTTP_409=ErrorResponseSchema,
-    ),
-)
-@inject
-def revert_line_to_new(
-    line_id: int,
-    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
-) -> Any:
-    """Revert an ordered line back to NEW status."""
-    data = ShoppingListLineStatusUpdateSchema.model_validate(request.get_json())
-    if data.status != ShoppingListLineStatus.NEW:
-        raise InvalidOperationException(
-            "revert line to new",
-            "request payload must set status to 'new'",
-        )
-    line = shopping_list_line_service.set_line_new(line_id)
-    return ShoppingListLineResponseSchema.model_validate(line).model_dump()
-
-
-@shopping_list_lines_bp.route(
-    "/shopping-lists/<int:list_id>/seller-groups/<group_ref>/order",
-    methods=["POST"],
-)
-@api.validate(
-    json=ShoppingListGroupOrderSchema,
-    resp=SpectreeResponse(
-        HTTP_200=list[ShoppingListLineResponseSchema],
-        HTTP_400=ErrorResponseSchema,
-        HTTP_404=ErrorResponseSchema,
-        HTTP_409=ErrorResponseSchema,
-    ),
-)
-@inject
-def mark_group_ordered(
-    list_id: int,
-    group_ref: str,
-    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
-) -> Any:
-    """Mark all lines in a seller grouping as ordered."""
-    data = ShoppingListGroupOrderSchema.model_validate(request.get_json())
-    if group_ref == "ungrouped":
-        seller_id: int | None = None
-    else:
-        try:
-            seller_id = int(group_ref)
-        except ValueError as exc:
-            raise InvalidOperationException(
-                "mark seller group ordered",
-                "seller group reference must be an integer or 'ungrouped'",
-            ) from exc
-
-    ordered_map = {line.line_id: line.ordered_qty for line in data.lines}
-    updated_lines = shopping_list_line_service.set_group_ordered(
-        list_id,
-        seller_id,
-        ordered_map,
-    )
-    return [
-        ShoppingListLineResponseSchema.model_validate(line).model_dump()
-        for line in updated_lines
-    ]
 
 
 @shopping_list_lines_bp.route(

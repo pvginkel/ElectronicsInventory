@@ -40,7 +40,7 @@ from app.models.quantity_history import QuantityHistory
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList
 from app.models.shopping_list_line import ShoppingListLine
-from app.models.shopping_list_seller_note import ShoppingListSellerNote
+from app.models.shopping_list_seller import ShoppingListSeller
 from app.models.type import Type
 from app.services.container import ServiceContainer
 
@@ -280,7 +280,7 @@ def load_test_data_hook(app: Flask) -> None:
         quantity_history_count = session.query(QuantityHistory).count()
         shopping_list_count = session.query(ShoppingList).count()
         shopping_list_line_count = session.query(ShoppingListLine).count()
-        shopping_list_note_count = session.query(ShoppingListSellerNote).count()
+        shopping_list_seller_count = session.query(ShoppingListSeller).count()
         kit_count = session.query(Kit).count()
         kit_content_count = session.query(KitContent).count()
         kit_link_count = session.query(KitShoppingListLink).count()
@@ -313,8 +313,8 @@ def load_test_data_hook(app: Flask) -> None:
                         f"with {shopping_list_line_count} lines"
                     ),
                     (
-                        f"{shopping_list_note_count} shopping list "
-                        "seller notes"
+                        f"{shopping_list_seller_count} shopping list "
+                        "seller groups"
                     ),
                 ],
             ),

@@ -178,7 +178,7 @@ class TestPartsListIncludeParameter:
         attachment_set = make_attachment_set()
         part = Part(key="LED1", description="Red LED", type_id=1, attachment_set_id=attachment_set.id)
         seller = Seller(name="DigiKey", website="digikey.com")
-        shopping_list = ShoppingList(name="Q1 Order", status=ShoppingListStatus.CONCEPT)
+        shopping_list = ShoppingList(name="Q1 Order", status=ShoppingListStatus.ACTIVE)
         session.add_all([part, seller, shopping_list])
         session.flush()
 
@@ -261,7 +261,7 @@ class TestPartsListIncludeParameter:
         kit_attachment_set = make_attachment_set()
         part = Part(key="FULL", description="Fully loaded part", type_id=1, attachment_set_id=part_attachment_set.id)
         kit = Kit(name="Test Kit", build_target=2, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
-        shopping_list = ShoppingList(name="Test List", status=ShoppingListStatus.CONCEPT)
+        shopping_list = ShoppingList(name="Test List", status=ShoppingListStatus.ACTIVE)
         session.add_all([part, kit, shopping_list])
         session.flush()
 
