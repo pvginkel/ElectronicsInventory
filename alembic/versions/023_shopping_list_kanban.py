@@ -20,8 +20,14 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     # 1. Simplify shopping list status: concept/ready -> active
+    op.drop_constraint("ck_shopping_lists_status_valid", "shopping_lists", type_="check")
     op.execute(
         "UPDATE shopping_lists SET status = 'active' WHERE status IN ('concept', 'ready')"
+    )
+    op.create_check_constraint(
+        "ck_shopping_lists_status_valid",
+        "shopping_lists",
+        "status IN ('active','done')",
     )
 
     # 2. Create the new shopping_list_sellers table
@@ -60,6 +66,10 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.CheckConstraint(
+            "status IN ('active','ordered')",
+            name="ck_shopping_list_sellers_status_valid",
+        ),
         sa.UniqueConstraint(
             "shopping_list_id",
             "seller_id",
@@ -141,6 +151,12 @@ def downgrade() -> None:
     op.drop_table("shopping_list_sellers")
 
     # 4. Revert status (lossy: active -> concept since we can't distinguish)
+    op.drop_constraint("ck_shopping_lists_status_valid", "shopping_lists", type_="check")
     op.execute(
         "UPDATE shopping_lists SET status = 'concept' WHERE status = 'active'"
+    )
+    op.create_check_constraint(
+        "ck_shopping_lists_status_valid",
+        "shopping_lists",
+        "status IN ('concept','ready','done')",
     )

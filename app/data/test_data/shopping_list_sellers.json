@@ -3,13 +3,13 @@
     "shopping_list_name": "Bench Replenishment",
     "seller_id": 5,
     "note": "Consolidate op-amp order with adhesive restock.",
-    "status": "active"
+    "status": "ordered"
   },
   {
     "shopping_list_name": "Bench Replenishment",
     "seller_id": 4,
     "note": "Request moisture barrier packaging for reels.",
-    "status": "active"
+    "status": "ordered"
   },
   {
     "shopping_list_name": "Bench Replenishment",
