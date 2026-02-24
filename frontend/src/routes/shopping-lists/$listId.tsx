@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ConceptLineForm } from '@/components/shopping-lists/concept-line-form';
@@ -132,6 +132,13 @@ function ShoppingListDetailRoute() {
 
   // -- Delete seller group confirmation --
   const [deleteGroupSellerId, setDeleteGroupSellerId] = useState<number | null>(null);
+
+  // -- Optimistic DnD move state: shows cards in target column instantly --
+  const [optimisticMoves, setOptimisticMoves] = useState<Array<{
+    lineId: number;
+    toSellerId: number | null;
+    clearOrdered: boolean;
+  }>>([]);
 
   const {
     dialog: markDoneDialog,
@@ -485,6 +492,8 @@ function ShoppingListDetailRoute() {
     const line = lines.find((l) => l.id === lineId);
     if (!line) return;
 
+    // Optimistic update: show card in target column immediately
+    setOptimisticMoves(prev => [...prev, { lineId, toSellerId, clearOrdered }]);
     updatePendingLine(lineId, true);
     try {
       const payload = {
@@ -500,6 +509,8 @@ function ShoppingListDetailRoute() {
       await updateLineMutation.mutateAsync(payload);
       setHighlightedLineId(lineId);
     } catch (err) {
+      // Rollback: remove the optimistic move so card returns to source column
+      setOptimisticMoves(prev => prev.filter(m => m.lineId !== lineId));
       const message = err instanceof Error ? err.message : 'Failed to move line';
       showException(message, err);
       throw err;
@@ -815,7 +826,43 @@ function ShoppingListDetailRoute() {
   const status = shoppingList?.status ?? 'active';
   const isCompleted = detailIsCompleted || status === 'done';
 
-  // sellerGroups is destructured from useShoppingListDetail above
+  // -- Optimistic groups: apply pending DnD moves for instant visual feedback --
+  const effectiveGroups = useMemo(() => {
+    if (optimisticMoves.length === 0) return sellerGroups;
+    const groups = sellerGroups.map(g => ({ ...g, lines: [...g.lines] }));
+    for (const move of optimisticMoves) {
+      let movedLine: ShoppingListConceptLine | null = null;
+      for (const group of groups) {
+        const idx = group.lines.findIndex(l => l.id === move.lineId);
+        if (idx !== -1) {
+          movedLine = group.lines[idx];
+          group.lines = group.lines.filter(l => l.id !== move.lineId);
+          break;
+        }
+      }
+      if (!movedLine) continue;
+      const updatedLine = move.clearOrdered ? { ...movedLine, ordered: 0 } : movedLine;
+      const targetGroup = groups.find(g => g.sellerId === move.toSellerId);
+      if (targetGroup) {
+        targetGroup.lines = [...targetGroup.lines, updatedLine];
+      }
+    }
+    return groups;
+  }, [sellerGroups, optimisticMoves]);
+
+  // Clean up optimistic moves once server data reflects the change
+  useEffect(() => {
+    if (optimisticMoves.length === 0) return;
+    const confirmedIds = optimisticMoves
+      .filter(move => {
+        const targetGroup = sellerGroups.find(g => g.sellerId === move.toSellerId);
+        return targetGroup?.lines.some(l => l.id === move.lineId) ?? false;
+      })
+      .map(m => m.lineId);
+    if (confirmedIds.length > 0) {
+      setOptimisticMoves(prev => prev.filter(m => !confirmedIds.includes(m.lineId)));
+    }
+  }, [sellerGroups, optimisticMoves]);
 
   if (!hasValidListId) {
     return (
@@ -835,7 +882,7 @@ function ShoppingListDetailRoute() {
         </div>
       )}
       <KanbanBoard
-        groups={sellerGroups}
+        groups={effectiveGroups}
         listId={normalizedListId}
         isCompleted={isCompleted}
         pendingLineIds={pendingLineIds}

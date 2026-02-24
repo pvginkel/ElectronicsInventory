@@ -12,6 +12,9 @@
  * Cards are sorted by part description (case-insensitive, numeric) so order
  * stays consistent across loads, refreshes, and drag-and-drop operations.
  *
+ * When a card is being dragged over this column, a ghost preview is rendered
+ * at the correct sorted position to show where the card will land.
+ *
  * This component is intentionally "dumb" -- it receives callbacks for all
  * actions and delegates to the board/route for mutation orchestration.
  */
@@ -52,6 +55,10 @@ export interface KanbanColumnProps {
   hasUnassignedLines: boolean;
   /** Whether a drag is currently in progress (disables inline editing). */
   isDragging?: boolean;
+  /** The line currently being dragged (for ghost preview rendering). */
+  activeDragLine?: ShoppingListConceptLine | null;
+  /** Whether this column is the current drop target (hover). */
+  isDropTarget?: boolean;
   /**
    * Optional render-prop to wrap each card (e.g. with a DnD draggable container).
    * When not provided, cards render without DnD wrapping.
@@ -81,6 +88,8 @@ export function KanbanColumn({
   highlightedLineId,
   hasUnassignedLines,
   isDragging = false,
+  activeDragLine = null,
+  isDropTarget = false,
   wrapCard,
   onFieldSave,
   onDeleteLine,
@@ -97,12 +106,26 @@ export function KanbanColumn({
   const mode = deriveCardMode(group.status);
   const testIdBase = `shopping-lists.kanban.column.${group.groupKey}`;
 
-  // -- Sorted lines: stable order by part description --
+  // -- Native line IDs (the lines that actually belong to this column) --
+  const nativeLineIds = useMemo(
+    () => new Set(group.lines.map((l) => l.id)),
+    [group.lines],
+  );
+
+  // -- Sorted lines: includes ghost preview when this column is the drop target --
   const sortedLines = useMemo(() => {
-    return [...group.lines].sort((a, b) =>
+    const lines = [...group.lines];
+
+    // Insert the dragged line as a ghost when hovering over this column
+    // and the line isn't already natively in this column.
+    if (isDropTarget && activeDragLine && !nativeLineIds.has(activeDragLine.id)) {
+      lines.push(activeDragLine);
+    }
+
+    return lines.sort((a, b) =>
       cardCollator.compare(a.part.description, b.part.description),
     );
-  }, [group.lines]);
+  }, [group.lines, isDropTarget, activeDragLine, nativeLineIds]);
 
   // -- Derived preconditions for seller column actions --
   const canComplete = useMemo(() => {
@@ -165,6 +188,8 @@ export function KanbanColumn({
           <EmptyColumnMessage isUnassigned={isUnassigned} />
         ) : (
           sortedLines.map((line: ShoppingListConceptLine) => {
+            const isGhost = !nativeLineIds.has(line.id);
+
             const card = (
               <KanbanCard
                 key={line.id}
@@ -184,8 +209,21 @@ export function KanbanColumn({
                 }
               />
             );
-            // When a wrapCard render-prop is provided (by KanbanBoard for DnD),
-            // wrap the card element; otherwise render it directly.
+
+            // Ghost preview: rendered with opacity, no DnD wrapper, auto-scroll into view
+            if (isGhost) {
+              return (
+                <div
+                  key={`ghost-${line.id}`}
+                  className="opacity-30"
+                  ref={(el) => el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })}
+                >
+                  {card}
+                </div>
+              );
+            }
+
+            // Normal card: wrap with DnD if render-prop provided
             return wrapCard ? (
               <React.Fragment key={line.id}>{wrapCard(card, line)}</React.Fragment>
             ) : (

@@ -135,7 +135,7 @@ export function KanbanCard({
       </div>
 
       {/* Fields row: varies by mode */}
-      <div className="space-y-1">
+      <div className="space-y-1 pr-1">
         {/* Needed field -- editable in unassigned and ordering modes */}
         {(mode === 'unassigned' || mode === 'ordering') && (
           <div className="flex items-center justify-between text-sm">
@@ -201,7 +201,7 @@ export function KanbanCard({
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-400 text-xs">Received</span>
               <span
-                className="px-1 py-0.5 text-sm text-slate-50"
+                className="text-sm text-slate-50 py-0.5"
                 data-testid={`${testIdBase}.field.received`}
               >
                 {line.received}
@@ -212,7 +212,7 @@ export function KanbanCard({
       </div>
 
       {/* Note + trash row -- always visible (read-only when receiving or completed) */}
-      <div className="flex items-start gap-1 mt-1">
+      <div className="flex items-stretch gap-1 mt-1">
         <div className="flex-1 min-w-0">
           <KanbanCardField
             formId={`KanbanCard:note`}
@@ -234,21 +234,23 @@ export function KanbanCard({
         </div>
         {/* Trash icon sits next to the note */}
         {canDelete && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleteDisabled}
-            data-testid={`${testIdBase}.delete`}
-            className={cn(
-              'shrink-0 rounded p-1 cursor-pointer mt-0.5',
-              deleteDisabled
-                ? 'text-slate-600 cursor-default'
-                : 'text-slate-400 hover:text-red-400 hover:bg-red-950/40',
-            )}
-            title="Delete line"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex flex-col justify-end">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteDisabled}
+              data-testid={`${testIdBase}.delete`}
+              className={cn(
+                'shrink-0 rounded p-1.5 cursor-pointer mt-0.5 -mr-1 -mb-1',
+                deleteDisabled
+                  ? 'text-slate-600 cursor-default'
+                  : 'text-red-400 hover:bg-red-700/40',
+              )}
+              title="Delete line"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
 

@@ -4,6 +4,7 @@
  * Responsibilities:
  *   - Configure sensors (PointerSensor + TouchSensor with delay)
  *   - Track active drag state (which card, source/target columns)
+ *   - Track the droppable currently being hovered (for ghost preview)
  *   - Handle drag-end: determine move intent, guard against invalid moves,
  *     trigger confirmation dialog when moving a card with ordered > 0 off a
  *     seller column, and finally dispatch the mutation
@@ -20,6 +21,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { emitTestEvent } from '@/lib/test/event-emitter';
@@ -62,12 +64,20 @@ export interface UseKanbanDndReturn {
   activeLine: ShoppingListConceptLine | null;
   /** Whether a drag is in progress. */
   isDragging: boolean;
+  /** Group key of the column the drag started from. */
+  activeSourceGroupKey: string | null;
+  /** Group key of the droppable currently being hovered, or null. */
+  overGroupKey: string | null;
   /** Pending confirmation dialog state (if move requires clearing ordered). */
   pendingConfirmation: PendingMoveConfirmation | null;
   /** DndContext onDragStart handler. */
   handleDragStart: (event: DragStartEvent) => void;
+  /** DndContext onDragOver handler (tracks hover target for ghost preview). */
+  handleDragOver: (event: DragOverEvent) => void;
   /** DndContext onDragEnd handler. */
   handleDragEnd: (event: DragEndEvent) => void;
+  /** DndContext onDragCancel handler. */
+  handleDragCancel: () => void;
   /** Confirm a pending move (user clicked "Confirm" in the dialog). */
   confirmMove: () => Promise<void>;
   /** Cancel a pending move (user clicked "Cancel" in the dialog). */
@@ -94,6 +104,8 @@ export function useKanbanDnd({
 
   // -- Drag state --
   const [activeLine, setActiveLine] = useState<ShoppingListConceptLine | null>(null);
+  const [activeSourceGroupKey, setActiveSourceGroupKey] = useState<string | null>(null);
+  const [overGroupKey, setOverGroupKey] = useState<string | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingMoveConfirmation | null>(null);
 
   // -- Helpers --
@@ -103,6 +115,13 @@ export function useKanbanDnd({
     [groups],
   );
 
+  /** Clear all transient drag state. */
+  const resetDragState = useCallback(() => {
+    setActiveLine(null);
+    setActiveSourceGroupKey(null);
+    setOverGroupKey(null);
+  }, []);
+
   // -- Drag start --
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -110,16 +129,25 @@ export function useKanbanDnd({
       const data = event.active.data.current as KanbanDragData | undefined;
       if (data?.type === 'card') {
         setActiveLine(data.line);
+        setActiveSourceGroupKey(data.sourceGroupKey);
       }
     },
     [isCompleted],
+  );
+
+  // -- Drag over (tracks which droppable is hovered for ghost preview) --
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      setOverGroupKey(event.over ? String(event.over.id) : null);
+    },
+    [],
   );
 
   // -- Drag end --
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const dragData = event.active.data.current as KanbanDragData | undefined;
-      setActiveLine(null);
+      resetDragState();
 
       if (!dragData || dragData.type !== 'card' || isCompleted) return;
       if (!event.over) return; // Dropped on background -- no-op
@@ -213,8 +241,13 @@ export function useKanbanDnd({
         },
       );
     },
-    [isCompleted, findGroupByKey, onMoveLine],
+    [isCompleted, findGroupByKey, onMoveLine, resetDragState],
   );
+
+  // -- Drag cancel (e.g. Escape key) --
+  const handleDragCancel = useCallback(() => {
+    resetDragState();
+  }, [resetDragState]);
 
   // -- Confirm pending move --
   const confirmMove = useCallback(async () => {
@@ -260,9 +293,13 @@ export function useKanbanDnd({
     sensors,
     activeLine,
     isDragging: activeLine !== null,
+    activeSourceGroupKey,
+    overGroupKey,
     pendingConfirmation,
     handleDragStart,
+    handleDragOver,
     handleDragEnd,
+    handleDragCancel,
     confirmMove,
     cancelMove,
   };

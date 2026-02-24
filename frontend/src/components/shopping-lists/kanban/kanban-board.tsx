@@ -5,6 +5,7 @@
  *   - Horizontal column layout with overflow-x scroll
  *   - @dnd-kit DndContext with PointerSensor + TouchSensor
  *   - DragOverlay rendering a clone of the dragged card
+ *   - Ghost preview in the target column at the sorted position
  *   - Background drag-to-scroll (pointer down on board, not on a card)
  *   - Confirmation dialog when moving a card with ordered > 0 off a seller
  *   - Delegation of all mutations to the parent route via callbacks
@@ -89,12 +90,15 @@ function DraggableCardWrapper({
   groupKey,
   sellerId,
   disabled,
+  dragOverSameColumn,
   children,
 }: {
   line: ShoppingListConceptLine;
   groupKey: string;
   sellerId: number | null;
   disabled: boolean;
+  /** null = not over any column, true = over own column, false = over different column. */
+  dragOverSameColumn: boolean | null;
   children: React.ReactElement;
 }) {
   const dragData: KanbanDragData = useMemo(
@@ -113,13 +117,19 @@ function DraggableCardWrapper({
     disabled,
   });
 
-  // No transform applied here -- DragOverlay handles the visual movement.
-  // The original card stays in place as a gap placeholder.
+  // No transform -- DragOverlay handles the visual movement.
+  // When dragging over a different column the original hides (ghost appears there);
+  // otherwise it shows at reduced opacity as a placeholder.
+  let opacityClass: string | undefined;
+  if (isDragging) {
+    opacityClass = dragOverSameColumn === false ? 'opacity-0' : 'opacity-30';
+  }
+
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        isDragging && 'opacity-30',
+        opacityClass,
         disabled ? 'cursor-default' : 'cursor-grab',
       )}
       {...listeners}
@@ -182,55 +192,62 @@ export function KanbanBoard({
   }, [groups]);
 
   // -- Background drag-to-scroll --
+  // Allow horizontal scroll-drag from any non-interactive, non-card area
+  // inside the board (column backgrounds, header text, empty states, gaps,
+  // padding). Cards and buttons are excluded so DnD and actions keep working.
+  const isDraggingRef = useRef(false);
+  isDraggingRef.current = dnd.isDragging;
+
   useEffect(() => {
     const board = boardRef.current;
     if (!board) return;
 
-    let isScrollDragging = false;
-    let startX = 0;
-    let scrollStart = 0;
+    let scrollState: { startX: number; scrollStart: number } | null = null;
 
     const onPointerDown = (event: PointerEvent) => {
-      // Start scroll-drag when clicking the board background (directly on this
-      // element or on the gap between columns which is part of the flex gap).
-      const target = event.target as HTMLElement;
-      if (target !== board && target.parentElement !== board) return;
-      // Don't scroll-drag if the target is an interactive element inside a column
-      if (target !== board) return;
-      isScrollDragging = true;
-      startX = event.clientX;
-      scrollStart = board.scrollLeft;
+      // Don't interfere with active DnD card drags
+      if (isDraggingRef.current) return;
+
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!board.contains(target) && target !== board) return;
+
+      // Skip interactive elements and draggable card wrappers (role="button"
+      // is added by @dnd-kit's useDraggable attributes on every card wrapper)
+      if (target.closest('button, input, textarea, a, select, [role="button"]')) return;
+
+      scrollState = { startX: event.clientX, scrollStart: board.scrollLeft };
       board.style.cursor = 'grabbing';
-      board.setPointerCapture(event.pointerId);
+      document.body.style.userSelect = 'none';
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!isScrollDragging) return;
-      const dx = event.clientX - startX;
-      board.scrollLeft = scrollStart - dx;
+      if (!scrollState) return;
+      const dx = event.clientX - scrollState.startX;
+      board.scrollLeft = scrollState.scrollStart - dx;
     };
 
     const onPointerUp = () => {
-      if (!isScrollDragging) return;
-      isScrollDragging = false;
+      if (!scrollState) return;
+      scrollState = null;
       board.style.cursor = '';
+      document.body.style.userSelect = '';
     };
 
     board.addEventListener('pointerdown', onPointerDown);
-    board.addEventListener('pointermove', onPointerMove);
-    board.addEventListener('pointerup', onPointerUp);
-    board.addEventListener('pointercancel', onPointerUp);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
 
     return () => {
       board.removeEventListener('pointerdown', onPointerDown);
-      board.removeEventListener('pointermove', onPointerMove);
-      board.removeEventListener('pointerup', onPointerUp);
-      board.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
     };
   }, []);
 
   // -- Find the active line's mode for DragOverlay rendering --
-  // Note: no useMemo -- React Compiler handles memoization automatically.
   const activeLine = dnd.activeLine;
   let activeLineMode = deriveCardMode(null);
   if (activeLine) {
@@ -250,8 +267,6 @@ export function KanbanBoard({
   }, [groups]);
 
   // -- Create the wrapCard render-prop for DnD integration --
-  // This factory creates a per-group wrapCard function that provides
-  // the correct groupKey and sellerId for each draggable card.
   const createWrapCard = useCallback(
     (group: ShoppingListSellerGroup) => {
       return (cardElement: React.ReactElement, line: ShoppingListConceptLine) => {
@@ -261,19 +276,24 @@ export function KanbanBoard({
           pendingLineIds.has(line.id) ||
           line.status === 'ordered';
 
+        // Determine if drag is over this column, a different column, or nowhere
+        const overKey = dnd.overGroupKey;
+        const dragOverSameColumn = overKey === null ? null : overKey === group.groupKey;
+
         return (
           <DraggableCardWrapper
             line={line}
             groupKey={group.groupKey}
             sellerId={group.sellerId}
             disabled={dragDisabled}
+            dragOverSameColumn={dragOverSameColumn}
           >
             {cardElement}
           </DraggableCardWrapper>
         );
       };
     },
-    [isCompleted, pendingLineIds],
+    [isCompleted, pendingLineIds, dnd.overGroupKey],
   );
 
   // -- Render the confirmation dialog for ordered-amount moves --
@@ -289,13 +309,15 @@ export function KanbanBoard({
       <DndContext
         sensors={dnd.sensors}
         onDragStart={dnd.handleDragStart}
+        onDragOver={dnd.handleDragOver}
         onDragEnd={dnd.handleDragEnd}
+        onDragCancel={dnd.handleDragCancel}
       >
         <div
           ref={boardRef}
           data-testid="shopping-lists.kanban.board"
           className={cn(
-            'flex gap-4 overflow-x-auto py-4 px-4',
+            'flex gap-4 overflow-x-auto py-4 px-6',
             'flex-1 min-h-0',
           )}
         >
@@ -309,6 +331,8 @@ export function KanbanBoard({
                 highlightedLineId={highlightedLineId}
                 hasUnassignedLines={hasUnassignedLines}
                 isDragging={dnd.isDragging}
+                activeDragLine={dnd.activeLine}
+                isDropTarget={dnd.overGroupKey === group.groupKey}
                 wrapCard={createWrapCard(group)}
                 onFieldSave={onFieldSave}
                 onDeleteLine={onDeleteLine}
