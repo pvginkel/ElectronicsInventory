@@ -69,7 +69,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
       {
       listId: (value) => {
         const trimmed = (value as string).trim();
-        return trimmed ? undefined : 'Select a Concept list';
+        return trimmed ? undefined : 'Select a shopping list';
       },
       needed: (value) => {
         const parsed = Number(value);
@@ -114,7 +114,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
         });
 
         instrumentationRef.current?.trackSuccess({ ...snapshot, listId: parsedListId });
-        showSuccess('Added part to Concept list');
+        showSuccess('Added part to shopping list');
         invalidatePartMemberships(queryClient, part.key);
         handleClose();
       } catch (error) {
@@ -222,12 +222,12 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     getAbortedMetadata: () => ({ partKey: part.key }),
   }), [part.key]);
 
-  const conceptListEmptyState = (
+  const listEmptyState = (
     <div
       className="rounded-md border border-dashed border-muted px-3 py-2 text-sm text-muted-foreground"
       data-testid="parts.shopping-list.add.list.empty"
     >
-      No Concept lists available yet. Create one to get started.
+      No shopping lists available yet. Create one to get started.
     </div>
   );
 
@@ -290,14 +290,14 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
 
             <div className="space-y-2">
               <FormLabel htmlFor="parts.shopping-list.add.list" required>
-                Concept list
+                Shopping list
               </FormLabel>
               <FormField>
                 <ShoppingListSelector
                   value={form.values.listId ? Number(form.values.listId) : undefined}
                   onChange={handleListChange}
                   onTouched={() => form.setFieldTouched('listId')}
-                  statuses={['concept']}
+                  statuses={['active']}
                   enableCreate
                   enabled={open}
                   instrumentation={listSelectorInstrumentation}
@@ -307,7 +307,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
                     'data-testid': 'parts.shopping-list.add.field.list',
                   }}
                   onListCreated={handleListCreated}
-                  emptyState={conceptListEmptyState}
+                  emptyState={listEmptyState}
                 />
               </FormField>
             </div>

@@ -99,8 +99,7 @@ test.describe('Kits overview', () => {
     const expectedShoppingStatuses = new Set(
       shoppingMemberships.map((membership) => {
         // Map API status to display label
-        if (membership.status === 'concept') return 'Concept';
-        if (membership.status === 'ready') return 'Ready';
+        if (membership.status === 'active') return 'Active';
         if (membership.status === 'done') return 'Completed';
         return membership.status;
       })

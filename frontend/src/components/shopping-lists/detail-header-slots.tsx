@@ -44,10 +44,8 @@ const DESCRIPTION_LIMIT = 280;
 // Map shopping list status to badge props
 function getShoppingListStatusBadgeProps(status: ShoppingListDetail['status']): { color: 'inactive' | 'active'; label: string } {
   switch (status) {
-    case 'concept':
-      return { color: 'inactive', label: 'Concept' };
-    case 'ready':
-      return { color: 'active', label: 'Ready' };
+    case 'active':
+      return { color: 'active', label: 'Active' };
     case 'done':
       return { color: 'inactive', label: 'Completed' };
   }

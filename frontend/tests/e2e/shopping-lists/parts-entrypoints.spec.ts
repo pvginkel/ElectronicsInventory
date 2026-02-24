@@ -47,7 +47,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await submitEvent;
     await successEvent;
 
-    await toastHelper.expectSuccessToast(/added part to concept list/i);
+    await toastHelper.expectSuccessToast(/added part to shopping list/i);
     await waitForListLoading(parts.playwrightPage, 'parts.detail.shoppingLists', 'ready');
     await waitForListLoading(parts.playwrightPage, 'parts.detail.kits', 'ready');
     await expect(parts.addToShoppingListDialog).toBeHidden();
@@ -61,7 +61,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     expect(listIdMatch?.[1]).toBeDefined();
     const createdListId = Number(listIdMatch?.[1]);
 
-    await testData.shoppingLists.expectConceptMembership({
+    await testData.shoppingLists.expectActiveMembership({
       listId: createdListId,
       partKey: part.key,
       needed: 3,
@@ -73,11 +73,10 @@ test.describe('Shopping List Phase 3 entry points', () => {
       badge.click(),
     ]);
 
-    await shoppingLists.waitForConceptReady();
-    const conceptRow = shoppingLists.conceptRowByPart(part.description);
-    await expect(conceptRow).toBeVisible();
-    await expect(conceptRow.getByTestId(/needed$/)).toHaveText('3');
-    await expect(conceptRow.getByTestId(/note$/)).toContainText('Ensure we stock extras');
+    const kanbanEvent = await shoppingLists.waitForKanbanReady();
+    // Verify navigated to the Kanban board with the line
+    await expect(shoppingLists.kanbanBoard).toBeVisible();
+    expect(kanbanEvent.metadata?.lineCount).toBeGreaterThan(0);
   });
 
   test('surfaces duplicate guard when adding to an existing concept list', async ({ parts, testData }) => {
@@ -143,11 +142,6 @@ test.describe('Shopping List Phase 3 entry points', () => {
       lines: [{ partKey: part.key, needed: 1 }],
     });
 
-    await apiClient.PUT('/api/shopping-lists/{list_id}/status', {
-      params: { path: { list_id: readyList.id } },
-      body: { status: 'ready' },
-    });
-
     await parts.gotoList();
     await parts.openCardByKey(part.key);
     await parts.expectDetailHeading(part.description);
@@ -155,8 +149,8 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await waitForListLoading(parts.playwrightPage, 'parts.detail.kits', 'ready');
 
     await expect(parts.detailShoppingListBadges).toHaveCount(2);
-    await expect(parts.shoppingListBadgeByName(conceptList.name)).toContainText('Concept');
-    await expect(parts.shoppingListBadgeByName(readyList.name)).toContainText('Ready');
+    await expect(parts.shoppingListBadgeByName(conceptList.name)).toContainText('Active');
+    await expect(parts.shoppingListBadgeByName(readyList.name)).toContainText('Active');
     await expect(parts.detailKitBadges).toHaveCount(1);
     const kitBadge = parts.kitBadgeByName(kit.name);
     await expect(kitBadge).toBeVisible();
@@ -213,10 +207,6 @@ test.describe('Shopping List Phase 3 entry points', () => {
     const doneList = await testData.shoppingLists.createWithLines({
       listOverrides: { name: testData.shoppingLists.randomName('Indicator Completed') },
       lines: [{ partKey: donePart.key, needed: 1 }],
-    });
-    await apiClient.PUT('/api/shopping-lists/{list_id}/status', {
-      params: { path: { list_id: doneList.id } },
-      body: { status: 'ready' },
     });
     await apiClient.PUT('/api/shopping-lists/{list_id}/status', {
       params: { path: { list_id: doneList.id } },

@@ -9,8 +9,9 @@ import type {
   KitChipSchemaList_a9993e3_KitChipSchema,
 } from '@/lib/api/generated/hooks';
 
-export type ShoppingListStatus = 'concept' | 'ready' | 'done';
+export type ShoppingListStatus = 'active' | 'done';
 export type ShoppingListLineStatus = 'new' | 'ordered' | 'done';
+export type ShoppingListSellerStatus = 'active' | 'ordered';
 
 export interface ShoppingListLineCounts {
   /** `new` + `ordered` + `done` used for card rollups; counts stay non-negative. */
@@ -47,14 +48,6 @@ export interface ShoppingListOverviewCounters extends Record<string, unknown> {
   completedCount: number;
 }
 
-export interface ShoppingListSellerOrderNote {
-  sellerId: number;
-  sellerName: string;
-  sellerWebsite: string | null;
-  note: string | null;
-  updatedAt: string;
-}
-
 export interface ShoppingListSellerGroupTotals {
   needed: number;
   ordered: number;
@@ -66,6 +59,11 @@ export interface ShoppingListSellerGroup extends Record<string, unknown> {
   sellerId: number | null;
   sellerName: string | null;
   sellerWebsite: string | null;
+  sellerLogoUrl: string | null;
+  /** Seller group status: 'active' (ordering), 'ordered' (receiving), null for ungrouped. */
+  status: ShoppingListSellerStatus | null;
+  /** True when all lines in the group have status 'done'. */
+  completed: boolean;
   orderNote: string | null;
   totals: ShoppingListSellerGroupTotals;
   lines: ShoppingListConceptLine[];
@@ -90,9 +88,7 @@ export interface ShoppingListDetail extends ShoppingListOverviewSummary {
   createdAt: string;
   lines: ShoppingListConceptLine[];
   sellerGroups: ShoppingListSellerGroup[];
-  sellerOrderNotes: ShoppingListSellerOrderNote[];
   hasOrderedLines: boolean;
-  canReturnToConcept: boolean;
 }
 
 export interface ShoppingListKitLink extends Record<string, unknown> {
@@ -121,6 +117,7 @@ export interface ShoppingListSellerSummary {
   id: number;
   name: string;
   website: string | null;
+  logoUrl: string | null;
 }
 
 export interface ShoppingListLinePartLocation extends Record<string, unknown> {
@@ -169,10 +166,8 @@ export interface ShoppingListMembershipSummary extends Record<string, unknown> {
   memberships: ShoppingListMembership[];
   hasActiveMembership: boolean;
   listNames: string[];
-  conceptListIds: number[];
+  activeListIds: number[];
   activeCount: number;
-  conceptCount: number;
-  readyCount: number;
   completedCount: number;
 }
 
@@ -197,6 +192,8 @@ export interface ShoppingListConceptLine extends Record<string, unknown> {
   part: ShoppingListPartSummary;
   seller: ShoppingListSellerSummary | null;
   effectiveSeller: ShoppingListSellerSummary | null;
+  /** Seller-specific product page URL from the part-seller link table. */
+  sellerLink: string | null;
 }
 
 export type ShoppingListLineSortKey = 'description' | 'mpn' | 'createdAt';
@@ -263,43 +260,35 @@ export interface ShoppingListLineUpdateInput extends Record<string, unknown> {
   partId: number;
   partKey: string;
   needed: number; // >= 1
+  ordered: number | null;
   sellerId: number | null;
   note: string | null;
-}
-
-export interface ShoppingListMarkReadyInput extends Record<string, unknown> {
-  listId: number;
 }
 
 export interface ShoppingListDuplicateCheck extends Record<string, unknown> {
   byPartKey: Map<string, ShoppingListConceptLine>;
 }
 
-export interface ShoppingListLineOrderInput extends Record<string, unknown> {
-  listId: number;
-  lineId: number;
-  orderedQuantity: number | null;
-  comment?: string | null;
-}
-
-export interface ShoppingListGroupOrderLineInput extends Record<string, unknown> {
-  lineId: number;
-  orderedQuantity: number | null;
-}
-
-export interface ShoppingListGroupOrderInput extends Record<string, unknown> {
-  listId: number;
-  groupKey: string;
-  lines: ShoppingListGroupOrderLineInput[];
-}
-
-export interface ShoppingListSellerOrderNoteInput extends Record<string, unknown> {
-  listId: number;
-  sellerId: number;
-  note: string;
-}
-
 export interface ShoppingListStatusUpdateInput extends Record<string, unknown> {
   listId: number;
   status: ShoppingListStatus;
+}
+
+// --- Seller group input types for the CRUD endpoints ---
+
+export interface SellerGroupCreateInput extends Record<string, unknown> {
+  listId: number;
+  sellerId: number;
+}
+
+export interface SellerGroupUpdateInput extends Record<string, unknown> {
+  listId: number;
+  sellerId: number;
+  note?: string | null;
+  status?: ShoppingListSellerStatus | null;
+}
+
+export interface SellerGroupDeleteInput extends Record<string, unknown> {
+  listId: number;
+  sellerId: number;
 }

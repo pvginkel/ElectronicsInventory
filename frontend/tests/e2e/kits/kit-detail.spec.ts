@@ -594,7 +594,7 @@ test.describe('Kit detail workspace', () => {
       const conceptChip = kits.shoppingLinkChip(conceptLink.shopping_list_id);
       await expect(conceptChip).toBeVisible();
       await expect(conceptChip).toContainText(conceptLink.shopping_list_name);
-      await expect(conceptChip).toContainText(/Concept/i);
+      await expect(conceptChip).toContainText(/Active/i);
 
       const conceptNavigation = shoppingLists.playwrightPage.waitForURL(
         new RegExp(`/shopping-lists/${conceptLink.shopping_list_id}`)

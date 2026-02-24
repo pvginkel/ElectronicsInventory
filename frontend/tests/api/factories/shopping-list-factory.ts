@@ -6,6 +6,10 @@ import type { components } from '../../../src/lib/api/generated/types';
 type ShoppingListCreateSchema = components['schemas']['ShoppingListCreateSchema.46f0cf6'];
 type ShoppingListResponseSchema = components['schemas']['ShoppingListResponseSchema.46f0cf6'];
 type ShoppingListLineResponseSchema = components['schemas']['ShoppingListLineResponseSchema.d9ccce0'];
+type ShoppingListLineUpdateSchema = components['schemas']['ShoppingListLineUpdateSchema.d9ccce0'];
+type ShoppingListSellerGroupSchema = components['schemas']['ShoppingListSellerGroupSchema.46f0cf6'];
+type ShoppingListSellerGroupCreateSchema = components['schemas']['ShoppingListSellerGroupCreateSchema.57ff967'];
+type ShoppingListSellerGroupUpdateSchema = components['schemas']['ShoppingListSellerGroupUpdateSchema.57ff967'];
 type PartShoppingListMembershipSchema = components['schemas']['PartShoppingListMembershipSchema.d085feb'];
 type ShoppingListLineReceiveSchema = components['schemas']['ShoppingListLineReceiveSchema.d9ccce0'];
 type ShoppingListLineCompleteSchema = components['schemas']['ShoppingListLineCompleteSchema.d9ccce0'];
@@ -23,7 +27,7 @@ interface CreateListWithLinesOptions {
 }
 
 /**
- * Factory for creating shopping lists and lines via the real API.
+ * Factory for creating shopping lists, lines, and seller groups via the real API.
  */
 export class ShoppingListTestFactory {
   private client: ReturnType<typeof createApiClient>;
@@ -32,7 +36,7 @@ export class ShoppingListTestFactory {
     this.client = client || createApiClient();
   }
 
-  randomListName(prefix: string = 'Concept List'): string {
+  randomListName(prefix: string = 'Shopping List'): string {
     return makeUnique(prefix);
   }
 
@@ -104,55 +108,130 @@ export class ShoppingListTestFactory {
     return await this.getListDetail(list.id);
   }
 
-  async orderLine(
-    listId: number,
+  // ---------------------------------------------------------------------------
+  // Line update -- sets ordered, seller, needed, note via PUT
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Update a shopping list line (ordered, seller, needed, or note).
+   * Wraps PUT /api/shopping-list-lines/{line_id}.
+   */
+  async updateLine(
     lineId: number,
-    orderedQty: number | null = null
+    updates: {
+      needed?: number | null;
+      ordered?: number | null;
+      sellerId?: number | null;
+      note?: string | null;
+    }
   ): Promise<ShoppingListLineResponseSchema> {
-    await apiRequest(() =>
-      this.client.POST('/api/shopping-list-lines/{line_id}/order', {
+    const body: ShoppingListLineUpdateSchema = {
+      needed: updates.needed ?? null,
+      ordered: updates.ordered ?? null,
+      seller_id: updates.sellerId ?? null,
+      note: updates.note ?? null,
+    };
+
+    return await apiRequest(() =>
+      this.client.PUT('/api/shopping-list-lines/{line_id}', {
         params: { path: { line_id: lineId } },
-        body: {
-          ordered_qty: orderedQty,
-          comment: null,
-        },
+        body,
       })
     );
-
-    const detail = await this.getListDetail(listId);
-    const line = detail.lines.find(existing => existing.id === lineId);
-    if (!line) {
-      throw new Error(`Failed to refresh ordered line ${lineId}`);
-    }
-    return line;
   }
 
-  async revertLine(listId: number, lineId: number): Promise<ShoppingListLineResponseSchema> {
-    await apiRequest(() =>
-      this.client.POST('/api/shopping-list-lines/{line_id}/revert', {
-        params: { path: { line_id: lineId } },
-        body: { status: 'new' },
-      })
-    );
+  // ---------------------------------------------------------------------------
+  // Seller group CRUD
+  // ---------------------------------------------------------------------------
 
-    const detail = await this.getListDetail(listId);
-    const line = detail.lines.find(existing => existing.id === lineId);
-    if (!line) {
-      throw new Error(`Failed to revert shopping list line ${lineId}`);
-    }
-    return line;
-  }
+  /**
+   * Create a seller group column on a shopping list.
+   * Wraps POST /api/shopping-lists/{list_id}/seller-groups.
+   */
+  async createSellerGroup(
+    listId: number,
+    sellerId: number
+  ): Promise<ShoppingListSellerGroupSchema> {
+    const body: ShoppingListSellerGroupCreateSchema = {
+      seller_id: sellerId,
+    };
 
-  async markReady(listId: number): Promise<ShoppingListResponseSchema> {
-    await apiRequest(() =>
-      this.client.PUT('/api/shopping-lists/{list_id}/status', {
+    return await apiRequest(() =>
+      this.client.POST('/api/shopping-lists/{list_id}/seller-groups', {
         params: { path: { list_id: listId } },
-        body: { status: 'ready' },
+        body,
       })
     );
-
-    return await this.getListDetail(listId);
   }
+
+  /**
+   * Update a seller group (note and/or status).
+   * Wraps PUT /api/shopping-lists/{list_id}/seller-groups/{seller_id}.
+   */
+  async updateSellerGroup(
+    listId: number,
+    sellerId: number,
+    updates: { note?: string | null; status?: 'active' | 'ordered' | null }
+  ): Promise<ShoppingListSellerGroupSchema> {
+    const body: ShoppingListSellerGroupUpdateSchema = {
+      note: updates.note ?? null,
+      status: updates.status ?? null,
+    };
+
+    return await apiRequest(() =>
+      this.client.PUT('/api/shopping-lists/{list_id}/seller-groups/{seller_id}', {
+        params: { path: { list_id: listId, seller_id: sellerId } },
+        body,
+      })
+    );
+  }
+
+  /**
+   * Convenience: set a seller group status to "ordered" (place order).
+   */
+  async orderSellerGroup(
+    listId: number,
+    sellerId: number
+  ): Promise<ShoppingListSellerGroupSchema> {
+    return this.updateSellerGroup(listId, sellerId, { status: 'ordered' });
+  }
+
+  /**
+   * Convenience: set a seller group status back to "active" (reopen).
+   */
+  async reopenSellerGroup(
+    listId: number,
+    sellerId: number
+  ): Promise<ShoppingListSellerGroupSchema> {
+    return this.updateSellerGroup(listId, sellerId, { status: 'active' });
+  }
+
+  /**
+   * Delete a seller group from a shopping list.
+   * Lines are returned to the unassigned bucket.
+   * Wraps DELETE /api/shopping-lists/{list_id}/seller-groups/{seller_id}.
+   */
+  async deleteSellerGroup(
+    listId: number,
+    sellerId: number
+  ): Promise<void> {
+    // DELETE returns 204 No Content -- apiRequest expects data, so we handle manually
+    const { error, response } = await this.client.DELETE(
+      '/api/shopping-lists/{list_id}/seller-groups/{seller_id}',
+      {
+        params: { path: { list_id: listId, seller_id: sellerId } },
+      }
+    );
+
+    if (error || !response.ok) {
+      const statusInfo = `${response.status} ${response.statusText}`;
+      throw new Error(`Failed to delete seller group: ${statusInfo}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // List status
+  // ---------------------------------------------------------------------------
 
   async markDone(listId: number): Promise<ShoppingListResponseSchema> {
     await apiRequest(() =>
@@ -164,6 +243,10 @@ export class ShoppingListTestFactory {
 
     return await this.getListDetail(listId);
   }
+
+  // ---------------------------------------------------------------------------
+  // Line receive / complete
+  // ---------------------------------------------------------------------------
 
   async receiveLine(
     _listId: number,
@@ -204,9 +287,13 @@ export class ShoppingListTestFactory {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Kit linking
+  // ---------------------------------------------------------------------------
+
   /**
    * Link this shopping list to a kit by pushing kit contents to the list.
-   * Convenience wrapper for the kit→shopping list linking endpoint.
+   * Convenience wrapper for the kit -> shopping list linking endpoint.
    * Returns the link response containing list details and link metadata.
    */
   async linkToKit(listId: number, kitId: number): Promise<KitShoppingListLinkResponseSchema> {
@@ -227,12 +314,16 @@ export class ShoppingListTestFactory {
     );
   }
 
-  async expectConceptMembership(options: { listId: number; partKey: string; needed?: number; noteIncludes?: string }): Promise<void> {
+  // ---------------------------------------------------------------------------
+  // Assertions
+  // ---------------------------------------------------------------------------
+
+  async expectActiveMembership(options: { listId: number; partKey: string; needed?: number; noteIncludes?: string }): Promise<void> {
     const detail = await this.getListDetail(options.listId);
-    expect(detail.status).toBe('concept');
+    expect(detail.status).toBe('active');
 
     const line = detail.lines.find(existing => existing.part.key === options.partKey);
-    expect(line, `Expected concept membership for part ${options.partKey} on list ${options.listId}`).toBeDefined();
+    expect(line, `Expected active membership for part ${options.partKey} on list ${options.listId}`).toBeDefined();
 
     if (options.needed !== undefined) {
       expect(line?.needed).toBe(options.needed);

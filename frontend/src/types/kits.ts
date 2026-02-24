@@ -95,10 +95,8 @@ export interface KitShoppingListMembershipSummary {
   memberships: KitShoppingListMembership[];
   hasActiveMembership: boolean;
   listNames: string[];
-  conceptListIds: number[];
+  activeListIds: number[];
   activeCount: number;
-  conceptCount: number;
-  readyCount: number;
   completedCount: number;
 }
 

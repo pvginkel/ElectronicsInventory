@@ -187,10 +187,10 @@ function renderPartShoppingTooltip(summary: ShoppingListMembershipSummary): Reac
     label: membership.listName,
     statusBadge: (
       <Badge
-        variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
+        variant={membership.listStatus === 'active' ? 'default' : 'secondary'}
         className="shrink-0 capitalize"
       >
-        {membership.listStatus}
+        {membership.listStatus === 'active' ? 'Active' : 'Completed'}
       </Badge>
     ),
     link: {

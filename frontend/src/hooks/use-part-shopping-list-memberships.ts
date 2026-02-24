@@ -61,6 +61,7 @@ function mapSeller(
     id: seller.id,
     name: seller.name,
     website: seller.website ?? null,
+    logoUrl: seller.logo_url ?? null,
   };
 }
 
@@ -84,21 +85,17 @@ function createSummary(partKey: string, memberships: ShoppingListMembership[]): 
   const activeMemberships = memberships.filter(
     membership => membership.listStatus !== 'done' && membership.lineStatus !== 'done'
   );
-  const conceptMemberships = activeMemberships.filter(membership => membership.listStatus === 'concept');
-  const readyMemberships = activeMemberships.filter(membership => membership.listStatus === 'ready');
 
   const listNames = Array.from(new Set(activeMemberships.map(membership => membership.listName)));
-  const conceptListIds = Array.from(new Set(conceptMemberships.map(membership => membership.listId)));
+  const activeListIds = Array.from(new Set(activeMemberships.map(membership => membership.listId)));
 
   return {
     partKey,
     memberships,
     hasActiveMembership: activeMemberships.length > 0,
     listNames,
-    conceptListIds,
+    activeListIds,
     activeCount: activeMemberships.length,
-    conceptCount: conceptMemberships.length,
-    readyCount: readyMemberships.length,
     completedCount: memberships.length - activeMemberships.length,
   };
 }
@@ -109,10 +106,8 @@ function createEmptySummary(partKey: string): ShoppingListMembershipSummary {
     memberships: [],
     hasActiveMembership: false,
     listNames: [],
-    conceptListIds: [],
+    activeListIds: [],
     activeCount: 0,
-    conceptCount: 0,
-    readyCount: 0,
     completedCount: 0,
   };
 }
@@ -189,9 +184,8 @@ export function usePartShoppingListMemberships(
     () => ({
       partKey: summary.partKey,
       activeCount: summary.activeCount,
-      conceptCount: summary.conceptCount,
     }),
-    [summary.activeCount, summary.conceptCount, summary.partKey]
+    [summary.activeCount, summary.partKey]
   );
 
   const getErrorMetadata = useCallback(
@@ -225,10 +219,8 @@ export function usePartShoppingListMemberships(
     summary,
     hasActiveMembership: summary.hasActiveMembership,
     listNames: summary.listNames,
-    conceptListIds: summary.conceptListIds,
+    activeListIds: summary.activeListIds,
     activeCount: summary.activeCount,
-    conceptCount: summary.conceptCount,
-    readyCount: summary.readyCount,
     completedCount: summary.completedCount,
     partKeys: lookup.keys,
     summaryByPartKey: lookup.summaryByKey,

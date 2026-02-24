@@ -14,10 +14,8 @@ interface ShoppingListOverviewCardProps {
 // Map shopping list status to badge props
 function getShoppingListStatusBadgeProps(status: ShoppingListOverviewSummary['status']): { color: 'inactive' | 'active'; label: string } {
   switch (status) {
-    case 'concept':
-      return { color: 'inactive', label: 'Concept' };
-    case 'ready':
-      return { color: 'active', label: 'Ready' };
+    case 'active':
+      return { color: 'active', label: 'Active' };
     case 'done':
       return { color: 'inactive', label: 'Completed' };
   }
@@ -88,7 +86,7 @@ export function ShoppingListOverviewCard({
         </div>
         {list.totalLines === 0 && (
           <p className="text-xs text-muted-foreground" data-testid={`shopping-lists.overview.card.${list.id}.empty-hint`}>
-            No lines yet—start filling the Concept list to enable Mark Ready.
+            No lines yet — add parts to start building this list.
           </p>
         )}
       </CardContent>

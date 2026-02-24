@@ -171,35 +171,6 @@
             "example": "https://www.arduino.cc/en/Main/arduinoBoardUno",
             "title": "Product Page"
           },
-          "seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller ID reference (user provided)",
-            "example": 1,
-            "title": "Seller Id"
-          },
-          "seller_link": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller product page URL (user provided)",
-            "example": "https://www.digikey.com/en/products/detail/arduino/A000066",
-            "title": "Seller Link"
-          },
           "series": {
             "anyOf": [
               {
@@ -2546,7 +2517,7 @@
           "status": {
             "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.ShoppingListStatus",
             "description": "Current status of the linked shopping list",
-            "example": "ready"
+            "example": "active"
           },
           "updated_at": {
             "description": "Timestamp when the link was last updated",
@@ -2634,8 +2605,7 @@
       "KitDetailResponseSchema.b98797e.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -3636,7 +3606,7 @@
           "status": {
             "$ref": "#/components/schemas/KitShoppingListChipSchemaList.a9993e3.ShoppingListStatus",
             "description": "Current status of the linked shopping list",
-            "example": "ready"
+            "example": "active"
           },
           "updated_at": {
             "description": "Timestamp when the link was last updated",
@@ -3664,8 +3634,7 @@
       "KitShoppingListChipSchemaList.a9993e3.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -3789,7 +3758,7 @@
           "status": {
             "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListStatus",
             "description": "Current status of the linked shopping list",
-            "example": "ready"
+            "example": "active"
           },
           "updated_at": {
             "description": "Timestamp when the link was last updated",
@@ -3911,6 +3880,20 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
+          },
           "name": {
             "description": "Seller name",
             "example": "DigiKey",
@@ -4006,31 +3989,6 @@
             "title": "Created At",
             "type": "string"
           },
-          "effective_seller": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.SellerListSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller entity used for Ready grouping"
-          },
-          "effective_seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Seller identifier used for grouping (override or part seller)",
-            "example": 4,
-            "title": "Effective Seller Id"
-          },
           "has_quantity_mismatch": {
             "description": "True when ordered and received totals differ",
             "example": false,
@@ -4042,18 +4000,6 @@
             "example": 42,
             "title": "Id",
             "type": "integer"
-          },
-          "is_orderable": {
-            "description": "True when the line can be marked as ordered",
-            "example": true,
-            "title": "Is Orderable",
-            "type": "boolean"
-          },
-          "is_revertible": {
-            "description": "True when the line can revert from ordered back to new",
-            "example": false,
-            "title": "Is Revertible",
-            "type": "boolean"
           },
           "needed": {
             "description": "Requested quantity",
@@ -4113,7 +4059,7 @@
                 "type": "null"
               }
             ],
-            "description": "Seller override details if specified"
+            "description": "Seller details for this line"
           },
           "seller_id": {
             "anyOf": [
@@ -4124,9 +4070,23 @@
                 "type": "null"
               }
             ],
-            "description": "Seller override identifier",
+            "description": "Seller identifier for this line",
             "example": 3,
             "title": "Seller Id"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller product page URL from the part-seller link table",
+            "example": "https://www.mouser.com/ProductDetail/123",
+            "title": "Seller Link"
           },
           "shopping_list_id": {
             "description": "Parent shopping list identifier",
@@ -4158,16 +4118,13 @@
           "note",
           "created_at",
           "updated_at",
-          "effective_seller_id",
           "can_receive",
           "completion_mismatch",
           "completion_note",
           "completed_at",
           "has_quantity_mismatch",
           "part",
-          "seller",
-          "is_orderable",
-          "is_revertible"
+          "seller"
         ],
         "title": "ShoppingListLineResponseSchema",
         "type": "object"
@@ -4229,25 +4186,17 @@
             "type": "string"
           },
           "seller_groups": {
-            "description": "Grouping of lines by seller for Ready planning",
+            "description": "Grouping of lines by seller for kanban planning",
             "items": {
               "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerGroupSchema"
             },
             "title": "Seller Groups",
             "type": "array"
           },
-          "seller_notes": {
-            "description": "Seller-specific notes for Ready view",
-            "items": {
-              "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerOrderNoteSchema"
-            },
-            "title": "Seller Notes",
-            "type": "array"
-          },
           "status": {
             "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListStatus",
             "description": "Workflow status",
-            "example": "ready"
+            "example": "active"
           },
           "updated_at": {
             "description": "Timestamp when the list was last updated",
@@ -4270,11 +4219,17 @@
         "type": "object"
       },
       "KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerGroupSchema": {
-        "description": "Schema representing seller-based grouping in Ready view.",
+        "description": "Schema representing a seller group (persisted or virtual ungrouped bucket).",
         "properties": {
+          "completed": {
+            "default": false,
+            "description": "True when all lines in the group are DONE",
+            "title": "Completed",
+            "type": "boolean"
+          },
           "group_key": {
             "description": "Identifier for the seller grouping (seller id or 'ungrouped')",
-            "example": "seller-4",
+            "example": "4",
             "title": "Group Key",
             "type": "string"
           },
@@ -4286,17 +4241,11 @@
             "title": "Lines",
             "type": "array"
           },
-          "order_note": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerOrderNoteSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller note if the group is associated with a seller"
+          "note": {
+            "default": "",
+            "description": "Per-seller order note",
+            "title": "Note",
+            "type": "string"
           },
           "seller": {
             "anyOf": [
@@ -4321,6 +4270,18 @@
             "description": "Seller identifier if group is seller-backed",
             "example": 4,
             "title": "Seller Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller group status (active/ordered); null for ungrouped"
           },
           "totals": {
             "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerGroupTotalsSchema",
@@ -4367,46 +4328,19 @@
         "title": "ShoppingListSellerGroupTotalsSchema",
         "type": "object"
       },
-      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerOrderNoteSchema": {
-        "description": "Response schema for seller-specific order notes on a shopping list.",
-        "properties": {
-          "note": {
-            "description": "Free-form per-seller order note",
-            "example": "Bundle this order with enclosure purchase.",
-            "title": "Note",
-            "type": "string"
-          },
-          "seller": {
-            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.SellerListSchema",
-            "description": "Seller metadata for display"
-          },
-          "seller_id": {
-            "description": "Seller identifier the note applies to",
-            "example": 4,
-            "title": "Seller Id",
-            "type": "integer"
-          },
-          "updated_at": {
-            "description": "Timestamp when the note was last updated",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "seller_id",
-          "seller",
-          "note",
-          "updated_at"
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerStatus": {
+        "description": "Possible states for a seller group within a shopping list.",
+        "enum": [
+          "active",
+          "ordered"
         ],
-        "title": "ShoppingListSellerOrderNoteSchema",
-        "type": "object"
+        "title": "ShoppingListSellerStatus",
+        "type": "string"
       },
       "KitShoppingListLinkResponseSchema.b98797e.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -4484,7 +4418,7 @@
           "status": {
             "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e.ShoppingListStatus",
             "description": "Current status of the linked shopping list",
-            "example": "ready"
+            "example": "active"
           },
           "updated_at": {
             "description": "Timestamp when the link was last updated",
@@ -4536,8 +4470,7 @@
       "KitShoppingListMembershipQueryResponseSchema.b98797e.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -5127,35 +5060,6 @@
             "example": "https://www.ti.com/product/SN74HC595",
             "title": "Product Page"
           },
-          "seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "ID of the seller/vendor",
-            "example": 1,
-            "title": "Seller Id"
-          },
-          "seller_link": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Product page URL at seller",
-            "example": "https://www.digikey.com/en/products/detail/G5Q-1A4",
-            "title": "Seller Link"
-          },
           "series": {
             "anyOf": [
               {
@@ -5683,30 +5587,13 @@
             "example": "https://www.ti.com/product/SN74HC595",
             "title": "Product Page"
           },
-          "seller": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PartResponseSchema.1a46b79.SellerListSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller/vendor details"
-          },
-          "seller_link": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Product page URL",
-            "example": "https://www.digikey.com/en/products/detail/G5Q-1A4",
-            "title": "Seller Link"
+          "seller_links": {
+            "description": "Seller links with product URLs",
+            "items": {
+              "$ref": "#/components/schemas/PartResponseSchema.1a46b79.PartSellerLinkSchema"
+            },
+            "title": "Seller Links",
+            "type": "array"
           },
           "series": {
             "anyOf": [
@@ -5802,7 +5689,6 @@
           "type_id",
           "description",
           "tags",
-          "seller_link",
           "attachment_set_id",
           "created_at",
           "updated_at"
@@ -5810,34 +5696,55 @@
         "title": "PartResponseSchema",
         "type": "object"
       },
-      "PartResponseSchema.1a46b79.SellerListSchema": {
-        "description": "Lightweight schema for seller dropdowns and listings.",
+      "PartResponseSchema.1a46b79.PartSellerLinkSchema": {
+        "description": "Schema for a part-seller link in responses.",
         "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
           "id": {
-            "description": "Unique seller ID",
+            "description": "Unique identifier for this seller link",
             "example": 1,
             "title": "Id",
             "type": "integer"
           },
-          "name": {
-            "description": "Seller name",
-            "example": "DigiKey",
-            "title": "Name",
+          "link": {
+            "description": "Seller-specific product page URL",
+            "example": "https://www.digikey.com/en/products/detail/abc123",
+            "title": "Link",
             "type": "string"
           },
-          "website": {
-            "description": "Seller website URL",
+          "seller_id": {
+            "description": "ID of the linked seller",
+            "example": 1,
+            "title": "Seller Id",
+            "type": "integer"
+          },
+          "seller_name": {
+            "description": "Name of the linked seller",
+            "example": "DigiKey",
+            "title": "Seller Name",
+            "type": "string"
+          },
+          "seller_website": {
+            "description": "Website of the linked seller",
             "example": "https://www.digikey.com",
-            "title": "Website",
+            "title": "Seller Website",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "name",
-          "website"
+          "seller_id",
+          "seller_name",
+          "seller_website",
+          "link",
+          "created_at"
         ],
-        "title": "SellerListSchema",
+        "title": "PartSellerLinkSchema",
         "type": "object"
       },
       "PartResponseSchema.1a46b79.TypeResponseSchema": {
@@ -5879,6 +5786,82 @@
         "title": "TypeResponseSchema",
         "type": "object"
       },
+      "PartSellerCreateSchema.f085a8d": {
+        "description": "Schema for creating a part-seller link.",
+        "properties": {
+          "link": {
+            "description": "Seller-specific product page URL",
+            "example": "https://www.digikey.com/en/products/detail/abc123",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Link",
+            "type": "string"
+          },
+          "seller_id": {
+            "description": "ID of the seller to link",
+            "example": 1,
+            "title": "Seller Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seller_id",
+          "link"
+        ],
+        "title": "PartSellerCreateSchema",
+        "type": "object"
+      },
+      "PartSellerLinkSchema.f085a8d": {
+        "description": "Schema for a part-seller link in responses.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for this seller link",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "link": {
+            "description": "Seller-specific product page URL",
+            "example": "https://www.digikey.com/en/products/detail/abc123",
+            "title": "Link",
+            "type": "string"
+          },
+          "seller_id": {
+            "description": "ID of the linked seller",
+            "example": 1,
+            "title": "Seller Id",
+            "type": "integer"
+          },
+          "seller_name": {
+            "description": "Name of the linked seller",
+            "example": "DigiKey",
+            "title": "Seller Name",
+            "type": "string"
+          },
+          "seller_website": {
+            "description": "Website of the linked seller",
+            "example": "https://www.digikey.com",
+            "title": "Seller Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "seller_id",
+          "seller_name",
+          "seller_website",
+          "link",
+          "created_at"
+        ],
+        "title": "PartSellerLinkSchema",
+        "type": "object"
+      },
       "PartShoppingListMembershipCreateSchema.d085feb": {
         "description": "Schema for adding a part to a Concept shopping list from the part view.",
         "properties": {
@@ -5913,7 +5896,7 @@
               }
             ],
             "default": null,
-            "description": "Optional seller override for this line",
+            "description": "Seller for this line",
             "example": 4,
             "title": "Seller Id"
           },
@@ -6063,7 +6046,7 @@
               }
             ],
             "default": null,
-            "description": "Seller override or default seller context for the line"
+            "description": "Seller context for the line"
           },
           "shopping_list_id": {
             "description": "Identifier of the shopping list containing the part",
@@ -6080,7 +6063,7 @@
           "shopping_list_status": {
             "$ref": "#/components/schemas/PartShoppingListMembershipQueryResponseSchema.d085feb.ShoppingListStatus",
             "description": "Workflow status of the parent shopping list",
-            "example": "concept"
+            "example": "active"
           }
         },
         "required": [
@@ -6104,6 +6087,20 @@
             "example": 1,
             "title": "Id",
             "type": "integer"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
           },
           "name": {
             "description": "Seller name",
@@ -6139,8 +6136,7 @@
       "PartShoppingListMembershipQueryResponseSchema.d085feb.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -6202,7 +6198,7 @@
               }
             ],
             "default": null,
-            "description": "Seller override or default seller context for the line"
+            "description": "Seller context for the line"
           },
           "shopping_list_id": {
             "description": "Identifier of the shopping list containing the part",
@@ -6219,7 +6215,7 @@
           "shopping_list_status": {
             "$ref": "#/components/schemas/PartShoppingListMembershipSchema.d085feb.ShoppingListStatus",
             "description": "Workflow status of the parent shopping list",
-            "example": "concept"
+            "example": "active"
           }
         },
         "required": [
@@ -6243,6 +6239,20 @@
             "example": 1,
             "title": "Id",
             "type": "integer"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
           },
           "name": {
             "description": "Seller name",
@@ -6278,8 +6288,7 @@
       "PartShoppingListMembershipSchema.d085feb.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -6348,7 +6357,7 @@
               }
             ],
             "default": null,
-            "description": "Seller override or default seller context for the line"
+            "description": "Seller context for the line"
           },
           "shopping_list_id": {
             "description": "Identifier of the shopping list containing the part",
@@ -6365,7 +6374,7 @@
           "shopping_list_status": {
             "$ref": "#/components/schemas/PartShoppingListMembershipSchemaList.a9993e3.ShoppingListStatus",
             "description": "Workflow status of the parent shopping list",
-            "example": "concept"
+            "example": "active"
           }
         },
         "required": [
@@ -6389,6 +6398,20 @@
             "example": 1,
             "title": "Id",
             "type": "integer"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
           },
           "name": {
             "description": "Seller name",
@@ -6424,8 +6447,7 @@
       "PartShoppingListMembershipSchemaList.a9993e3.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -6598,35 +6620,6 @@
             "description": "Updated manufacturer's product page URL",
             "example": "https://www.espressif.com/en/products/modules/esp32",
             "title": "Product Page"
-          },
-          "seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Updated seller ID",
-            "example": 2,
-            "title": "Seller Id"
-          },
-          "seller_link": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Updated product page URL",
-            "example": "https://www.mouser.com/ProductDetail/G5Q-1A4",
-            "title": "Seller Link"
           },
           "series": {
             "anyOf": [
@@ -6802,6 +6795,57 @@
         "title": "PartLocationListSchema",
         "type": "object"
       },
+      "PartWithTotalSchemaList.a9993e3.PartSellerLinkSchema": {
+        "description": "Schema for a part-seller link in responses.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for this seller link",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "link": {
+            "description": "Seller-specific product page URL",
+            "example": "https://www.digikey.com/en/products/detail/abc123",
+            "title": "Link",
+            "type": "string"
+          },
+          "seller_id": {
+            "description": "ID of the linked seller",
+            "example": 1,
+            "title": "Seller Id",
+            "type": "integer"
+          },
+          "seller_name": {
+            "description": "Name of the linked seller",
+            "example": "DigiKey",
+            "title": "Seller Name",
+            "type": "string"
+          },
+          "seller_website": {
+            "description": "Website of the linked seller",
+            "example": "https://www.digikey.com",
+            "title": "Seller Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "seller_id",
+          "seller_name",
+          "seller_website",
+          "link",
+          "created_at"
+        ],
+        "title": "PartSellerLinkSchema",
+        "type": "object"
+      },
       "PartWithTotalSchemaList.a9993e3.PartShoppingListMembershipSchema": {
         "description": "Schema describing an active shopping list membership for a part.",
         "properties": {
@@ -6858,7 +6902,7 @@
               }
             ],
             "default": null,
-            "description": "Seller override or default seller context for the line"
+            "description": "Seller context for the line"
           },
           "shopping_list_id": {
             "description": "Identifier of the shopping list containing the part",
@@ -6875,7 +6919,7 @@
           "shopping_list_status": {
             "$ref": "#/components/schemas/PartWithTotalSchemaList.a9993e3.ShoppingListStatus",
             "description": "Workflow status of the parent shopping list",
-            "example": "concept"
+            "example": "active"
           }
         },
         "required": [
@@ -7107,31 +7151,13 @@
             "example": "2.54mm",
             "title": "Pin Pitch"
           },
-          "seller": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PartWithTotalSchemaList.a9993e3.SellerListSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller/vendor details"
-          },
-          "seller_link": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Product page URL at seller",
-            "example": "https://www.digikey.com/product-detail/...",
-            "title": "Seller Link"
+          "seller_links": {
+            "description": "Seller links with product URLs",
+            "items": {
+              "$ref": "#/components/schemas/PartWithTotalSchemaList.a9993e3.PartSellerLinkSchema"
+            },
+            "title": "Seller Links",
+            "type": "array"
           },
           "series": {
             "anyOf": [
@@ -7259,6 +7285,20 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
+          },
           "name": {
             "description": "Seller name",
             "example": "DigiKey",
@@ -7293,8 +7333,7 @@
       "PartWithTotalSchemaList.a9993e3.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -7498,6 +7537,20 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
+          },
           "name": {
             "description": "Seller name",
             "example": "DigiKey",
@@ -7533,6 +7586,20 @@
             "example": 1,
             "title": "Id",
             "type": "integer"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
           },
           "name": {
             "description": "Seller name",
@@ -7634,55 +7701,6 @@
         "title": "ShoppingListCreateSchema",
         "type": "object"
       },
-      "ShoppingListGroupOrderSchema.d9ccce0": {
-        "description": "Request schema for marking a seller group as ordered.",
-        "properties": {
-          "lines": {
-            "description": "Line-specific ordered quantities for the seller group",
-            "items": {
-              "$ref": "#/components/schemas/ShoppingListGroupOrderSchema.d9ccce0.ShoppingListGroupOrderLineSchema"
-            },
-            "title": "Lines",
-            "type": "array"
-          }
-        },
-        "required": [
-          "lines"
-        ],
-        "title": "ShoppingListGroupOrderSchema",
-        "type": "object"
-      },
-      "ShoppingListGroupOrderSchema.d9ccce0.ShoppingListGroupOrderLineSchema": {
-        "description": "Schema representing a single line entry in a group order action.",
-        "properties": {
-          "line_id": {
-            "description": "Identifier of the line to update",
-            "example": 42,
-            "title": "Line Id",
-            "type": "integer"
-          },
-          "ordered_qty": {
-            "anyOf": [
-              {
-                "minimum": 0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Quantity to set as ordered; defaults to current needed quantity",
-            "example": 10,
-            "title": "Ordered Qty"
-          }
-        },
-        "required": [
-          "line_id"
-        ],
-        "title": "ShoppingListGroupOrderLineSchema",
-        "type": "object"
-      },
       "ShoppingListLineCompleteSchema.d9ccce0": {
         "description": "Request schema for marking a line as completed without receiving more stock.",
         "properties": {
@@ -7744,7 +7762,7 @@
               }
             ],
             "default": null,
-            "description": "Optional seller override",
+            "description": "Seller for this line",
             "example": 3,
             "title": "Seller Id"
           }
@@ -7754,42 +7772,6 @@
           "needed"
         ],
         "title": "ShoppingListLineCreateSchema",
-        "type": "object"
-      },
-      "ShoppingListLineOrderSchema.d9ccce0": {
-        "description": "Schema for marking a line as ordered.",
-        "properties": {
-          "comment": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional note update to accompany ordering",
-            "example": "Combine with enclosure order",
-            "title": "Comment"
-          },
-          "ordered_qty": {
-            "anyOf": [
-              {
-                "minimum": 0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Quantity marked as ordered; defaults to needed when omitted",
-            "example": 5,
-            "title": "Ordered Qty"
-          }
-        },
-        "title": "ShoppingListLineOrderSchema",
         "type": "object"
       },
       "ShoppingListLineReceiveSchema.d9ccce0": {
@@ -7899,31 +7881,6 @@
             "title": "Created At",
             "type": "string"
           },
-          "effective_seller": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShoppingListLineResponseSchema.d9ccce0.SellerListSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller entity used for Ready grouping"
-          },
-          "effective_seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Seller identifier used for grouping (override or part seller)",
-            "example": 4,
-            "title": "Effective Seller Id"
-          },
           "has_quantity_mismatch": {
             "description": "True when ordered and received totals differ",
             "example": false,
@@ -7935,18 +7892,6 @@
             "example": 42,
             "title": "Id",
             "type": "integer"
-          },
-          "is_orderable": {
-            "description": "True when the line can be marked as ordered",
-            "example": true,
-            "title": "Is Orderable",
-            "type": "boolean"
-          },
-          "is_revertible": {
-            "description": "True when the line can revert from ordered back to new",
-            "example": false,
-            "title": "Is Revertible",
-            "type": "boolean"
           },
           "needed": {
             "description": "Requested quantity",
@@ -8006,7 +7951,7 @@
                 "type": "null"
               }
             ],
-            "description": "Seller override details if specified"
+            "description": "Seller details for this line"
           },
           "seller_id": {
             "anyOf": [
@@ -8017,9 +7962,23 @@
                 "type": "null"
               }
             ],
-            "description": "Seller override identifier",
+            "description": "Seller identifier for this line",
             "example": 3,
             "title": "Seller Id"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller product page URL from the part-seller link table",
+            "example": "https://www.mouser.com/ProductDetail/123",
+            "title": "Seller Link"
           },
           "shopping_list_id": {
             "description": "Parent shopping list identifier",
@@ -8051,16 +8010,13 @@
           "note",
           "created_at",
           "updated_at",
-          "effective_seller_id",
           "can_receive",
           "completion_mismatch",
           "completion_note",
           "completed_at",
           "has_quantity_mismatch",
           "part",
-          "seller",
-          "is_orderable",
-          "is_revertible"
+          "seller"
         ],
         "title": "ShoppingListLineResponseSchema",
         "type": "object"
@@ -8162,6 +8118,20 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
+          },
           "name": {
             "description": "Seller name",
             "example": "DigiKey",
@@ -8184,379 +8154,6 @@
         "type": "object"
       },
       "ShoppingListLineResponseSchema.d9ccce0.ShoppingListLineStatus": {
-        "description": "Lifecycle states for an individual shopping list line.",
-        "enum": [
-          "new",
-          "ordered",
-          "done"
-        ],
-        "title": "ShoppingListLineStatus",
-        "type": "string"
-      },
-      "ShoppingListLineResponseSchemaList.a9993e3": {
-        "items": {
-          "$ref": "#/components/schemas/ShoppingListLineResponseSchemaList.a9993e3.ShoppingListLineResponseSchema"
-        },
-        "title": "ShoppingListLineResponseSchemaList",
-        "type": "array"
-      },
-      "ShoppingListLineResponseSchemaList.a9993e3.PartListSchema": {
-        "description": "Schema for lightweight part listings.",
-        "properties": {
-          "cover_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
-            "example": "/api/cas/abc123def456...",
-            "title": "Cover Url"
-          },
-          "description": {
-            "description": "Free text description",
-            "example": "12V SPDT relay with 40A contacts",
-            "title": "Description",
-            "type": "string"
-          },
-          "key": {
-            "description": "4-character unique part identifier",
-            "example": "BZQP",
-            "title": "Key",
-            "type": "string"
-          },
-          "manufacturer_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Manufacturer's part number",
-            "example": "OMRON G5Q-1A4",
-            "title": "Manufacturer Code"
-          }
-        },
-        "required": [
-          "key",
-          "manufacturer_code",
-          "description"
-        ],
-        "title": "PartListSchema",
-        "type": "object"
-      },
-      "ShoppingListLineResponseSchemaList.a9993e3.PartLocationInlineSchema": {
-        "description": "Inline schema for part location quantities.",
-        "properties": {
-          "box_no": {
-            "description": "Box number where stock is stored",
-            "example": 7,
-            "title": "Box No",
-            "type": "integer"
-          },
-          "id": {
-            "description": "Unique identifier for the part location row",
-            "example": 501,
-            "title": "Id",
-            "type": "integer"
-          },
-          "loc_no": {
-            "description": "Location number within the box",
-            "example": 3,
-            "title": "Loc No",
-            "type": "integer"
-          },
-          "qty": {
-            "description": "Quantity stored at this location",
-            "example": 10,
-            "title": "Qty",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "box_no",
-          "loc_no",
-          "qty"
-        ],
-        "title": "PartLocationInlineSchema",
-        "type": "object"
-      },
-      "ShoppingListLineResponseSchemaList.a9993e3.SellerListSchema": {
-        "description": "Lightweight schema for seller dropdowns and listings.",
-        "properties": {
-          "id": {
-            "description": "Unique seller ID",
-            "example": 1,
-            "title": "Id",
-            "type": "integer"
-          },
-          "name": {
-            "description": "Seller name",
-            "example": "DigiKey",
-            "title": "Name",
-            "type": "string"
-          },
-          "website": {
-            "description": "Seller website URL",
-            "example": "https://www.digikey.com",
-            "title": "Website",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "website"
-        ],
-        "title": "SellerListSchema",
-        "type": "object"
-      },
-      "ShoppingListLineResponseSchemaList.a9993e3.ShoppingListLineResponseSchema": {
-        "description": "Detailed schema for shopping list line responses including related entities.",
-        "properties": {
-          "can_receive": {
-            "description": "True when the line can accept stock receipt actions",
-            "example": true,
-            "title": "Can Receive",
-            "type": "boolean"
-          },
-          "completed_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Timestamp when the line was completed",
-            "title": "Completed At"
-          },
-          "completion_mismatch": {
-            "description": "Flag indicating completion with quantity mismatch",
-            "example": false,
-            "title": "Completion Mismatch",
-            "type": "boolean"
-          },
-          "completion_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional note explaining completion mismatch",
-            "example": "Vendor short-shipped two units",
-            "title": "Completion Note"
-          },
-          "created_at": {
-            "description": "Timestamp when the line was created",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "effective_seller": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShoppingListLineResponseSchemaList.a9993e3.SellerListSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller entity used for Ready grouping"
-          },
-          "effective_seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Seller identifier used for grouping (override or part seller)",
-            "example": 4,
-            "title": "Effective Seller Id"
-          },
-          "has_quantity_mismatch": {
-            "description": "True when ordered and received totals differ",
-            "example": false,
-            "title": "Has Quantity Mismatch",
-            "type": "boolean"
-          },
-          "id": {
-            "description": "Unique line identifier",
-            "example": 42,
-            "title": "Id",
-            "type": "integer"
-          },
-          "is_orderable": {
-            "description": "True when the line can be marked as ordered",
-            "example": true,
-            "title": "Is Orderable",
-            "type": "boolean"
-          },
-          "is_revertible": {
-            "description": "True when the line can revert from ordered back to new",
-            "example": false,
-            "title": "Is Revertible",
-            "type": "boolean"
-          },
-          "needed": {
-            "description": "Requested quantity",
-            "example": 4,
-            "title": "Needed",
-            "type": "integer"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional notes for procurement",
-            "example": "Optional color variant acceptable",
-            "title": "Note"
-          },
-          "ordered": {
-            "description": "Ordered quantity",
-            "example": 0,
-            "title": "Ordered",
-            "type": "integer"
-          },
-          "part": {
-            "$ref": "#/components/schemas/ShoppingListLineResponseSchemaList.a9993e3.PartListSchema",
-            "description": "Details about the requested part"
-          },
-          "part_id": {
-            "description": "Part identifier on this line",
-            "example": 101,
-            "title": "Part Id",
-            "type": "integer"
-          },
-          "part_locations": {
-            "description": "Locations currently holding stock for the part",
-            "items": {
-              "$ref": "#/components/schemas/ShoppingListLineResponseSchemaList.a9993e3.PartLocationInlineSchema"
-            },
-            "title": "Part Locations",
-            "type": "array"
-          },
-          "received": {
-            "description": "Received quantity",
-            "example": 0,
-            "title": "Received",
-            "type": "integer"
-          },
-          "seller": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShoppingListLineResponseSchemaList.a9993e3.SellerListSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Seller override details if specified"
-          },
-          "seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Seller override identifier",
-            "example": 3,
-            "title": "Seller Id"
-          },
-          "shopping_list_id": {
-            "description": "Parent shopping list identifier",
-            "example": 9,
-            "title": "Shopping List Id",
-            "type": "integer"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ShoppingListLineResponseSchemaList.a9993e3.ShoppingListLineStatus",
-            "description": "Workflow status for this line",
-            "example": "new"
-          },
-          "updated_at": {
-            "description": "Timestamp when the line was last updated",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "shopping_list_id",
-          "part_id",
-          "seller_id",
-          "needed",
-          "ordered",
-          "received",
-          "status",
-          "note",
-          "created_at",
-          "updated_at",
-          "effective_seller_id",
-          "can_receive",
-          "completion_mismatch",
-          "completion_note",
-          "completed_at",
-          "has_quantity_mismatch",
-          "part",
-          "seller",
-          "is_orderable",
-          "is_revertible"
-        ],
-        "title": "ShoppingListLineResponseSchema",
-        "type": "object"
-      },
-      "ShoppingListLineResponseSchemaList.a9993e3.ShoppingListLineStatus": {
-        "description": "Lifecycle states for an individual shopping list line.",
-        "enum": [
-          "new",
-          "ordered",
-          "done"
-        ],
-        "title": "ShoppingListLineStatus",
-        "type": "string"
-      },
-      "ShoppingListLineStatusUpdateSchema.d9ccce0": {
-        "description": "Schema for updating the workflow status of a line.",
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/ShoppingListLineStatusUpdateSchema.d9ccce0.ShoppingListLineStatus",
-            "description": "Target status for the line",
-            "example": "new"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "ShoppingListLineStatusUpdateSchema",
-        "type": "object"
-      },
-      "ShoppingListLineStatusUpdateSchema.d9ccce0.ShoppingListLineStatus": {
         "description": "Lifecycle states for an individual shopping list line.",
         "enum": [
           "new",
@@ -8598,6 +8195,21 @@
             "example": "Need ROHS compliant",
             "title": "Note"
           },
+          "ordered": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Planned order quantity; only settable while line is NEW",
+            "example": 10,
+            "title": "Ordered"
+          },
           "seller_id": {
             "anyOf": [
               {
@@ -8608,7 +8220,7 @@
               }
             ],
             "default": null,
-            "description": "Optional seller override",
+            "description": "Seller for this line",
             "example": 5,
             "title": "Seller Id"
           }
@@ -8681,19 +8293,6 @@
             "title": "Created At",
             "type": "string"
           },
-          "effective_seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Seller identifier used for grouping (override or part seller)",
-            "example": 4,
-            "title": "Effective Seller Id"
-          },
           "has_quantity_mismatch": {
             "description": "True when ordered and received totals differ",
             "example": false,
@@ -8752,9 +8351,23 @@
                 "type": "null"
               }
             ],
-            "description": "Seller override identifier",
+            "description": "Seller identifier for this line",
             "example": 3,
             "title": "Seller Id"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller product page URL from the part-seller link table",
+            "example": "https://www.mouser.com/ProductDetail/123",
+            "title": "Seller Link"
           },
           "shopping_list_id": {
             "description": "Parent shopping list identifier",
@@ -8786,7 +8399,6 @@
           "note",
           "created_at",
           "updated_at",
-          "effective_seller_id",
           "can_receive",
           "completion_mismatch",
           "completion_note",
@@ -8834,8 +8446,7 @@
             "default": null,
             "description": "Filter by one or more shopping list statuses",
             "example": [
-              "concept",
-              "ready"
+              "active"
             ],
             "title": "Status"
           }
@@ -8849,36 +8460,6 @@
         },
         "title": "ShoppingListListSchemaList",
         "type": "array"
-      },
-      "ShoppingListListSchemaList.a9993e3.SellerListSchema": {
-        "description": "Lightweight schema for seller dropdowns and listings.",
-        "properties": {
-          "id": {
-            "description": "Unique seller ID",
-            "example": 1,
-            "title": "Id",
-            "type": "integer"
-          },
-          "name": {
-            "description": "Seller name",
-            "example": "DigiKey",
-            "title": "Name",
-            "type": "string"
-          },
-          "website": {
-            "description": "Seller website URL",
-            "example": "https://www.digikey.com",
-            "title": "Website",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "website"
-        ],
-        "title": "SellerListSchema",
-        "type": "object"
       },
       "ShoppingListListSchemaList.a9993e3.ShoppingListLineCountsSchema": {
         "description": "Aggregated counts of shopping list lines by status.",
@@ -8944,18 +8525,10 @@
             "title": "Name",
             "type": "string"
           },
-          "seller_notes": {
-            "description": "Seller-specific notes associated with the list",
-            "items": {
-              "$ref": "#/components/schemas/ShoppingListListSchemaList.a9993e3.ShoppingListSellerOrderNoteSchema"
-            },
-            "title": "Seller Notes",
-            "type": "array"
-          },
           "status": {
             "$ref": "#/components/schemas/ShoppingListListSchemaList.a9993e3.ShoppingListStatus",
             "description": "Workflow status",
-            "example": "concept"
+            "example": "active"
           },
           "updated_at": {
             "description": "Timestamp when the list was last updated",
@@ -8976,46 +8549,10 @@
         "title": "ShoppingListListSchema",
         "type": "object"
       },
-      "ShoppingListListSchemaList.a9993e3.ShoppingListSellerOrderNoteSchema": {
-        "description": "Response schema for seller-specific order notes on a shopping list.",
-        "properties": {
-          "note": {
-            "description": "Free-form per-seller order note",
-            "example": "Bundle this order with enclosure purchase.",
-            "title": "Note",
-            "type": "string"
-          },
-          "seller": {
-            "$ref": "#/components/schemas/ShoppingListListSchemaList.a9993e3.SellerListSchema",
-            "description": "Seller metadata for display"
-          },
-          "seller_id": {
-            "description": "Seller identifier the note applies to",
-            "example": 4,
-            "title": "Seller Id",
-            "type": "integer"
-          },
-          "updated_at": {
-            "description": "Timestamp when the note was last updated",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "seller_id",
-          "seller",
-          "note",
-          "updated_at"
-        ],
-        "title": "ShoppingListSellerOrderNoteSchema",
-        "type": "object"
-      },
       "ShoppingListListSchemaList.a9993e3.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -9068,25 +8605,17 @@
             "type": "string"
           },
           "seller_groups": {
-            "description": "Grouping of lines by seller for Ready planning",
+            "description": "Grouping of lines by seller for kanban planning",
             "items": {
               "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.ShoppingListSellerGroupSchema"
             },
             "title": "Seller Groups",
             "type": "array"
           },
-          "seller_notes": {
-            "description": "Seller-specific notes for Ready view",
-            "items": {
-              "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.ShoppingListSellerOrderNoteSchema"
-            },
-            "title": "Seller Notes",
-            "type": "array"
-          },
           "status": {
             "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.ShoppingListStatus",
             "description": "Workflow status",
-            "example": "ready"
+            "example": "active"
           },
           "updated_at": {
             "description": "Timestamp when the list was last updated",
@@ -9205,6 +8734,20 @@
             "title": "Id",
             "type": "integer"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
+          },
           "name": {
             "description": "Seller name",
             "example": "DigiKey",
@@ -9300,31 +8843,6 @@
             "title": "Created At",
             "type": "string"
           },
-          "effective_seller": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.SellerListSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller entity used for Ready grouping"
-          },
-          "effective_seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Seller identifier used for grouping (override or part seller)",
-            "example": 4,
-            "title": "Effective Seller Id"
-          },
           "has_quantity_mismatch": {
             "description": "True when ordered and received totals differ",
             "example": false,
@@ -9336,18 +8854,6 @@
             "example": 42,
             "title": "Id",
             "type": "integer"
-          },
-          "is_orderable": {
-            "description": "True when the line can be marked as ordered",
-            "example": true,
-            "title": "Is Orderable",
-            "type": "boolean"
-          },
-          "is_revertible": {
-            "description": "True when the line can revert from ordered back to new",
-            "example": false,
-            "title": "Is Revertible",
-            "type": "boolean"
           },
           "needed": {
             "description": "Requested quantity",
@@ -9407,7 +8913,7 @@
                 "type": "null"
               }
             ],
-            "description": "Seller override details if specified"
+            "description": "Seller details for this line"
           },
           "seller_id": {
             "anyOf": [
@@ -9418,9 +8924,23 @@
                 "type": "null"
               }
             ],
-            "description": "Seller override identifier",
+            "description": "Seller identifier for this line",
             "example": 3,
             "title": "Seller Id"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller product page URL from the part-seller link table",
+            "example": "https://www.mouser.com/ProductDetail/123",
+            "title": "Seller Link"
           },
           "shopping_list_id": {
             "description": "Parent shopping list identifier",
@@ -9452,16 +8972,13 @@
           "note",
           "created_at",
           "updated_at",
-          "effective_seller_id",
           "can_receive",
           "completion_mismatch",
           "completion_note",
           "completed_at",
           "has_quantity_mismatch",
           "part",
-          "seller",
-          "is_orderable",
-          "is_revertible"
+          "seller"
         ],
         "title": "ShoppingListLineResponseSchema",
         "type": "object"
@@ -9477,11 +8994,17 @@
         "type": "string"
       },
       "ShoppingListResponseSchema.46f0cf6.ShoppingListSellerGroupSchema": {
-        "description": "Schema representing seller-based grouping in Ready view.",
+        "description": "Schema representing a seller group (persisted or virtual ungrouped bucket).",
         "properties": {
+          "completed": {
+            "default": false,
+            "description": "True when all lines in the group are DONE",
+            "title": "Completed",
+            "type": "boolean"
+          },
           "group_key": {
             "description": "Identifier for the seller grouping (seller id or 'ungrouped')",
-            "example": "seller-4",
+            "example": "4",
             "title": "Group Key",
             "type": "string"
           },
@@ -9493,17 +9016,11 @@
             "title": "Lines",
             "type": "array"
           },
-          "order_note": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.ShoppingListSellerOrderNoteSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Seller note if the group is associated with a seller"
+          "note": {
+            "default": "",
+            "description": "Per-seller order note",
+            "title": "Note",
+            "type": "string"
           },
           "seller": {
             "anyOf": [
@@ -9528,6 +9045,18 @@
             "description": "Seller identifier if group is seller-backed",
             "example": 4,
             "title": "Seller Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.ShoppingListSellerStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller group status (active/ordered); null for ungrouped"
           },
           "totals": {
             "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.ShoppingListSellerGroupTotalsSchema",
@@ -9574,87 +9103,209 @@
         "title": "ShoppingListSellerGroupTotalsSchema",
         "type": "object"
       },
-      "ShoppingListResponseSchema.46f0cf6.ShoppingListSellerOrderNoteSchema": {
-        "description": "Response schema for seller-specific order notes on a shopping list.",
-        "properties": {
-          "note": {
-            "description": "Free-form per-seller order note",
-            "example": "Bundle this order with enclosure purchase.",
-            "title": "Note",
-            "type": "string"
-          },
-          "seller": {
-            "$ref": "#/components/schemas/ShoppingListResponseSchema.46f0cf6.SellerListSchema",
-            "description": "Seller metadata for display"
-          },
-          "seller_id": {
-            "description": "Seller identifier the note applies to",
-            "example": 4,
-            "title": "Seller Id",
-            "type": "integer"
-          },
-          "updated_at": {
-            "description": "Timestamp when the note was last updated",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "seller_id",
-          "seller",
-          "note",
-          "updated_at"
+      "ShoppingListResponseSchema.46f0cf6.ShoppingListSellerStatus": {
+        "description": "Possible states for a seller group within a shopping list.",
+        "enum": [
+          "active",
+          "ordered"
         ],
-        "title": "ShoppingListSellerOrderNoteSchema",
-        "type": "object"
+        "title": "ShoppingListSellerStatus",
+        "type": "string"
       },
       "ShoppingListResponseSchema.46f0cf6.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
         "type": "string"
       },
-      "ShoppingListSellerOrderNoteSchema.ceb40c1": {
-        "description": "Response schema for seller-specific order notes on a shopping list.",
+      "ShoppingListSellerGroupCreateSchema.57ff967": {
+        "description": "Request schema for creating a new seller group on a shopping list.",
         "properties": {
+          "seller_id": {
+            "description": "Seller identifier to create a group for",
+            "example": 4,
+            "title": "Seller Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seller_id"
+        ],
+        "title": "ShoppingListSellerGroupCreateSchema",
+        "type": "object"
+      },
+      "ShoppingListSellerGroupSchema.46f0cf6": {
+        "description": "Schema representing a seller group (persisted or virtual ungrouped bucket).",
+        "properties": {
+          "completed": {
+            "default": false,
+            "description": "True when all lines in the group are DONE",
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "group_key": {
+            "description": "Identifier for the seller grouping (seller id or 'ungrouped')",
+            "example": "4",
+            "title": "Group Key",
+            "type": "string"
+          },
+          "lines": {
+            "description": "Lines that belong to this grouping",
+            "items": {
+              "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.ShoppingListLineResponseSchema"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
           "note": {
-            "description": "Free-form per-seller order note",
-            "example": "Bundle this order with enclosure purchase.",
+            "default": "",
+            "description": "Per-seller order note",
             "title": "Note",
             "type": "string"
           },
           "seller": {
-            "$ref": "#/components/schemas/ShoppingListSellerOrderNoteSchema.ceb40c1.SellerListSchema",
-            "description": "Seller metadata for display"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.SellerListSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller metadata for the group when available"
           },
           "seller_id": {
-            "description": "Seller identifier the note applies to",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller identifier if group is seller-backed",
             "example": 4,
-            "title": "Seller Id",
-            "type": "integer"
+            "title": "Seller Id"
           },
-          "updated_at": {
-            "description": "Timestamp when the note was last updated",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.ShoppingListSellerStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller group status (active/ordered); null for ungrouped"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.ShoppingListSellerGroupTotalsSchema",
+            "description": "Aggregated quantities for the group"
           }
         },
         "required": [
+          "group_key",
           "seller_id",
           "seller",
-          "note",
-          "updated_at"
+          "lines",
+          "totals"
         ],
-        "title": "ShoppingListSellerOrderNoteSchema",
+        "title": "ShoppingListSellerGroupSchema",
         "type": "object"
       },
-      "ShoppingListSellerOrderNoteSchema.ceb40c1.SellerListSchema": {
+      "ShoppingListSellerGroupSchema.46f0cf6.PartListSchema": {
+        "description": "Schema for lightweight part listings.",
+        "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Key",
+            "type": "string"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          }
+        },
+        "required": [
+          "key",
+          "manufacturer_code",
+          "description"
+        ],
+        "title": "PartListSchema",
+        "type": "object"
+      },
+      "ShoppingListSellerGroupSchema.46f0cf6.PartLocationInlineSchema": {
+        "description": "Inline schema for part location quantities.",
+        "properties": {
+          "box_no": {
+            "description": "Box number where stock is stored",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique identifier for the part location row",
+            "example": 501,
+            "title": "Id",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "Location number within the box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity stored at this location",
+            "example": 10,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "box_no",
+          "loc_no",
+          "qty"
+        ],
+        "title": "PartLocationInlineSchema",
+        "type": "object"
+      },
+      "ShoppingListSellerGroupSchema.46f0cf6.SellerListSchema": {
         "description": "Lightweight schema for seller dropdowns and listings.",
         "properties": {
           "id": {
@@ -9662,6 +9313,20 @@
             "example": 1,
             "title": "Id",
             "type": "integer"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
           },
           "name": {
             "description": "Seller name",
@@ -9684,21 +9349,284 @@
         "title": "SellerListSchema",
         "type": "object"
       },
-      "ShoppingListSellerOrderNoteUpdateSchema.ceb40c1": {
-        "description": "Request schema for updating or clearing a seller order note.",
+      "ShoppingListSellerGroupSchema.46f0cf6.ShoppingListLineResponseSchema": {
+        "description": "Detailed schema for shopping list line responses including related entities.",
         "properties": {
+          "can_receive": {
+            "description": "True when the line can accept stock receipt actions",
+            "example": true,
+            "title": "Can Receive",
+            "type": "boolean"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the line was completed",
+            "title": "Completed At"
+          },
+          "completion_mismatch": {
+            "description": "Flag indicating completion with quantity mismatch",
+            "example": false,
+            "title": "Completion Mismatch",
+            "type": "boolean"
+          },
+          "completion_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional note explaining completion mismatch",
+            "example": "Vendor short-shipped two units",
+            "title": "Completion Note"
+          },
+          "created_at": {
+            "description": "Timestamp when the line was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "has_quantity_mismatch": {
+            "description": "True when ordered and received totals differ",
+            "example": false,
+            "title": "Has Quantity Mismatch",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique line identifier",
+            "example": 42,
+            "title": "Id",
+            "type": "integer"
+          },
+          "needed": {
+            "description": "Requested quantity",
+            "example": 4,
+            "title": "Needed",
+            "type": "integer"
+          },
           "note": {
-            "description": "Updated note content; send empty string to clear",
-            "example": "Use expedited shipping if in stock.",
-            "title": "Note",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional notes for procurement",
+            "example": "Optional color variant acceptable",
+            "title": "Note"
+          },
+          "ordered": {
+            "description": "Ordered quantity",
+            "example": 0,
+            "title": "Ordered",
+            "type": "integer"
+          },
+          "part": {
+            "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.PartListSchema",
+            "description": "Details about the requested part"
+          },
+          "part_id": {
+            "description": "Part identifier on this line",
+            "example": 101,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "part_locations": {
+            "description": "Locations currently holding stock for the part",
+            "items": {
+              "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.PartLocationInlineSchema"
+            },
+            "title": "Part Locations",
+            "type": "array"
+          },
+          "received": {
+            "description": "Received quantity",
+            "example": 0,
+            "title": "Received",
+            "type": "integer"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.SellerListSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller details for this line"
+          },
+          "seller_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller identifier for this line",
+            "example": 3,
+            "title": "Seller Id"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller product page URL from the part-seller link table",
+            "example": "https://www.mouser.com/ProductDetail/123",
+            "title": "Seller Link"
+          },
+          "shopping_list_id": {
+            "description": "Parent shopping list identifier",
+            "example": 9,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6.ShoppingListLineStatus",
+            "description": "Workflow status for this line",
+            "example": "new"
+          },
+          "updated_at": {
+            "description": "Timestamp when the line was last updated",
+            "format": "date-time",
+            "title": "Updated At",
             "type": "string"
           }
         },
         "required": [
-          "note"
+          "id",
+          "shopping_list_id",
+          "part_id",
+          "seller_id",
+          "needed",
+          "ordered",
+          "received",
+          "status",
+          "note",
+          "created_at",
+          "updated_at",
+          "can_receive",
+          "completion_mismatch",
+          "completion_note",
+          "completed_at",
+          "has_quantity_mismatch",
+          "part",
+          "seller"
         ],
-        "title": "ShoppingListSellerOrderNoteUpdateSchema",
+        "title": "ShoppingListLineResponseSchema",
         "type": "object"
+      },
+      "ShoppingListSellerGroupSchema.46f0cf6.ShoppingListLineStatus": {
+        "description": "Lifecycle states for an individual shopping list line.",
+        "enum": [
+          "new",
+          "ordered",
+          "done"
+        ],
+        "title": "ShoppingListLineStatus",
+        "type": "string"
+      },
+      "ShoppingListSellerGroupSchema.46f0cf6.ShoppingListSellerGroupTotalsSchema": {
+        "description": "Aggregated totals for a seller grouping.",
+        "properties": {
+          "needed": {
+            "description": "Total needed quantity for the group",
+            "example": 12,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "ordered": {
+            "description": "Total ordered quantity for the group",
+            "example": 8,
+            "title": "Ordered",
+            "type": "integer"
+          },
+          "received": {
+            "description": "Total received quantity for the group",
+            "example": 0,
+            "title": "Received",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "needed",
+          "ordered",
+          "received"
+        ],
+        "title": "ShoppingListSellerGroupTotalsSchema",
+        "type": "object"
+      },
+      "ShoppingListSellerGroupSchema.46f0cf6.ShoppingListSellerStatus": {
+        "description": "Possible states for a seller group within a shopping list.",
+        "enum": [
+          "active",
+          "ordered"
+        ],
+        "title": "ShoppingListSellerStatus",
+        "type": "string"
+      },
+      "ShoppingListSellerGroupUpdateSchema.57ff967": {
+        "description": "Request schema for updating a seller group's note and/or status.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated order note for the seller group",
+            "example": "Consolidate with next order batch.",
+            "title": "Note"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShoppingListSellerGroupUpdateSchema.57ff967.ShoppingListSellerStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Target status: 'ordered' to place order, 'active' to reopen",
+            "example": "ordered"
+          }
+        },
+        "title": "ShoppingListSellerGroupUpdateSchema",
+        "type": "object"
+      },
+      "ShoppingListSellerGroupUpdateSchema.57ff967.ShoppingListSellerStatus": {
+        "description": "Possible states for a seller group within a shopping list.",
+        "enum": [
+          "active",
+          "ordered"
+        ],
+        "title": "ShoppingListSellerStatus",
+        "type": "string"
       },
       "ShoppingListStatusUpdateSchema.46f0cf6": {
         "description": "Schema for updating the workflow status of a list.",
@@ -9706,7 +9634,7 @@
           "status": {
             "$ref": "#/components/schemas/ShoppingListStatusUpdateSchema.46f0cf6.ShoppingListStatus",
             "description": "New status for the shopping list",
-            "example": "ready"
+            "example": "done"
           }
         },
         "required": [
@@ -9718,8 +9646,7 @@
       "ShoppingListStatusUpdateSchema.46f0cf6.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
-          "concept",
-          "ready",
+          "active",
           "done"
         ],
         "title": "ShoppingListStatus",
@@ -13684,6 +13611,131 @@
         "tags": []
       }
     },
+    "/api/parts/{part_key}/seller-links": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_parts_{part_key}_seller-links",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartSellerCreateSchema.f085a8d"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartSellerLinkSchema.f085a8d"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Add a seller link to a part.",
+        "tags": []
+      }
+    },
+    "/api/parts/{part_key}/seller-links/{seller_link_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_parts_{part_key}_seller-links_{seller_link_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_link_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Remove a seller link from a part.",
+        "tags": []
+      }
+    },
     "/api/parts/{part_key}/shopping-list-memberships": {
       "get": {
         "description": "",
@@ -13790,7 +13842,7 @@
             "description": "Not Found"
           }
         },
-        "summary": "Add a part to a Concept shopping list and return the new membership.",
+        "summary": "Add a part to an Active shopping list and return the new membership.",
         "tags": []
       }
     },
@@ -14391,6 +14443,77 @@
         "tags": []
       }
     },
+    "/api/sellers/{seller_id}/logo": {
+      "delete": {
+        "description": "Sets logo_s3_key to None. No S3 deletion is performed (CAS blobs are shared).",
+        "operationId": "delete__api_sellers_{seller_id}_logo",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerResponseSchema.ceefe26"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Remove a seller's logo.",
+        "tags": []
+      },
+      "put": {
+        "description": "Accepts multipart/form-data with a 'file' field containing the image. The image is validated and stored via CAS (content-addressable storage).",
+        "operationId": "put__api_sellers_{seller_id}_logo",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Upload or replace a seller's logo image.",
+        "tags": []
+      }
+    },
     "/api/shopping-list-lines/{line_id}": {
       "delete": {
         "description": "",
@@ -14578,78 +14701,6 @@
         "tags": []
       }
     },
-    "/api/shopping-list-lines/{line_id}/order": {
-      "post": {
-        "description": "",
-        "operationId": "post__api_shopping-list-lines_{line_id}_order",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "line_id",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ShoppingListLineOrderSchema.d9ccce0"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ShoppingListLineResponseSchema.d9ccce0"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Conflict"
-          }
-        },
-        "summary": "Mark a single shopping list line as ordered.",
-        "tags": []
-      }
-    },
     "/api/shopping-list-lines/{line_id}/receive": {
       "post": {
         "description": "",
@@ -14722,78 +14773,6 @@
         "tags": []
       }
     },
-    "/api/shopping-list-lines/{line_id}/revert": {
-      "post": {
-        "description": "",
-        "operationId": "post__api_shopping-list-lines_{line_id}_revert",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "line_id",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ShoppingListLineStatusUpdateSchema.d9ccce0"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ShoppingListLineResponseSchema.d9ccce0"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Conflict"
-          }
-        },
-        "summary": "Revert an ordered line back to NEW status.",
-        "tags": []
-      }
-    },
     "/api/shopping-lists": {
       "get": {
         "description": "",
@@ -14835,8 +14814,7 @@
               "default": null,
               "description": "Filter by one or more shopping list statuses",
               "example": [
-                "concept",
-                "ready"
+                "active"
               ],
               "title": "Status"
             }
@@ -15256,10 +15234,10 @@
         "tags": []
       }
     },
-    "/api/shopping-lists/{list_id}/seller-groups/{group_ref}/order": {
+    "/api/shopping-lists/{list_id}/seller-groups": {
       "post": {
         "description": "",
-        "operationId": "post__api_shopping-lists_{list_id}_seller-groups_{group_ref}_order",
+        "operationId": "post__api_shopping-lists_{list_id}_seller-groups",
         "parameters": [
           {
             "description": "",
@@ -15270,37 +15248,28 @@
               "format": "int32",
               "type": "integer"
             }
-          },
-          {
-            "description": "",
-            "in": "path",
-            "name": "group_ref",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ShoppingListGroupOrderSchema.d9ccce0"
+                "$ref": "#/components/schemas/ShoppingListSellerGroupCreateSchema.57ff967"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ShoppingListLineResponseSchemaList.a9993e3"
+                  "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6"
                 }
               }
             },
-            "description": "OK"
+            "description": "Created"
           },
           "400": {
             "content": {
@@ -15333,14 +15302,137 @@
             "description": "Conflict"
           }
         },
-        "summary": "Mark all lines in a seller grouping as ordered.",
+        "summary": "Create a new seller group on a shopping list.",
         "tags": []
       }
     },
-    "/api/shopping-lists/{list_id}/seller-groups/{seller_id}/order-note": {
+    "/api/shopping-lists/{list_id}/seller-groups/{seller_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_shopping-lists_{list_id}_seller-groups_{seller_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Delete a seller group, resetting non-DONE lines to ungrouped.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__api_shopping-lists_{list_id}_seller-groups_{seller_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Fetch a seller group with its lines and totals.",
+        "tags": []
+      },
       "put": {
         "description": "",
-        "operationId": "put__api_shopping-lists_{list_id}_seller-groups_{seller_id}_order-note",
+        "operationId": "put__api_shopping-lists_{list_id}_seller-groups_{seller_id}",
         "parameters": [
           {
             "description": "",
@@ -15367,7 +15459,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ShoppingListSellerOrderNoteUpdateSchema.ceb40c1"
+                "$ref": "#/components/schemas/ShoppingListSellerGroupUpdateSchema.57ff967"
               }
             }
           },
@@ -15378,14 +15470,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ShoppingListSellerOrderNoteSchema.ceb40c1"
+                  "$ref": "#/components/schemas/ShoppingListSellerGroupSchema.46f0cf6"
                 }
               }
             },
             "description": "OK"
-          },
-          "204": {
-            "description": "No Content"
           },
           "400": {
             "content": {
@@ -15418,7 +15507,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Create, update, or delete a seller order note for a Ready view seller group.",
+        "summary": "Update a seller group's note and/or status.",
         "tags": []
       }
     },

@@ -5,7 +5,14 @@ import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
-import { useUpdateSellerOrderNoteMutation } from '@/hooks/use-shopping-lists';
+// TODO: Slice 8 – this entire file is dead code and will be deleted.
+// useUpdateSellerOrderNoteMutation was removed in Slice 1 (status simplification).
+// Stubbed to keep tsc happy until the ready/ directory is cleaned up.
+const useUpdateSellerOrderNoteMutation = () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  mutateAsync: async (_payload: { listId: number; sellerId: number; note: string }) => {},
+  isPending: false,
+});
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingListSellerGroup } from '@/types/shopping-lists';
 

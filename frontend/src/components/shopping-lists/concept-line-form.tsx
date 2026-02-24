@@ -23,6 +23,8 @@ interface ConceptLineFormProps {
   open: boolean;
   mode: ConceptLineFormMode;
   listId: number;
+  /** Pre-populate seller when adding from a seller column. */
+  defaultSellerId?: number;
   onClose: () => void;
   duplicateCheck: ShoppingListDuplicateCheck;
   duplicateNotice: { lineId: number; partKey: string } | null;
@@ -45,6 +47,7 @@ export function ConceptLineForm({
   open,
   mode,
   listId,
+  defaultSellerId,
   line,
   onClose,
   duplicateCheck,
@@ -80,10 +83,10 @@ export function ConceptLineForm({
       partKey: '',
       partId: null,
       needed: '1',
-      sellerId: undefined,
+      sellerId: defaultSellerId ?? undefined,
       note: '',
     };
-  }, [line, mode]);
+  }, [line, mode, defaultSellerId]);
 
   const form = useFormState<LineFormValues>({
     initialValues,
@@ -159,6 +162,7 @@ export function ConceptLineForm({
             partId: line.part.id,
             partKey: line.part.key,
             needed: parsedNeeded,
+            ordered: line.ordered ?? null,
             sellerId: values.sellerId ?? null,
             note: values.note.trim() || '',
           });

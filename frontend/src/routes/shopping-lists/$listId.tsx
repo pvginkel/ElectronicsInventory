@@ -1,34 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ConceptTable } from '@/components/shopping-lists/concept-table';
 import { ConceptLineForm } from '@/components/shopping-lists/concept-line-form';
-import { ConceptToolbar } from '@/components/shopping-lists/concept-toolbar';
-import { SellerGroupList } from '@/components/shopping-lists/ready/seller-group-list';
-import { OrderLineDialog } from '@/components/shopping-lists/ready/order-line-dialog';
-import { OrderGroupDialog } from '@/components/shopping-lists/ready/order-group-dialog';
 import { UpdateStockDialog } from '@/components/shopping-lists/ready/update-stock-dialog';
-import { ReadyToolbar } from '@/components/shopping-lists/ready/ready-toolbar';
+import { KanbanBoard } from '@/components/shopping-lists/kanban/kanban-board';
 import { useListArchiveConfirm, useListDeleteConfirm } from '@/components/shopping-lists/list-delete-confirm';
-import { useConfirm } from '@/hooks/use-confirm';
 import {
   useShoppingListDetail,
-  useSortedShoppingListLines,
   useUpdateShoppingListMutation,
-  useMarkShoppingListReadyMutation,
   useDeleteShoppingListLineMutation,
-  useOrderShoppingListLineMutation,
-  useRevertShoppingListLineMutation,
-  useOrderShoppingListGroupMutation,
-  useUpdateShoppingListStatusMutation,
   useReceiveShoppingListLineMutation,
   useCompleteShoppingListLineMutation,
+  useUpdateShoppingListLineMutation,
 } from '@/hooks/use-shopping-lists';
+import {
+  useCreateSellerGroupMutation,
+  useUpdateSellerGroupMutation,
+  useDeleteSellerGroupMutation,
+} from '@/hooks/use-seller-group-mutations';
 import { usePostShoppingListsLinesByListId } from '@/lib/api/generated/hooks';
 import type {
   ShoppingListConceptLine,
   ShoppingListLineSortKey,
-  ShoppingListSellerGroup,
   ShoppingListLineReceiveAllocationInput,
   ShoppingListOverviewSummary,
   ShoppingListKitLink,
@@ -36,7 +29,8 @@ import type {
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { trackFormSubmit, trackFormSuccess, trackFormError } from '@/lib/test/form-instrumentation';
-import { ConfirmDialog, type DialogContentProps } from '@/components/primitives/dialog';
+import { ConfirmDialog, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/primitives/dialog';
+import { Button } from '@/components/primitives/button';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { useShoppingListDetailHeaderSlots } from '@/components/shopping-lists/detail-header-slots';
 import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
@@ -63,18 +57,6 @@ export const Route = createFileRoute('/shopping-lists/$listId')({
   },
   component: ShoppingListDetailRoute,
 });
-
-interface OrderLineState {
-  open: boolean;
-  line: ShoppingListConceptLine | null;
-  trigger: HTMLElement | null;
-}
-
-interface OrderGroupState {
-  open: boolean;
-  group: ShoppingListSellerGroup | null;
-  trigger: HTMLElement | null;
-}
 
 interface UpdateStockState {
   open: boolean;
@@ -128,14 +110,12 @@ function ShoppingListDetailRoute() {
     isCompleted: detailIsCompleted,
   } = useShoppingListDetail(hasValidListId ? listId : undefined);
 
-  const sortedLines = useSortedShoppingListLines(lines, sortKey);
   const [lineFormOpen, setLineFormOpen] = useState(false);
   const [lineFormMode, setLineFormMode] = useState<'add' | 'edit'>('add');
+  const [lineFormDefaultSellerId, setLineFormDefaultSellerId] = useState<number | undefined>(undefined);
   const [selectedLine, setSelectedLine] = useState<ShoppingListConceptLine | undefined>(undefined);
   const [duplicateNotice, setDuplicateNotice] = useState<{ lineId: number; partKey: string } | null>(null);
   const [highlightedLineId, setHighlightedLineId] = useState<number | null>(null);
-  const [orderLineState, setOrderLineState] = useState<OrderLineState>({ open: false, line: null, trigger: null });
-  const [orderGroupState, setOrderGroupState] = useState<OrderGroupState>({ open: false, group: null, trigger: null });
   const [updateStockState, setUpdateStockState] = useState<UpdateStockState>({ open: false, lineId: null, trigger: null });
   // Look up the current line from query data so it stays fresh after saves
   const updateStockLine = updateStockState.lineId !== null
@@ -144,10 +124,17 @@ function ShoppingListDetailRoute() {
   const [pendingLineIds, setPendingLineIds] = useState<Set<number>>(new Set());
   const [linkToUnlink, setLinkToUnlink] = useState<ShoppingListKitLink | null>(null);
   const [unlinkingLinkId, setUnlinkingLinkId] = useState<number | null>(null);
+
+  // -- Order note editing state --
+  const [noteEditSellerId, setNoteEditSellerId] = useState<number | null>(null);
+  const [noteEditValue, setNoteEditValue] = useState('');
+  const [noteEditOpen, setNoteEditOpen] = useState(false);
+
+  // -- Delete seller group confirmation --
+  const [deleteGroupSellerId, setDeleteGroupSellerId] = useState<number | null>(null);
+
   const {
-    confirmArchive: confirmReadyArchive,
     dialog: markDoneDialog,
-    isArchiving: isMarkingDone,
   } = useListArchiveConfirm({ dialogTestId: 'shopping-lists.ready.archive-dialog' });
   const {
     confirmDelete: confirmListDelete,
@@ -158,21 +145,19 @@ function ShoppingListDetailRoute() {
     onDeleted: handleListDeleted,
   });
 
-  // Confirmation hook for Ready state line deletion
-  const { confirm: confirmDeleteLine, confirmProps: deleteLineConfirmProps } = useConfirm();
-
+  // -- Mutation hooks --
   const updateMetadataMutation = useUpdateShoppingListMutation(normalizedListId);
-  const markReadyMutation = useMarkShoppingListReadyMutation();
   const deleteLineMutation = useDeleteShoppingListLineMutation();
   const addLineMutation = usePostShoppingListsLinesByListId();
-  const orderLineMutation = useOrderShoppingListLineMutation();
-  const revertLineMutation = useRevertShoppingListLineMutation();
-  const orderGroupMutation = useOrderShoppingListGroupMutation();
-  const updateStatusMutation = useUpdateShoppingListStatusMutation();
   const receiveLineMutation = useReceiveShoppingListLineMutation();
   const completeLineMutation = useCompleteShoppingListLineMutation();
+  const updateLineMutation = useUpdateShoppingListLineMutation();
+  const createGroupMutation = useCreateSellerGroupMutation();
+  const updateGroupMutation = useUpdateSellerGroupMutation();
+  const deleteGroupMutation = useDeleteSellerGroupMutation();
   const unlinkMutation = useKitShoppingListUnlinkMutation();
 
+  // -- Highlight timer --
   useEffect(() => {
     if (highlightedLineId == null) {
       return;
@@ -192,8 +177,9 @@ function ShoppingListDetailRoute() {
     }
   }, [duplicateNotice, lines]);
 
+  // -- Instrumentation --
   useListLoadingInstrumentation({
-    scope: 'shoppingLists.list',
+    scope: 'shoppingLists.kanban',
     isLoading,
     isFetching,
     error,
@@ -208,31 +194,17 @@ function ShoppingListDetailRoute() {
     }),
   });
 
-  const handleSortChange = useCallback((nextSort: ShoppingListLineSortKey) => {
-    if (nextSort === sortKey) return;
-    navigate({
-      to: Route.fullPath,
-      params: { listId: params.listId },
-      search: { sort: nextSort, originSearch: search.originSearch ?? undefined },
-      replace: true,
-    });
-  }, [navigate, params.listId, search.originSearch, sortKey]);
-
-  const handleOpenCreateLine = useCallback(() => {
+  // -- Line form handlers --
+  const handleOpenCreateLine = useCallback((sellerId?: number | null) => {
     setLineFormMode('add');
     setSelectedLine(undefined);
     setDuplicateNotice(null);
     setHighlightedLineId(null);
+    setLineFormDefaultSellerId(sellerId ?? undefined);
     setLineFormOpen(true);
   }, []);
 
-  const handleEditLine = useCallback((line: ShoppingListConceptLine) => {
-    setLineFormMode('edit');
-    setSelectedLine(line);
-    setLineFormOpen(true);
-  }, []);
-
-  // Undo handler for line deletion - accepts lineId to retrieve specific snapshot
+  // -- Undo handler for line deletion --
   const handleUndoDeleteLine = useCallback((lineId: number) => {
     return () => {
       if (undoInFlightRef.current) {
@@ -270,8 +242,7 @@ function ShoppingListDetailRoute() {
             listId: snapshot.listId,
             partKey: snapshot.partKey,
           });
-          showSuccess('Restored line to Concept list');
-          // Invalidate query to refetch the list
+          showSuccess('Restored line to shopping list');
           void queryClient.invalidateQueries({
             queryKey: ['getShoppingListById', { path: { list_id: snapshot.listId } }],
           });
@@ -290,8 +261,8 @@ function ShoppingListDetailRoute() {
     };
   }, [addLineMutation, queryClient, showException, showSuccess]);
 
+  // -- Delete line handler (from Kanban card trash icon) --
   const handleDeleteLine = useCallback(async (line: ShoppingListConceptLine) => {
-    // Capture snapshot before deletion for undo - store in Map for concurrent deletion support
     const snapshot: DeletedLineSnapshot = {
       lineId: line.id,
       listId: line.shoppingListId,
@@ -322,7 +293,7 @@ function ShoppingListDetailRoute() {
         partKey: line.part.key,
       });
 
-      showSuccess('Removed part from Concept list', {
+      showSuccess('Removed part from shopping list', {
         action: {
           id: 'undo',
           label: 'Undo',
@@ -331,7 +302,6 @@ function ShoppingListDetailRoute() {
         },
       });
     } catch (err) {
-      // Remove snapshot if deletion fails
       deletedLineSnapshotsRef.current.delete(line.id);
       trackFormError('ShoppingListLine:delete', {
         lineId: line.id,
@@ -342,6 +312,14 @@ function ShoppingListDetailRoute() {
       showException(message, err);
     }
   }, [deleteLineMutation, handleUndoDeleteLine, showException, showSuccess]);
+
+  // Kanban board wrapper: accepts lineId, looks up the full line for handleDeleteLine
+  const handleDeleteLineById = useCallback((lineId: number) => {
+    const line = lines.find((l) => l.id === lineId);
+    if (line) {
+      void handleDeleteLine(line);
+    }
+  }, [handleDeleteLine, lines]);
 
   const handleDuplicateDetected = useCallback((existingLine: ShoppingListConceptLine, partKey: string) => {
     setDuplicateNotice({ lineId: existingLine.id, partKey });
@@ -364,29 +342,14 @@ function ShoppingListDetailRoute() {
     }
   }, [showException, showSuccess, updateMetadataMutation]);
 
-  const handleMarkReady = useCallback(async () => {
-    if (!shoppingList || shoppingList.status !== 'concept') {
-      return;
-    }
-    try {
-      await markReadyMutation.mutateAsync({ listId: normalizedListId });
-      showSuccess('List marked Ready. Seller planning view is now available.');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to mark list Ready';
-      showException(message, err);
-      throw err;
-    }
-  }, [markReadyMutation, normalizedListId, shoppingList, showException, showSuccess]);
-
   const handleDeleteList = useCallback(() => {
     if (!shoppingList) {
       return;
     }
-
     void confirmListDelete(shoppingList);
   }, [confirmListDelete, shoppingList]);
 
-  // Track line-level mutations so Ready rows can disable actions while in flight.
+  // Track line-level mutations so cards can disable actions while in flight.
   const updatePendingLine = useCallback((lineId: number, isPending: boolean) => {
     setPendingLineIds(prev => {
       const next = new Set(prev);
@@ -399,161 +362,10 @@ function ShoppingListDetailRoute() {
     });
   }, []);
 
-  // Handler for Ready state line deletion (with confirmation, no undo)
-  const handleDeleteReadyLine = useCallback(async (line: ShoppingListConceptLine) => {
-    if (detailIsCompleted) {
-      return;
-    }
-
-    const confirmed = await confirmDeleteLine({
-      title: 'Delete shopping list line?',
-      description: 'Are you sure you want to delete this line from the shopping list? This action cannot be undone.',
-      confirmText: 'Delete',
-      destructive: true,
-    });
-
-    if (!confirmed) {
-      return;
-    }
-
-    updatePendingLine(line.id, true);
-
-    trackFormSubmit('ShoppingListLine:delete', {
-      lineId: line.id,
-      listId: line.shoppingListId,
-      partKey: line.part.key,
-    });
-
-    try {
-      await deleteLineMutation.mutateAsync({
-        lineId: line.id,
-        listId: line.shoppingListId,
-        partKey: line.part.key,
-      });
-
-      trackFormSuccess('ShoppingListLine:delete', {
-        lineId: line.id,
-        listId: line.shoppingListId,
-        partKey: line.part.key,
-      });
-
-      showSuccess('Removed part from shopping list');
-    } catch (err) {
-      trackFormError('ShoppingListLine:delete', {
-        lineId: line.id,
-        listId: line.shoppingListId,
-        partKey: line.part.key,
-      });
-      const message = err instanceof Error ? err.message : 'Failed to delete line';
-      showException(message, err);
-    } finally {
-      updatePendingLine(line.id, false);
-    }
-  }, [confirmDeleteLine, deleteLineMutation, detailIsCompleted, showException, showSuccess, updatePendingLine]);
-
-  const handleOpenOrderLineDialog = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
-    if (detailIsCompleted) {
-      return;
-    }
-    setOrderLineState({ open: true, line, trigger: trigger ?? null });
-  }, [detailIsCompleted]);
-
-  const handleCloseOrderLineDialog = useCallback(() => {
-    setOrderLineState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+  // -- UpdateStock dialog handlers --
+  const handleOpenReceive = useCallback((lineId: number) => {
+    setUpdateStockState({ open: true, lineId, trigger: null });
   }, []);
-
-  const handleConfirmLineOrder = useCallback(async (quantity: number) => {
-    if (detailIsCompleted) {
-      return;
-    }
-    const target = orderLineState.line;
-    if (!target) {
-      return;
-    }
-    updatePendingLine(target.id, true);
-    try {
-      await orderLineMutation.mutateAsync({
-        listId: target.shoppingListId,
-        lineId: target.id,
-        orderedQuantity: quantity,
-      });
-      if (quantity > 0) {
-        showSuccess(`Marked ${target.part.description} Ordered`);
-      } else {
-        showSuccess(`Cleared ordered quantity for ${target.part.description}`);
-      }
-      setHighlightedLineId(target.id);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update ordered quantity';
-      showException(message, err);
-      throw err;
-    } finally {
-      updatePendingLine(target.id, false);
-    }
-  }, [detailIsCompleted, orderLineMutation, orderLineState.line, showException, showSuccess, updatePendingLine]);
-
-  const handleRevertLine = useCallback(async (line: ShoppingListConceptLine) => {
-    if (detailIsCompleted) {
-      return;
-    }
-    updatePendingLine(line.id, true);
-    try {
-      await revertLineMutation.mutateAsync({
-        listId: line.shoppingListId,
-        lineId: line.id,
-      });
-      showSuccess(`Reverted ${line.part.description} to New`);
-      setHighlightedLineId(line.id);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to revert line';
-      showException(message, err);
-    } finally {
-      updatePendingLine(line.id, false);
-    }
-  }, [detailIsCompleted, revertLineMutation, showException, showSuccess, updatePendingLine]);
-
-  const handleOpenOrderGroupDialog = useCallback((group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => {
-    if (detailIsCompleted) {
-      return;
-    }
-    setOrderGroupState({ open: true, group, trigger: trigger ?? null });
-  }, [detailIsCompleted]);
-
-  const handleCloseOrderGroupDialog = useCallback(() => {
-    setOrderGroupState(prev => ({ open: false, group: null, trigger: prev.trigger }));
-  }, []);
-
-  const handleConfirmGroupOrder = useCallback(async (orderedLines: Array<{ lineId: number; orderedQuantity: number }>) => {
-    if (detailIsCompleted) {
-      return;
-    }
-    const targetGroup = orderGroupState.group;
-    if (!targetGroup) {
-      return;
-    }
-    const pendingIds = orderedLines.map(item => item.lineId);
-    pendingIds.forEach(id => updatePendingLine(id, true));
-    try {
-      await orderGroupMutation.mutateAsync({
-        listId: normalizedListId,
-        groupKey: targetGroup.groupKey,
-        lines: orderedLines.map(item => ({
-          lineId: item.lineId,
-          orderedQuantity: item.orderedQuantity,
-        })),
-      });
-      showSuccess(`Marked ${orderedLines.length} lines Ordered for ${targetGroup.sellerName}`);
-      if (orderedLines.length > 0) {
-        setHighlightedLineId(orderedLines[0].lineId);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to order group';
-      showException(message, err);
-      throw err;
-    } finally {
-      pendingIds.forEach(id => updatePendingLine(id, false));
-    }
-  }, [detailIsCompleted, normalizedListId, orderGroupMutation, orderGroupState.group, showException, showSuccess, updatePendingLine]);
 
   const handleCloseUpdateStock = useCallback(() => {
     setUpdateStockState(prev => ({ open: false, lineId: null, trigger: prev.trigger }));
@@ -585,9 +397,6 @@ function ShoppingListDetailRoute() {
       showSuccess(`Received ${payload.receiveQuantity} for ${target.part.description}`);
       setHighlightedLineId(target.id);
 
-      // Note: If mode is 'complete' or 'complete-retry', the dialog will handle
-      // calling onMarkDone after this succeeds. We only close the dialog here
-      // if mode is 'save' (save-only without completion).
       if (payload.mode === 'save') {
         setUpdateStockState(prev => ({ open: false, lineId: null, trigger: prev.trigger }));
       }
@@ -631,34 +440,272 @@ function ShoppingListDetailRoute() {
     }
   }, [completeLineMutation, detailIsCompleted, showException, showSuccess, updatePendingLine, updateStockLine]);
 
-  const handleBackToConcept = useCallback(async () => {
-    if (!shoppingList || detailIsCompleted) {
-      return;
-    }
+  // =====================================================================
+  // Kanban Board mutation callbacks
+  // =====================================================================
+
+  // -- Inline field save (needed, ordered, note) --
+  const handleFieldSave = useCallback(async (
+    lineId: number,
+    field: 'needed' | 'ordered' | 'note',
+    value: string | number,
+  ) => {
+    const line = lines.find((l) => l.id === lineId);
+    if (!line) return;
+
+    updatePendingLine(lineId, true);
     try {
-      await updateStatusMutation.mutateAsync({ listId: shoppingList.id, status: 'concept' });
-      showSuccess('Returned list to Concept');
+      const payload = {
+        listId: normalizedListId,
+        lineId: line.id,
+        partId: line.part.id,
+        partKey: line.part.key,
+        needed: field === 'needed' ? Number(value) : line.needed,
+        ordered: field === 'ordered' ? Number(value) : (line.ordered ?? null),
+        sellerId: line.seller?.id ?? null,
+        note: field === 'note' ? String(value) : (line.note ?? ''),
+      };
+      await updateLineMutation.mutateAsync(payload);
+      setHighlightedLineId(lineId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to return list to Concept';
+      const message = err instanceof Error ? err.message : `Failed to update ${field}`;
       showException(message, err);
       throw err;
+    } finally {
+      updatePendingLine(lineId, false);
     }
-  }, [detailIsCompleted, shoppingList, showException, showSuccess, updateStatusMutation]);
+  }, [lines, normalizedListId, showException, updateLineMutation, updatePendingLine]);
 
-  const handleMarkListDone = useCallback(async () => {
-    if (!shoppingList || detailIsCompleted) {
-      return;
-    }
-    await confirmReadyArchive(shoppingList);
-  }, [confirmReadyArchive, detailIsCompleted, shoppingList]);
+  // -- DnD move line (change seller) --
+  const handleMoveLine = useCallback(async (
+    lineId: number,
+    toSellerId: number | null,
+    clearOrdered: boolean,
+  ) => {
+    const line = lines.find((l) => l.id === lineId);
+    if (!line) return;
 
-  const handleOpenUpdateStock = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
-    if (detailIsCompleted) {
-      return;
+    updatePendingLine(lineId, true);
+    try {
+      const payload = {
+        listId: normalizedListId,
+        lineId: line.id,
+        partId: line.part.id,
+        partKey: line.part.key,
+        needed: line.needed,
+        ordered: clearOrdered ? 0 : (line.ordered ?? null),
+        sellerId: toSellerId,
+        note: line.note ?? '',
+      };
+      await updateLineMutation.mutateAsync(payload);
+      setHighlightedLineId(lineId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to move line';
+      showException(message, err);
+      throw err;
+    } finally {
+      updatePendingLine(lineId, false);
     }
-    setUpdateStockState({ open: true, lineId: line.id, trigger: trigger ?? null });
-    setHighlightedLineId(line.id);
-  }, [detailIsCompleted]);
+  }, [lines, normalizedListId, showException, updateLineMutation, updatePendingLine]);
+
+  // -- Complete seller group (set status to "ordered") --
+  const handleCompleteGroup = useCallback((sellerId: number) => {
+    emitUiState({
+      kind: 'ui_state',
+      scope: 'kanban.column.complete',
+      phase: 'submit',
+      metadata: { sellerId, action: 'order' },
+    });
+
+    void updateGroupMutation.mutateAsync({
+      listId: normalizedListId,
+      sellerId,
+      status: 'ordered',
+    }).then(() => {
+      emitUiState({
+        kind: 'ui_state',
+        scope: 'kanban.column.complete',
+        phase: 'success',
+        metadata: { sellerId, action: 'order' },
+      });
+      showSuccess('Seller group marked as ordered');
+    }).catch((err) => {
+      emitUiState({
+        kind: 'ui_state',
+        scope: 'kanban.column.complete',
+        phase: 'error',
+        metadata: { sellerId, action: 'order' },
+      });
+      const message = err instanceof Error ? err.message : 'Failed to complete seller group';
+      showException(message, err);
+    });
+  }, [normalizedListId, showException, showSuccess, updateGroupMutation]);
+
+  // -- Reopen seller group (set status to "active") --
+  const handleReopenGroup = useCallback((sellerId: number) => {
+    emitUiState({
+      kind: 'ui_state',
+      scope: 'kanban.column.complete',
+      phase: 'submit',
+      metadata: { sellerId, action: 'reopen' },
+    });
+
+    void updateGroupMutation.mutateAsync({
+      listId: normalizedListId,
+      sellerId,
+      status: 'active',
+    }).then(() => {
+      emitUiState({
+        kind: 'ui_state',
+        scope: 'kanban.column.complete',
+        phase: 'success',
+        metadata: { sellerId, action: 'reopen' },
+      });
+      showSuccess('Seller group reopened');
+    }).catch((err) => {
+      emitUiState({
+        kind: 'ui_state',
+        scope: 'kanban.column.complete',
+        phase: 'error',
+        metadata: { sellerId, action: 'reopen' },
+      });
+      const message = err instanceof Error ? err.message : 'Failed to reopen seller group';
+      showException(message, err);
+    });
+  }, [normalizedListId, showException, showSuccess, updateGroupMutation]);
+
+  // -- Delete seller group (after confirmation) --
+  const handleRequestDeleteGroup = useCallback((sellerId: number) => {
+    setDeleteGroupSellerId(sellerId);
+  }, []);
+
+  const handleConfirmDeleteGroup = useCallback(() => {
+    if (deleteGroupSellerId === null) return;
+    const sellerId = deleteGroupSellerId;
+    setDeleteGroupSellerId(null);
+
+    void deleteGroupMutation.mutateAsync({
+      listId: normalizedListId,
+      sellerId,
+    }).then(() => {
+      showSuccess('Seller column removed');
+    }).catch((err) => {
+      const message = err instanceof Error ? err.message : 'Failed to remove seller column';
+      showException(message, err);
+    });
+  }, [deleteGroupSellerId, deleteGroupMutation, normalizedListId, showException, showSuccess]);
+
+  // -- Assign remaining unassigned lines to a seller --
+  const handleAssignRemaining = useCallback(async (sellerId: number) => {
+    const unassignedGroup = sellerGroups.find((g) => g.sellerId === null);
+    const unassignedLines = unassignedGroup?.lines ?? [];
+
+    if (unassignedLines.length === 0) return;
+
+    emitUiState({
+      kind: 'ui_state',
+      scope: 'kanban.assignRemaining',
+      phase: 'submit',
+      metadata: { sellerId, lineCount: unassignedLines.length },
+    });
+
+    let failed = false;
+    for (const line of unassignedLines) {
+      try {
+        await updateLineMutation.mutateAsync({
+          listId: normalizedListId,
+          lineId: line.id,
+          partId: line.part.id,
+          partKey: line.part.key,
+          needed: line.needed,
+          ordered: line.ordered ?? null,
+          sellerId,
+          note: line.note ?? '',
+        });
+      } catch (err) {
+        failed = true;
+        const message = err instanceof Error ? err.message : 'Failed to assign line';
+        showException(message, err);
+        emitUiState({
+          kind: 'ui_state',
+          scope: 'kanban.assignRemaining',
+          phase: 'error',
+          metadata: { sellerId, lineCount: unassignedLines.length },
+        });
+        break;
+      }
+    }
+
+    if (!failed) {
+      emitUiState({
+        kind: 'ui_state',
+        scope: 'kanban.assignRemaining',
+        phase: 'success',
+        metadata: { sellerId, lineCount: unassignedLines.length },
+      });
+      showSuccess(`Assigned ${unassignedLines.length} line(s) to seller`);
+    }
+  }, [normalizedListId, sellerGroups, showException, showSuccess, updateLineMutation]);
+
+  // -- Edit order note for a seller group --
+  const handleEditNote = useCallback((sellerId: number) => {
+    const group = sellerGroups.find((g) => g.sellerId === sellerId);
+    setNoteEditSellerId(sellerId);
+    setNoteEditValue(group?.orderNote ?? '');
+    setNoteEditOpen(true);
+  }, [sellerGroups]);
+
+  const handleSaveNote = useCallback(async () => {
+    if (noteEditSellerId === null) return;
+    try {
+      await updateGroupMutation.mutateAsync({
+        listId: normalizedListId,
+        sellerId: noteEditSellerId,
+        note: noteEditValue.trim() || null,
+      });
+      showSuccess('Order note updated');
+      setNoteEditOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update order note';
+      showException(message, err);
+    }
+  }, [noteEditSellerId, noteEditValue, normalizedListId, showException, showSuccess, updateGroupMutation]);
+
+  // -- Create seller group (from skeleton column) --
+  const handleCreateGroup = useCallback((sellerId: number) => {
+    emitUiState({
+      kind: 'ui_state',
+      scope: 'kanban.column.create',
+      phase: 'submit',
+      metadata: { sellerId },
+    });
+
+    void createGroupMutation.mutateAsync({
+      listId: normalizedListId,
+      sellerId,
+    }).then(() => {
+      emitUiState({
+        kind: 'ui_state',
+        scope: 'kanban.column.create',
+        phase: 'success',
+        metadata: { sellerId },
+      });
+      showSuccess('Seller column added');
+    }).catch((err) => {
+      emitUiState({
+        kind: 'ui_state',
+        scope: 'kanban.column.create',
+        phase: 'error',
+        metadata: { sellerId },
+      });
+      const message = err instanceof Error ? err.message : 'Failed to create seller column';
+      showException(message, err);
+    });
+  }, [createGroupMutation, normalizedListId, showException, showSuccess]);
+
+  // =====================================================================
+  // Kit unlink flow (unchanged from before)
+  // =====================================================================
 
   const emitUnlinkFlowEvent = useCallback(
     (phase: KitUnlinkFlowPhase, link: ShoppingListKitLink, overrides?: Record<string, unknown>) => {
@@ -707,7 +754,6 @@ function ShoppingListDetailRoute() {
     unlinkingLinkId,
   });
 
-  // handleConfirmUnlink must come after the hook call because it uses kitsQuery.refetch()
   const handleConfirmUnlink = useCallback(() => {
     if (!shoppingList || !linkToUnlink || unlinkMutation.isPending) {
       return;
@@ -748,12 +794,10 @@ function ShoppingListDetailRoute() {
       });
   }, [shoppingList, linkToUnlink, emitUnlinkFlowEvent, unlinkMutation, showSuccess, showWarning, showException, kitsQuery]);
 
-  const listLoaded = shoppingList != null;
-  const status = shoppingList?.status ?? 'concept';
+  const status = shoppingList?.status ?? 'active';
   const isCompleted = detailIsCompleted || status === 'done';
-  const isReadyView = status === 'ready' || isCompleted;
-  const canReturnToConcept = Boolean(shoppingList?.canReturnToConcept && !isCompleted);
-  const canMarkListDone = Boolean(shoppingList && !isCompleted && status !== 'concept');
+
+  // sellerGroups is destructured from useShoppingListDetail above
 
   if (!hasValidListId) {
     return (
@@ -764,72 +808,32 @@ function ShoppingListDetailRoute() {
     );
   }
 
-  const conceptLineCount = shoppingList?.lines.length ?? sortedLines.length;
-
-  const conceptToolbar = status === 'concept' && listLoaded ? (
-    <ConceptToolbar
-      lineCount={conceptLineCount}
-      canMarkReady={conceptLineCount > 0}
-      isSubmitting={markReadyMutation.isPending}
-      onMarkReady={handleMarkReady}
-    />
-  ) : null;
-
-  const readyToolbarNode = isReadyView && listLoaded ? (
-    <ReadyToolbar
-      canReturnToConcept={canReturnToConcept}
-      onBackToConcept={handleBackToConcept}
-      isUpdatingBackToConcept={updateStatusMutation.isPending}
-      canMarkDone={canMarkListDone}
-      onMarkDone={handleMarkListDone}
-      isMarkingDone={isMarkingDone}
-      isCompleted={isCompleted}
-    />
-  ) : null;
-
-  const toolbarNode = status === 'concept' ? conceptToolbar : readyToolbarNode;
-
-  const conceptContent = (
-    <div className="space-y-6" data-testid="shopping-lists.concept.content">
+  // Kanban board content
+  const contentNode = (
+    <div className="flex flex-col flex-1 min-h-0" data-testid="shopping-lists.kanban.content">
       {detailHeaderSlots.linkChips}
-      <ConceptTable
-        lines={sortedLines}
-        sortKey={sortKey}
-        onSortChange={handleSortChange}
-        onEditLine={handleEditLine}
-        onDeleteLine={handleDeleteLine}
-        onCreateLine={handleOpenCreateLine}
-        isMutating={lineFormOpen}
-        duplicateNotice={duplicateNotice}
-        onDismissDuplicateNotice={handleDismissDuplicate}
-        highlightedLineId={highlightedLineId}
-      />
-    </div>
-  );
-
-  const readyContent = (
-    <div className="space-y-6" data-testid="shopping-lists.ready.content">
-      {detailHeaderSlots.linkChips}
-      <SellerGroupList
-        listId={shoppingList?.id ?? normalizedListId}
+      <KanbanBoard
         groups={sellerGroups}
-        onOpenOrderLine={handleOpenOrderLineDialog}
-        onOpenOrderGroup={handleOpenOrderGroupDialog}
-        onRevertLine={handleRevertLine}
-        onEditLine={handleEditLine}
-        onDeleteLine={isCompleted ? undefined : handleDeleteReadyLine}
-        onUpdateStock={handleOpenUpdateStock}
+        listId={normalizedListId}
+        isCompleted={isCompleted}
         pendingLineIds={pendingLineIds}
         highlightedLineId={highlightedLineId}
-        isCompleted={isCompleted}
+        isCreatingGroup={createGroupMutation.isPending}
+        onFieldSave={handleFieldSave}
+        onDeleteLine={handleDeleteLineById}
+        onReceiveLine={handleOpenReceive}
+        onAddPart={(sellerId) => handleOpenCreateLine(sellerId)}
+        onMoveLine={handleMoveLine}
+        onCompleteGroup={handleCompleteGroup}
+        onReopenGroup={handleReopenGroup}
+        onDeleteGroup={handleRequestDeleteGroup}
+        onAssignRemaining={handleAssignRemaining}
+        onEditNote={handleEditNote}
+        onCreateGroup={handleCreateGroup}
       />
     </div>
   );
-
-  const contentNode = status === 'concept' ? conceptContent : readyContent;
-  const contentTestId = status === 'concept'
-    ? 'shopping-lists.detail.content.concept'
-    : 'shopping-lists.detail.content.ready';
+  const contentTestId = 'shopping-lists.detail.content';
 
   return (
     <>
@@ -845,7 +849,6 @@ function ShoppingListDetailRoute() {
         supplementary={detailHeaderSlots.supplementary}
         metadataRow={detailHeaderSlots.metadataRow}
         actions={detailHeaderSlots.actions}
-        toolbar={toolbarNode ?? undefined}
       >
         {contentNode}
       </DetailScreenLayout>
@@ -856,40 +859,19 @@ function ShoppingListDetailRoute() {
         open={lineFormOpen}
         mode={lineFormMode}
         listId={normalizedListId}
+        defaultSellerId={lineFormMode === 'add' ? lineFormDefaultSellerId : undefined}
         line={lineFormMode === 'edit' ? selectedLine : undefined}
         onClose={() => {
           setLineFormOpen(false);
           setSelectedLine(undefined);
           setLineFormMode('add');
+          setLineFormDefaultSellerId(undefined);
         }}
         duplicateCheck={duplicateCheck}
         duplicateNotice={duplicateNotice}
         onDuplicateDetected={handleDuplicateDetected}
         onDismissDuplicateNotice={handleDismissDuplicate}
       />
-
-      {!isCompleted && (
-        <OrderLineDialog
-          open={orderLineState.open}
-          line={orderLineState.line}
-          onClose={handleCloseOrderLineDialog}
-          onSubmit={handleConfirmLineOrder}
-          isSubmitting={orderLineMutation.isPending}
-          restoreFocusElement={orderLineState.trigger ?? undefined}
-        />
-      )}
-
-      {!isCompleted && (
-        <OrderGroupDialog
-          open={orderGroupState.open}
-          listId={shoppingList?.id ?? normalizedListId}
-          group={orderGroupState.group}
-          onClose={handleCloseOrderGroupDialog}
-          onSubmit={handleConfirmGroupOrder}
-          isSubmitting={orderGroupMutation.isPending}
-          restoreFocusElement={orderGroupState.trigger ?? undefined}
-        />
-      )}
 
       {!isCompleted && (
         <UpdateStockDialog
@@ -902,6 +884,43 @@ function ShoppingListDetailRoute() {
           isCompleting={completeLineMutation.isPending}
           restoreFocusElement={updateStockState.trigger ?? undefined}
         />
+      )}
+
+      {/* Delete seller group confirmation */}
+      <ConfirmDialog
+        open={deleteGroupSellerId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteGroupSellerId(null); }}
+        title="Remove seller column?"
+        description="Non-completed items will be moved to Unassigned."
+        confirmText="Remove seller"
+        destructive
+        onConfirm={handleConfirmDeleteGroup}
+        contentProps={{ 'data-testid': 'shopping-lists.kanban.delete-group-dialog' } as DialogContentProps}
+      />
+
+      {/* Order note edit dialog */}
+      {noteEditOpen && (
+        <Dialog open={noteEditOpen} onOpenChange={(open) => { if (!open) setNoteEditOpen(false); }}>
+          <DialogContent
+            data-testid="shopping-lists.kanban.order-note-dialog"
+          >
+            <DialogHeader>
+              <DialogTitle>Edit order note</DialogTitle>
+            </DialogHeader>
+            <textarea
+              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+              value={noteEditValue}
+              onChange={(e) => setNoteEditValue(e.target.value)}
+              placeholder="Add a note for this seller order..."
+              maxLength={500}
+              data-testid="shopping-lists.kanban.order-note-input"
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNoteEditOpen(false)}>Cancel</Button>
+              <Button onClick={() => void handleSaveNote()}>Save note</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {deleteListDialog}
@@ -918,10 +937,6 @@ function ShoppingListDetailRoute() {
           contentProps={{ 'data-testid': 'shopping-lists.detail.kit-unlink.dialog' } as DialogContentProps}
         />
       ) : null}
-      <ConfirmDialog
-        {...deleteLineConfirmProps}
-        contentProps={{ 'data-testid': 'shopping-lists.ready.delete-line-dialog' } as DialogContentProps}
-      />
     </>
   );
 }

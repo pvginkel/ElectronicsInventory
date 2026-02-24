@@ -11,10 +11,8 @@ const DEFAULT_SHOPPING_LIST_SEARCH = {
 // Guidepost: Map shopping list status to badge props
 function getShoppingListBadgeProps(status: ShoppingListStatus): { label: string; color: 'inactive' | 'active' } {
   switch (status) {
-    case 'concept':
-      return { label: 'Concept', color: 'inactive' };
-    case 'ready':
-      return { label: 'Ready', color: 'active' };
+    case 'active':
+      return { label: 'Active', color: 'active' };
     case 'done':
       return { label: 'Completed', color: 'inactive' };
   }

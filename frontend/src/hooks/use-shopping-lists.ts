@@ -10,40 +10,28 @@ import {
   usePutShoppingListLinesByLineId,
   useDeleteShoppingListLinesByLineId,
   usePutShoppingListsStatusByListId,
-  usePostShoppingListLinesOrderByLineId,
   usePostShoppingListLinesReceiveByLineId,
   usePostShoppingListLinesCompleteByLineId,
-  usePostShoppingListLinesRevertByLineId,
-  usePostShoppingListsSellerGroupsOrderByListIdAndGroupRef,
-  usePutShoppingListsSellerGroupsOrderNoteByListIdAndSellerId,
   type ShoppingListListSchemaList_a9993e3_ShoppingListListSchema,
   type ShoppingListListSchemaList_a9993e3_ShoppingListLineCountsSchema,
-  type ShoppingListListSchemaList_a9993e3_ShoppingListSellerOrderNoteSchema,
   type ShoppingListResponseSchema_46f0cf6,
   type ShoppingListResponseSchema_46f0cf6_ShoppingListLineCountsSchema,
   type ShoppingListResponseSchema_46f0cf6_ShoppingListLineResponseSchema,
   type ShoppingListResponseSchema_46f0cf6_ShoppingListSellerGroupSchema,
   type ShoppingListResponseSchema_46f0cf6_ShoppingListSellerGroupTotalsSchema,
-  type ShoppingListResponseSchema_46f0cf6_ShoppingListSellerOrderNoteSchema,
   type ShoppingListResponseSchema_46f0cf6_SellerListSchema,
   type ShoppingListCreateSchema_46f0cf6,
   type ShoppingListUpdateSchema_46f0cf6,
   type ShoppingListLineUpdateSchema_d9ccce0,
   type ShoppingListLineResponseSchema_d9ccce0,
-  type ShoppingListLineStatusUpdateSchema_d9ccce0,
   type ShoppingListLineReceiveSchema_d9ccce0,
   type ShoppingListLineReceiveSchema_d9ccce0_ShoppingListLineReceiveAllocationSchema,
   type ShoppingListLineCompleteSchema_d9ccce0,
   type ShoppingListStatusUpdateSchema_46f0cf6,
   type PartShoppingListMembershipCreateSchema_d085feb,
   type PostPartsShoppingListMembershipsByPartKeyParameters,
-  type PutShoppingListsSellerGroupsOrderNoteByListIdAndSellerIdParameters,
-  type PostShoppingListsSellerGroupsOrderByListIdAndGroupRefParameters,
-  type PostShoppingListLinesOrderByLineIdParameters,
   type PostShoppingListLinesReceiveByLineIdParameters,
   type PostShoppingListLinesCompleteByLineIdParameters,
-  type PostShoppingListLinesRevertByLineIdParameters,
-  type ShoppingListSellerOrderNoteSchema_ceb40c1,
 } from '@/lib/api/generated/hooks';
 import {
   type ShoppingListConceptLine,
@@ -60,10 +48,6 @@ import {
   type ShoppingListLineSortOption,
   type ShoppingListLineUpdateInput,
   type ShoppingListLineSnapshot,
-  type ShoppingListLineOrderInput,
-  type ShoppingListGroupOrderInput,
-  type ShoppingListGroupOrderLineInput,
-  type ShoppingListMarkReadyInput,
   type ShoppingListOption,
   type ShoppingListOverviewSummary,
   type ShoppingListOverviewCounters,
@@ -71,8 +55,6 @@ import {
   type ShoppingListSellerGroupTotals,
   type ShoppingListSellerGroupVisibility,
   type ShoppingListSellerGroupInstrumentation,
-  type ShoppingListSellerOrderNote,
-  type ShoppingListSellerOrderNoteInput,
   type ShoppingListStatus,
   type ShoppingListStatusUpdateInput,
   type ShoppingListUpdateInput,
@@ -129,21 +111,6 @@ function totalLines(counts: ShoppingListLineCounts): number {
   return counts.new + counts.ordered + counts.done;
 }
 
-function primarySellerFromNotes(
-  notes?: ShoppingListListSchemaList_a9993e3_ShoppingListSellerOrderNoteSchema[] | ShoppingListResponseSchema_46f0cf6_ShoppingListSellerOrderNoteSchema[]
-): string | null {
-  if (!notes?.length) {
-    return null;
-  }
-  for (const note of notes) {
-    const sellerName = note?.seller?.name;
-    if (sellerName && sellerName.trim()) {
-      return sellerName;
-    }
-  }
-  return null;
-}
-
 function mapSeller(seller: ShoppingListResponseSchema_46f0cf6_SellerListSchema | null): ShoppingListConceptLine['seller'] {
   if (!seller) {
     return null;
@@ -152,6 +119,7 @@ function mapSeller(seller: ShoppingListResponseSchema_46f0cf6_SellerListSchema |
     id: seller.id,
     name: seller.name,
     website: seller.website ?? null,
+    logoUrl: seller.logo_url ?? null,
   };
 }
 
@@ -190,8 +158,8 @@ function mapConceptLine(line: AnyShoppingListLineResponse): ShoppingListConceptL
     createdAt: line.created_at,
     updatedAt: line.updated_at,
     canReceive: line.can_receive,
-    isOrderable: line.is_orderable,
-    isRevertible: line.is_revertible,
+    isOrderable: false,
+    isRevertible: false,
     hasQuantityMismatch: line.has_quantity_mismatch,
     completionMismatch: line.completion_mismatch,
     completionNote: line.completion_note,
@@ -204,21 +172,8 @@ function mapConceptLine(line: AnyShoppingListLineResponse): ShoppingListConceptL
       coverUrl: line.part.cover_url,
     },
     seller: mapSeller(line.seller),
-    effectiveSeller: mapSeller(line.effective_seller),
-  };
-}
-
-function mapSellerOrderNote(
-  note: ShoppingListResponseSchema_46f0cf6_ShoppingListSellerOrderNoteSchema | ShoppingListSellerOrderNoteSchema_ceb40c1
-): ShoppingListSellerOrderNote {
-  const rawNote = note.note ?? '';
-  const trimmed = rawNote.trim();
-  return {
-    sellerId: note.seller_id,
-    sellerName: note.seller?.name ?? 'Unknown seller',
-    sellerWebsite: note.seller?.website ?? null,
-    note: trimmed.length > 0 ? note.note : null,
-    updatedAt: note.updated_at,
+    effectiveSeller: mapSeller(line.seller),
+    sellerLink: line.seller_link ?? null,
   };
 }
 
@@ -241,14 +196,17 @@ function mapSellerGroup(
   const hasNewLines = lines.some(line => line.status === 'new');
   const hasDoneLines = lines.some(line => line.status === 'done');
   const sellerName = group.seller?.name ?? 'Ungrouped';
-  const rawNote = group.order_note?.note ?? '';
-  const orderNote = rawNote.trim().length > 0 ? group.order_note?.note ?? null : null;
+  const rawNote = typeof group.note === 'string' ? group.note : '';
+  const orderNote = rawNote.trim().length > 0 ? rawNote : null;
 
   return {
     groupKey: group.group_key,
     sellerId: group.seller_id ?? null,
     sellerName,
     sellerWebsite: group.seller?.website ?? null,
+    sellerLogoUrl: group.seller?.logo_url ?? null,
+    status: group.status ?? null,
+    completed: group.completed ?? false,
     orderNote,
     totals: mapGroupTotals(group.totals),
     lines,
@@ -259,14 +217,9 @@ function mapSellerGroup(
 }
 
 function derivePrimarySeller(
-  detail: ShoppingListResponseSchema_46f0cf6,
+  _detail: ShoppingListResponseSchema_46f0cf6,
   lines: ShoppingListConceptLine[]
 ): string | null {
-  const fromNotes = primarySellerFromNotes(detail.seller_notes);
-  if (fromNotes) {
-    return fromNotes;
-  }
-
   for (const line of lines) {
     if (line.effectiveSeller?.name?.trim()) {
       return line.effectiveSeller.name;
@@ -329,7 +282,6 @@ function mergeUpdatedLineIntoDetail(
       lines,
       lineCounts,
       hasOrderedLines: lineCounts.ordered > 0,
-      canReturnToConcept: current.status === 'ready' && lineCounts.ordered === 0,
       sellerGroups,
     };
   });
@@ -394,7 +346,7 @@ function mapOverviewSummary(list: ShoppingListListSchemaList_a9993e3_ShoppingLis
     lineCounts,
     totalLines: total,
     hasLines: total > 0,
-    primarySellerName: primarySellerFromNotes(list.seller_notes),
+    primarySellerName: null,
   };
 }
 
@@ -416,9 +368,7 @@ function mapShoppingListDetail(detail: ShoppingListResponseSchema_46f0cf6): Shop
     lineLookup.set(line.id, line);
   }
   const sellerGroups = (detail.seller_groups ?? []).map(group => mapSellerGroup(group, lineLookup));
-  const sellerOrderNotes = (detail.seller_notes ?? []).map(mapSellerOrderNote);
   const hasOrderedLines = lineCounts.ordered > 0;
-  const canReturnToConcept = detail.status === 'ready' && !hasOrderedLines;
 
   return {
     id: detail.id,
@@ -433,9 +383,7 @@ function mapShoppingListDetail(detail: ShoppingListResponseSchema_46f0cf6): Shop
     createdAt: detail.created_at,
     lines,
     sellerGroups,
-    sellerOrderNotes,
     hasOrderedLines,
-    canReturnToConcept,
   };
 }
 
@@ -620,7 +568,7 @@ const selectOverviewLists = (data?: ShoppingListListSchemaList_a9993e3_ShoppingL
   return data.map(mapOverviewSummary);
 };
 
-const DEFAULT_SELECTOR_STATUSES: ShoppingListStatus[] = ['concept'];
+const DEFAULT_SELECTOR_STATUSES: ShoppingListStatus[] = ['active'];
 
 export interface UseShoppingListOptionsParams {
   statuses: ShoppingListStatus[];
@@ -775,8 +723,8 @@ export function useShoppingListDetail(listId: number | string | undefined) {
   }, [sellerGroupInstrumentation]);
 
   const getReadyMetadata = useCallback((sortKey: ShoppingListLineSortKey) => {
-    const status = shoppingList?.status ?? 'concept';
-    const view = status === 'done' ? 'completed' : status === 'ready' ? 'ready' : status;
+    const status = shoppingList?.status ?? 'active';
+    const view = status === 'done' ? 'completed' : 'active';
     return {
       status,
       view,
@@ -833,6 +781,7 @@ function toUpdatePayload(input: ShoppingListUpdateInput): ShoppingListUpdateSche
 function toLineUpdatePayload(input: ShoppingListLineUpdateInput): ShoppingListLineUpdateSchema_d9ccce0 {
   return {
     needed: input.needed,
+    ordered: input.ordered ?? null,
     note: input.note,
     seller_id: input.sellerId,
   };
@@ -840,22 +789,6 @@ function toLineUpdatePayload(input: ShoppingListLineUpdateInput): ShoppingListLi
 
 function toStatusPayload(status: ShoppingListStatus): ShoppingListStatusUpdateSchema_46f0cf6 {
   return { status };
-}
-
-function toLineOrderPayload(input: ShoppingListLineOrderInput) {
-  return {
-    ordered_qty: input.orderedQuantity ?? null,
-    comment: input.comment ?? null,
-  };
-}
-
-function toGroupOrderPayload(input: ShoppingListGroupOrderInput) {
-  return {
-    lines: input.lines.map((line: ShoppingListGroupOrderLineInput) => ({
-      line_id: line.lineId,
-      ordered_qty: line.orderedQuantity ?? null,
-    })),
-  };
 }
 
 function toLineReceiveAllocationPayload(
@@ -878,13 +811,6 @@ function toLineReceivePayload(input: ShoppingListLineReceiveInput): ShoppingList
 function toLineCompletePayload(input: ShoppingListLineCompleteInput): ShoppingListLineCompleteSchema_d9ccce0 {
   return {
     mismatch_reason: input.mismatchReason ?? null,
-  };
-}
-
-function toSellerOrderNotePayload(input: ShoppingListSellerOrderNoteInput) {
-  const trimmed = input.note.trim();
-  return {
-    note: trimmed,
   };
 }
 
@@ -1312,456 +1238,6 @@ export function useCompleteShoppingListLineMutation() {
   };
 }
 
-export function useOrderShoppingListLineMutation() {
-  const queryClient = useQueryClient();
-  const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = usePostShoppingListLinesOrderByLineId();
-
-  const handleInvalidate = useCallback((listId: number | undefined) => {
-    if (typeof listId !== 'number') {
-      return;
-    }
-    invalidateShoppingListQueries(queryClient, listId);
-  }, [queryClient]);
-
-  const mutate = useCallback<
-    (input: ShoppingListLineOrderInput, options?: Parameters<typeof baseMutate>[1]) => void
-  >((input, options) => {
-    baseMutate(
-      {
-        path: { line_id: input.lineId } satisfies PostShoppingListLinesOrderByLineIdParameters['path'],
-        body: toLineOrderPayload(input),
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
-          const resolvedListId = response?.shopping_list_id ?? input.listId;
-          handleInvalidate(resolvedListId);
-          if (typeof resolvedListId === 'number') {
-            const resolveUpdatedLine = (current: ShoppingListDetail | undefined) => {
-              if (!current) {
-                return undefined;
-              }
-              if (response) {
-                return mapConceptLine(response);
-              }
-              const existing = current.lines.find(line => line.id === input.lineId);
-              if (!existing) {
-                return undefined;
-              }
-              if (input.orderedQuantity == null) {
-                return {
-                  ...existing,
-                  ordered: 0,
-                  status: 'new',
-                  isRevertible: false,
-                  canReceive: false,
-                } satisfies ShoppingListConceptLine;
-              }
-              const nextStatus: ShoppingListConceptLine['status'] = input.orderedQuantity > 0 ? 'ordered' : 'new';
-              return {
-                ...existing,
-                ordered: input.orderedQuantity,
-                status: nextStatus,
-                isRevertible: input.orderedQuantity > 0,
-              } satisfies ShoppingListConceptLine;
-            };
-
-            queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(resolvedListId), (current) => {
-              if (!current) {
-                return current;
-              }
-
-              const updatedLine = resolveUpdatedLine(current);
-              if (!updatedLine) {
-                return current;
-              }
-
-              const lines = current.lines.some(existing => existing.id === updatedLine.id)
-                ? current.lines.map(existing => existing.id === updatedLine.id ? updatedLine : existing)
-                : current.lines;
-              const lineCounts = computeLineCountsFromLines(lines);
-              const sellerGroups = updateSellerGroupsWithLine(current.sellerGroups, updatedLine);
-              if (import.meta.env.DEV) {
-                console.debug('Updated line via mutation', {
-                  lineId: updatedLine.id,
-                  status: updatedLine.status,
-                  ordered: updatedLine.ordered,
-                  lineCounts,
-                });
-              }
-
-              return {
-                ...current,
-                lines,
-                lineCounts,
-                hasOrderedLines: lineCounts.ordered > 0,
-                canReturnToConcept: current.status === 'ready' && lineCounts.ordered === 0,
-                sellerGroups,
-              };
-            });
-          }
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutate, handleInvalidate, queryClient]);
-
-  const mutateAsync = useCallback<
-    (input: ShoppingListLineOrderInput, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
-  >((input, options) => {
-    return baseMutateAsync(
-      {
-        path: { line_id: input.lineId } satisfies PostShoppingListLinesOrderByLineIdParameters['path'],
-        body: toLineOrderPayload(input),
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
-          const resolvedListId = response?.shopping_list_id ?? input.listId;
-          handleInvalidate(resolvedListId);
-          if (typeof resolvedListId === 'number') {
-            const resolveUpdatedLine = (current: ShoppingListDetail | undefined) => {
-              if (!current) {
-                return undefined;
-              }
-              if (response) {
-                return mapConceptLine(response);
-              }
-              const existing = current.lines.find(line => line.id === input.lineId);
-              if (!existing) {
-                return undefined;
-              }
-              if (input.orderedQuantity == null) {
-                return {
-                  ...existing,
-                  ordered: 0,
-                  status: 'new',
-                  isRevertible: false,
-                  canReceive: false,
-                } satisfies ShoppingListConceptLine;
-              }
-              const nextStatus: ShoppingListConceptLine['status'] = input.orderedQuantity > 0 ? 'ordered' : 'new';
-              return {
-                ...existing,
-                ordered: input.orderedQuantity,
-                status: nextStatus,
-                isRevertible: input.orderedQuantity > 0,
-              } satisfies ShoppingListConceptLine;
-            };
-
-            queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(resolvedListId), (current) => {
-              if (!current) {
-                return current;
-              }
-
-              const updatedLine = resolveUpdatedLine(current);
-              if (!updatedLine) {
-                return current;
-              }
-
-              const lines = current.lines.some(existing => existing.id === updatedLine.id)
-                ? current.lines.map(existing => existing.id === updatedLine.id ? updatedLine : existing)
-                : current.lines;
-              const lineCounts = computeLineCountsFromLines(lines);
-              const sellerGroups = updateSellerGroupsWithLine(current.sellerGroups, updatedLine);
-              if (import.meta.env.DEV) {
-                console.debug('Updated line via mutation', {
-                  lineId: updatedLine.id,
-                  status: updatedLine.status,
-                  ordered: updatedLine.ordered,
-                  lineCounts,
-                });
-              }
-
-              return {
-                ...current,
-                lines,
-                lineCounts,
-                hasOrderedLines: lineCounts.ordered > 0,
-                canReturnToConcept: current.status === 'ready' && lineCounts.ordered === 0,
-                sellerGroups,
-              };
-            });
-          }
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutateAsync, handleInvalidate, queryClient]);
-
-  return {
-    ...rest,
-    mutate,
-    mutateAsync,
-  };
-}
-
-export function useRevertShoppingListLineMutation() {
-  const queryClient = useQueryClient();
-  const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = usePostShoppingListLinesRevertByLineId();
-
-  const handleInvalidate = useCallback((listId: number | undefined) => {
-    if (typeof listId !== 'number') {
-      return;
-    }
-    invalidateShoppingListQueries(queryClient, listId);
-  }, [queryClient]);
-
-  const updateCache = useCallback((listId: number, lineId: number) => {
-    queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(listId), (current) => {
-      if (!current) {
-        return current;
-      }
-
-      const existing = current.lines.find(line => line.id === lineId);
-      if (!existing) {
-        return current;
-      }
-
-      const updatedLine: ShoppingListConceptLine = {
-        ...existing,
-        ordered: 0,
-        status: 'new',
-        isRevertible: false,
-        canReceive: false,
-      };
-
-      const lines = current.lines.map(line => line.id === lineId ? updatedLine : line);
-      const lineCounts = computeLineCountsFromLines(lines);
-      const sellerGroups = updateSellerGroupsWithLine(current.sellerGroups, updatedLine);
-
-      return {
-        ...current,
-        lines,
-        lineCounts,
-        hasOrderedLines: lineCounts.ordered > 0,
-        canReturnToConcept: current.status === 'ready' && lineCounts.ordered === 0,
-        sellerGroups,
-      };
-    });
-  }, [queryClient]);
-
-  const mutate = useCallback<
-    (input: { listId: number; lineId: number }, options?: Parameters<typeof baseMutate>[1]) => void
-  >((input, options) => {
-    baseMutate(
-      {
-        path: { line_id: input.lineId } satisfies PostShoppingListLinesRevertByLineIdParameters['path'],
-        body: { status: 'new' } satisfies ShoppingListLineStatusUpdateSchema_d9ccce0,
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          handleInvalidate(input.listId);
-          updateCache(input.listId, input.lineId);
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutate, handleInvalidate, updateCache]);
-
-  const mutateAsync = useCallback<
-    (input: { listId: number; lineId: number }, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
-  >((input, options) => {
-    return baseMutateAsync(
-      {
-        path: { line_id: input.lineId } satisfies PostShoppingListLinesRevertByLineIdParameters['path'],
-        body: { status: 'new' } satisfies ShoppingListLineStatusUpdateSchema_d9ccce0,
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          handleInvalidate(input.listId);
-          updateCache(input.listId, input.lineId);
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutateAsync, handleInvalidate, updateCache]);
-
-  return {
-    ...rest,
-    mutate,
-    mutateAsync,
-  };
-}
-
-export function useOrderShoppingListGroupMutation() {
-  const queryClient = useQueryClient();
-  const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = usePostShoppingListsSellerGroupsOrderByListIdAndGroupRef();
-
-  const handleInvalidate = useCallback((listId: number) => {
-    invalidateShoppingListQueries(queryClient, listId);
-  }, [queryClient]);
-
-  const mutate = useCallback<
-    (input: ShoppingListGroupOrderInput, options?: Parameters<typeof baseMutate>[1]) => void
-  >((input, options) => {
-    baseMutate(
-      {
-        path: {
-          list_id: input.listId,
-          group_ref: input.groupKey,
-        } satisfies PostShoppingListsSellerGroupsOrderByListIdAndGroupRefParameters['path'],
-        body: toGroupOrderPayload(input),
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          handleInvalidate(input.listId);
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutate, handleInvalidate]);
-
-  const mutateAsync = useCallback<
-    (input: ShoppingListGroupOrderInput, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
-  >((input, options) => {
-    return baseMutateAsync(
-      {
-        path: {
-          list_id: input.listId,
-          group_ref: input.groupKey,
-        } satisfies PostShoppingListsSellerGroupsOrderByListIdAndGroupRefParameters['path'],
-        body: toGroupOrderPayload(input),
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          handleInvalidate(input.listId);
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutateAsync, handleInvalidate]);
-
-  return {
-    ...rest,
-    mutate,
-    mutateAsync,
-  };
-}
-
-export function useUpdateSellerOrderNoteMutation() {
-  const queryClient = useQueryClient();
-  const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = usePutShoppingListsSellerGroupsOrderNoteByListIdAndSellerId();
-
-  const handleInvalidate = useCallback((listId: number) => {
-    invalidateShoppingListQueries(queryClient, listId);
-  }, [queryClient]);
-
-  const mutate = useCallback<
-    (input: ShoppingListSellerOrderNoteInput, options?: Parameters<typeof baseMutate>[1]) => void
-  >((input, options) => {
-    baseMutate(
-      {
-        path: {
-          list_id: input.listId,
-          seller_id: input.sellerId,
-        } satisfies PutShoppingListsSellerGroupsOrderNoteByListIdAndSellerIdParameters['path'],
-        body: toSellerOrderNotePayload(input),
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          handleInvalidate(input.listId);
-          // Update local cache so the Ready view reflects the note without waiting on refetch.
-          queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(input.listId), (current) => {
-            if (!current) {
-              return current;
-            }
-            const payload = data as ShoppingListSellerOrderNoteSchema_ceb40c1 | undefined;
-            if (!payload) {
-              return current;
-            }
-            const mappedNote = mapSellerOrderNote(payload);
-            const nextSellerOrderNotes = (() => {
-              const notes = (current.sellerOrderNotes ?? []).filter(note => note.sellerId !== mappedNote.sellerId);
-              if (mappedNote.note) {
-                return [...notes, mappedNote];
-              }
-              return notes;
-            })();
-            const nextSellerGroups = (current.sellerGroups ?? []).map((group) => {
-              if ((group.sellerId ?? undefined) !== mappedNote.sellerId) {
-                return group;
-              }
-              return {
-                ...group,
-                orderNote: mappedNote.note,
-              };
-            });
-            return {
-              ...current,
-              sellerOrderNotes: nextSellerOrderNotes,
-              sellerGroups: nextSellerGroups,
-            };
-          });
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutate, handleInvalidate, queryClient]);
-
-  const mutateAsync = useCallback<
-    (input: ShoppingListSellerOrderNoteInput, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
-  >((input, options) => {
-    return baseMutateAsync(
-      {
-        path: {
-          list_id: input.listId,
-          seller_id: input.sellerId,
-        } satisfies PutShoppingListsSellerGroupsOrderNoteByListIdAndSellerIdParameters['path'],
-        body: toSellerOrderNotePayload(input),
-      },
-      {
-        ...options,
-        onSuccess: (data, variables, onMutateResult, context) => {
-          handleInvalidate(input.listId);
-          queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(input.listId), (current) => {
-            if (!current) {
-              return current;
-            }
-            const payload = data as ShoppingListSellerOrderNoteSchema_ceb40c1 | undefined;
-            if (!payload) {
-              return current;
-            }
-            const mappedNote = mapSellerOrderNote(payload);
-            const notes = (current.sellerOrderNotes ?? []).filter(note => note.sellerId !== mappedNote.sellerId);
-            if (mappedNote.note) {
-              notes.push(mappedNote);
-            }
-            const nextSellerGroups = (current.sellerGroups ?? []).map((group) => {
-              if ((group.sellerId ?? undefined) !== mappedNote.sellerId) {
-                return group;
-              }
-              return {
-                ...group,
-                orderNote: mappedNote.note,
-              };
-            });
-            return {
-              ...current,
-              sellerOrderNotes: notes,
-              sellerGroups: nextSellerGroups,
-            };
-          });
-          options?.onSuccess?.(data, variables, onMutateResult, context);
-        },
-      }
-    );
-  }, [baseMutateAsync, handleInvalidate, queryClient]);
-
-  return {
-    ...rest,
-    mutate,
-    mutateAsync,
-  };
-}
-
 function useShoppingListStatusMutationBase() {
   const queryClient = useQueryClient();
   const {
@@ -1781,13 +1257,10 @@ function useShoppingListStatusMutationBase() {
             if (!current) {
               return current;
             }
-            const status = nextStatus;
-            const hasOrderedLines = status === 'concept' ? false : current.hasOrderedLines;
             return {
               ...current,
-              status,
-              hasOrderedLines,
-              canReturnToConcept: status === 'ready' ? !hasOrderedLines : false,
+              status: nextStatus,
+              hasOrderedLines: current.hasOrderedLines,
             };
           });
         }
@@ -1828,32 +1301,6 @@ function useShoppingListStatusMutationBase() {
 
 export function useUpdateShoppingListStatusMutation() {
   return useShoppingListStatusMutationBase();
-}
-
-export function useMarkShoppingListReadyMutation() {
-  const {
-    mutate: baseMutate,
-    mutateAsync: baseMutateAsync,
-    ...rest
-  } = useShoppingListStatusMutationBase();
-
-  const mutate = useCallback<
-    (input: ShoppingListMarkReadyInput, options?: Parameters<typeof baseMutate>[1]) => void
-  >((input, options) => {
-    baseMutate({ listId: input.listId, status: 'ready' }, options);
-  }, [baseMutate]);
-
-  const mutateAsync = useCallback<
-    (input: ShoppingListMarkReadyInput, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
-  >((input, options) => {
-    return baseMutateAsync({ listId: input.listId, status: 'ready' }, options);
-  }, [baseMutateAsync]);
-
-  return {
-    ...rest,
-    mutate,
-    mutateAsync,
-  };
 }
 
 export function snapshotLineFields(input: { listId: number; partKey: string; needed: number }): ShoppingListLineSnapshot {

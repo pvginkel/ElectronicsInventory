@@ -113,21 +113,17 @@ function createKitShoppingSummary(
   memberships: KitShoppingListMembership[]
 ): KitShoppingListMembershipSummary {
   const activeMemberships = memberships.filter(membership => membership.status !== 'done');
-  const conceptMemberships = activeMemberships.filter(membership => membership.status === 'concept');
-  const readyMemberships = activeMemberships.filter(membership => membership.status === 'ready');
 
   const listNames = Array.from(new Set(activeMemberships.map(membership => membership.listName)));
-  const conceptListIds = Array.from(new Set(conceptMemberships.map(membership => membership.listId)));
+  const activeListIds = Array.from(new Set(activeMemberships.map(membership => membership.listId)));
 
   return {
     kitId,
     memberships,
     hasActiveMembership: activeMemberships.length > 0,
     listNames,
-    conceptListIds,
+    activeListIds,
     activeCount: activeMemberships.length,
-    conceptCount: conceptMemberships.length,
-    readyCount: readyMemberships.length,
     completedCount: memberships.length - activeMemberships.length,
   };
 }
@@ -138,10 +134,8 @@ function createEmptyKitShoppingSummary(kitId: number): KitShoppingListMembership
     memberships: [],
     hasActiveMembership: false,
     listNames: [],
-    conceptListIds: [],
+    activeListIds: [],
     activeCount: 0,
-    conceptCount: 0,
-    readyCount: 0,
     completedCount: 0,
   };
 }

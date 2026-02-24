@@ -16,7 +16,9 @@ export class ShoppingListsPage extends BasePage {
   readonly overviewSummary: Locator;
   readonly detailLayout: Locator;
   readonly detailHeader: Locator;
+  /** @deprecated The concept/ready split no longer exists. Use detailContent. */
   readonly detailContentConcept: Locator;
+  /** @deprecated The concept/ready split no longer exists. Use detailContent. */
   readonly detailContentReady: Locator;
   readonly detailActions: Locator;
   readonly detailKitChips: Locator;
@@ -39,8 +41,9 @@ export class ShoppingListsPage extends BasePage {
     this.overviewSummary = page.getByTestId('shopping-lists.overview.summary');
     this.detailLayout = page.getByTestId('shopping-lists.detail.layout');
     this.detailHeader = page.getByTestId('shopping-lists.detail.header');
-    this.detailContentConcept = page.getByTestId('shopping-lists.detail.content.concept');
-    this.detailContentReady = page.getByTestId('shopping-lists.detail.content.ready');
+    // Legacy locators -- concept/ready split is gone; both point at the Kanban content area
+    this.detailContentConcept = page.getByTestId('shopping-lists.detail.content');
+    this.detailContentReady = page.getByTestId('shopping-lists.detail.content');
     this.detailActions = page.getByTestId('shopping-lists.detail.actions');
     this.detailKitChips = page.getByTestId('shopping-lists.concept.body.kits');
     this.conceptToolbar = page.getByTestId('shopping-lists.concept.toolbar');
@@ -110,8 +113,10 @@ export class ShoppingListsPage extends BasePage {
     });
   }
 
-  detailContent(view: 'concept' | 'ready'): Locator {
-    return view === 'concept' ? this.detailContentConcept : this.detailContentReady;
+  /** Returns the detail content area. The concept/ready argument is accepted for backward compatibility but ignored. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  detailContent(_view?: 'concept' | 'ready'): Locator {
+    return this.page.getByTestId('shopping-lists.detail.content');
   }
 
   async getDetailHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
@@ -223,34 +228,37 @@ export class ShoppingListsPage extends BasePage {
     await this.waitForConceptReady();
   }
 
+  /**
+   * Navigate to a shopping list detail view (Kanban board).
+   * Legacy alias -- the concept/ready split no longer exists; every list
+   * opens the Kanban board.
+   */
   async gotoConcept(listId: number): Promise<ListLoadingTestEvent> {
-    await this.goto(`/shopping-lists/${listId}`);
-    return this.waitForConceptReady();
+    return this.gotoKanban(listId);
   }
 
+  /**
+   * Navigate to a shopping list detail view (Kanban board).
+   * Legacy alias kept for backward-compatibility with existing tests.
+   */
   async gotoReady(listId: number): Promise<ListLoadingTestEvent> {
-    await this.goto(`/shopping-lists/${listId}`);
-    return this.waitForReadyView();
+    return this.gotoKanban(listId);
   }
 
+  /**
+   * Wait for the shopping list detail (Kanban) to finish loading.
+   * Legacy alias -- delegates to waitForKanbanReady().
+   */
   async waitForConceptReady(): Promise<ListLoadingTestEvent> {
-    const event = await waitForListLoading(this.page, 'shoppingLists.list', 'ready');
-    if (event.metadata?.view) {
-      expect(event.metadata.view).toBe('concept');
-    }
-    await expect(this.detailLayout).toBeVisible();
-    await expect(this.detailContentConcept).toBeVisible();
-    return event;
+    return this.waitForKanbanReady();
   }
 
+  /**
+   * Wait for the shopping list detail (Kanban) to finish loading.
+   * Legacy alias -- delegates to waitForKanbanReady().
+   */
   async waitForReadyView(): Promise<ListLoadingTestEvent> {
-    const event = await waitForListLoading(this.page, 'shoppingLists.list', 'ready');
-    if (event.metadata?.view) {
-      expect(['ready', 'completed']).toContain(event.metadata.view);
-    }
-    await expect(this.detailLayout).toBeVisible();
-    await expect(this.detailContentReady).toBeVisible();
-    return event;
+    return this.waitForKanbanReady();
   }
 
   conceptRowByPart(part: string | RegExp): Locator {
@@ -601,5 +609,169 @@ export class ShoppingListsPage extends BasePage {
   async backToConcept(): Promise<void> {
     await this.page.getByTestId('shopping-lists.ready.toolbar.back-to-concept').click();
     await this.waitForConceptReady();
+  }
+
+  // =========================================================================
+  // Kanban Board helpers
+  // =========================================================================
+
+  /** Navigate to the Kanban detail view and wait for loading. */
+  async gotoKanban(listId: number): Promise<ListLoadingTestEvent> {
+    await this.goto(`/shopping-lists/${listId}`);
+    return this.waitForKanbanReady();
+  }
+
+  /** Wait for the Kanban board to finish loading. */
+  async waitForKanbanReady(): Promise<ListLoadingTestEvent> {
+    const event = await waitForListLoading(this.page, 'shoppingLists.kanban', 'ready');
+    await expect(this.detailLayout).toBeVisible();
+    return event;
+  }
+
+  /** The Kanban board root container. */
+  get kanbanBoard(): Locator {
+    return this.page.getByTestId('shopping-lists.kanban.board');
+  }
+
+  /** The Kanban content wrapper (includes kit chips + board). */
+  get kanbanContent(): Locator {
+    return this.page.getByTestId('shopping-lists.kanban.content');
+  }
+
+  /** Locate a Kanban column by its group key (seller ID or 'ungrouped'). */
+  kanbanColumn(groupKey: string): Locator {
+    return this.page.getByTestId(`shopping-lists.kanban.column.${groupKey}`);
+  }
+
+  /** Locate a Kanban column by filtering on seller name text. */
+  kanbanColumnBySeller(sellerName: string | RegExp): Locator {
+    return this.page
+      .locator('[data-testid^="shopping-lists.kanban.column."]')
+      .filter({ hasText: sellerName })
+      .first();
+  }
+
+  /** The skeleton column for creating new seller groups. */
+  get kanbanSkeletonColumn(): Locator {
+    return this.page.getByTestId('shopping-lists.kanban.skeleton-column');
+  }
+
+  /** Locate a Kanban card by line ID. */
+  kanbanCard(lineId: number): Locator {
+    return this.page.getByTestId(`shopping-lists.kanban.card.${lineId}`);
+  }
+
+  /**
+   * Locate card root elements inside a specific column by group key.
+   * Uses a regex to match only "shopping-lists.kanban.card.<digits>" and
+   * exclude nested sub-elements (field, delete, receive, seller-link).
+   */
+  kanbanColumnCards(groupKey: string): Locator {
+    return this.kanbanColumn(groupKey).locator(
+      'css=[data-testid^="shopping-lists.kanban.card."]:not([data-testid*=".field."]):not([data-testid$=".delete"]):not([data-testid$=".receive"]):not([data-testid$=".seller-link"])',
+    );
+  }
+
+  /** Get the card count in a specific column. */
+  async kanbanColumnCardCount(groupKey: string): Promise<number> {
+    return this.kanbanColumnCards(groupKey).count();
+  }
+
+  /**
+   * Get all column group keys from the board.
+   * Matches only column root elements (not nested header/button sub-elements).
+   */
+  async kanbanColumnKeys(): Promise<string[]> {
+    const columns = this.page.locator(
+      'css=[data-testid^="shopping-lists.kanban.column."]:not([data-testid*=".header"]):not([data-testid*=".add-part"]):not([data-testid*=".menu"]):not([data-testid*=".complete"]):not([data-testid*=".order-note"])',
+    );
+    const count = await columns.count();
+    const keys: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const testId = await columns.nth(i).getAttribute('data-testid');
+      if (testId) {
+        const prefix = 'shopping-lists.kanban.column.';
+        keys.push(testId.startsWith(prefix) ? testId.slice(prefix.length) : testId);
+      }
+    }
+    return keys;
+  }
+
+  /** Click the "Add Part" button in a column header. */
+  async kanbanAddPart(groupKey: string): Promise<void> {
+    await this.page.getByTestId(`shopping-lists.kanban.column.${groupKey}.add-part`).click();
+  }
+
+  /** Click the "Complete" button on a seller column header. */
+  async kanbanCompleteGroup(groupKey: string): Promise<void> {
+    await this.page.getByTestId(`shopping-lists.kanban.column.${groupKey}.complete`).click();
+  }
+
+  /** Open the overflow menu on a seller column header. */
+  async kanbanOpenColumnMenu(groupKey: string): Promise<void> {
+    await this.page.getByTestId(`shopping-lists.kanban.column.${groupKey}.menu`).click();
+  }
+
+  /** Click the delete button (trash) on a card. */
+  async kanbanDeleteCard(lineId: number): Promise<void> {
+    await this.page.getByTestId(`shopping-lists.kanban.card.${lineId}.delete`).click();
+  }
+
+  /** Click the receive button on a card. Waits for the button to appear, then clicks. */
+  async kanbanReceiveCard(lineId: number): Promise<void> {
+    const receiveButton = this.page.getByTestId(`shopping-lists.kanban.card.${lineId}.receive`);
+    await expect(receiveButton).toBeVisible();
+    await receiveButton.click({ force: true });
+  }
+
+  /** The delete seller group confirmation dialog. */
+  get kanbanDeleteGroupDialog(): Locator {
+    return this.page.getByTestId('shopping-lists.kanban.delete-group-dialog');
+  }
+
+  /** The order note edit dialog. */
+  get kanbanOrderNoteDialog(): Locator {
+    return this.page.getByTestId('shopping-lists.kanban.order-note-dialog');
+  }
+
+  /** The DnD move confirmation dialog (for ordered > 0 moves). */
+  get kanbanMoveConfirmDialog(): Locator {
+    return this.page.getByTestId('shopping-lists.kanban.move-confirm-dialog');
+  }
+
+  /**
+   * Perform a drag-and-drop from a source element to a target element.
+   *
+   * Uses a manual pointer event sequence (down -> multiple moves -> up) that
+   * reliably triggers @dnd-kit's PointerSensor (8px activation constraint).
+   * Playwright's built-in `dragTo` doesn't always generate enough intermediate
+   * pointermove events.
+   */
+  async kanbanDragCard(source: Locator, target: Locator): Promise<void> {
+    const sourceBounds = await source.boundingBox();
+    const targetBounds = await target.boundingBox();
+    if (!sourceBounds || !targetBounds) {
+      throw new Error('Cannot determine bounding box for drag source or target');
+    }
+
+    const srcX = sourceBounds.x + sourceBounds.width / 2;
+    const srcY = sourceBounds.y + sourceBounds.height / 2;
+    const tgtX = targetBounds.x + targetBounds.width / 2;
+    const tgtY = targetBounds.y + targetBounds.height / 2;
+
+    // Step count high enough to exceed the 8px activation distance
+    const steps = 20;
+
+    await this.page.mouse.move(srcX, srcY);
+    await this.page.mouse.down();
+
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const x = srcX + (tgtX - srcX) * t;
+      const y = srcY + (tgtY - srcY) * t;
+      await this.page.mouse.move(x, y);
+    }
+
+    await this.page.mouse.up();
   }
 }

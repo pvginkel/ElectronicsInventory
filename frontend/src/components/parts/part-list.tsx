@@ -118,28 +118,25 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
           id: raw.seller.id,
           name: raw.seller.name,
           website: raw.seller.website ?? null,
+          logoUrl: raw.seller.logo_url ?? null,
         } : null,
       }));
 
-      // Filter to active memberships only
+      // Filter to active memberships only (not done at list or line level)
       const activeMemberships = memberships.filter(
         m => m.listStatus !== 'done' && m.lineStatus !== 'done'
       );
 
-      const conceptMemberships = activeMemberships.filter(m => m.listStatus === 'concept');
-      const readyMemberships = activeMemberships.filter(m => m.listStatus === 'ready');
       const listNames = Array.from(new Set(activeMemberships.map(m => m.listName)));
-      const conceptListIds = Array.from(new Set(conceptMemberships.map(m => m.listId)));
+      const activeListIds = Array.from(new Set(activeMemberships.map(m => m.listId)));
 
       map.set(part.key, {
         partKey: part.key,
         memberships,
         hasActiveMembership: activeMemberships.length > 0,
         listNames,
-        conceptListIds,
+        activeListIds,
         activeCount: activeMemberships.length,
-        conceptCount: conceptMemberships.length,
-        readyCount: readyMemberships.length,
         completedCount: memberships.length - activeMemberships.length,
       });
     }

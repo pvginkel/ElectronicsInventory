@@ -183,20 +183,8 @@ function renderKitShoppingTooltip(summary: KitShoppingListMembershipSummary): Re
       label: membership.listName,
       statusBadge: (
         <StatusBadge
-          color={
-            membership.status === 'ready'
-              ? 'active'
-              : membership.status === 'done'
-                ? 'success'
-                : 'inactive'
-          }
-          label={
-            membership.status === 'concept'
-              ? 'Concept'
-              : membership.status === 'ready'
-                ? 'Ready'
-                : 'Completed'
-          }
+          color={membership.status === 'active' ? 'active' : 'inactive'}
+          label={membership.status === 'active' ? 'Active' : 'Completed'}
           size="default"
           testId=""
         />

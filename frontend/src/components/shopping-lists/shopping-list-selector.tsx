@@ -37,8 +37,7 @@ interface ShoppingListSelectorProps extends Pick<UseShoppingListOptionsParams, '
 }
 
 const statusLabel: Record<ShoppingListStatus, string> = {
-  concept: 'Concept list',
-  ready: 'Ready list',
+  active: 'Active list',
   done: 'Completed list',
 };
 
@@ -142,7 +141,7 @@ export function ShoppingListSelector({
     );
   }, [combinedOptions, searchTerm]);
 
-  const canCreateLists = enableCreate && normalizedStatuses.includes('concept');
+  const canCreateLists = enableCreate && normalizedStatuses.includes('active');
   const trimmedSearchTerm = searchTerm.trim();
   const hasOptions = combinedOptions.length > 0;
 
@@ -178,7 +177,7 @@ export function ShoppingListSelector({
     const optimisticOption: ShoppingListOption = {
       id: payload.id,
       name: normalizedName,
-      status: 'concept',
+      status: 'active',
       lineCounts: { new: 0, ordered: 0, done: 0 },
     };
 
@@ -272,7 +271,7 @@ export function ShoppingListSelector({
         onCreateNew={canCreateLists ? handleCreateNew : undefined}
         createNewLabel={(term) => (term ? `Create list "${term}"` : 'Create new list')}
         loadingText="Loading shopping lists..."
-        noResultsText={canCreateLists ? 'No lists match. Create a new concept list?' : 'No lists match.'}
+        noResultsText={canCreateLists ? 'No lists match. Create a new list?' : 'No lists match.'}
         disabled={disabled}
         onPopoverWheelCapture={onPopoverWheelCapture}
         {...resolvedInputProps}

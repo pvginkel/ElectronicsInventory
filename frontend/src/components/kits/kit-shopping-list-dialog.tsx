@@ -27,7 +27,7 @@ import { ApiError } from '@/lib/api/api-error';
 
 const FLOW_SCOPE = 'kits.detail.shoppingListFlow';
 const FORM_ID = 'KitShoppingList:link';
-const SHOPPING_LIST_STATUSES: ShoppingListStatus[] = ['concept'];
+const SHOPPING_LIST_STATUSES: ShoppingListStatus[] = ['active'];
 
 interface KitShoppingListDialogProps {
   open: boolean;
@@ -84,7 +84,7 @@ export function KitShoppingListDialog({
           if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
             return undefined;
           }
-          return 'Select a Concept list';
+          return 'Select a shopping list';
         },
         requestedUnits: (value) => {
           const trimmed = String(value ?? '').trim();
@@ -131,9 +131,9 @@ export function KitShoppingListDialog({
           targetListId: null,
           requestedUnits,
           honorReserved,
-          message: 'Concept list selection missing',
+          message: 'Shopping list selection missing',
         });
-        showWarning('Select a Concept list before ordering stock.');
+        showWarning('Select a shopping list before ordering stock.');
         return;
       }
 
@@ -166,9 +166,9 @@ export function KitShoppingListDialog({
           showSuccess(`Queued ${mapped.totalNeededQuantity} ${unitsLabel} for "${mapped.link.name}".`);
         } else if (mapped.shoppingListId) {
           const unitsLabel = mapped.totalNeededQuantity === 1 ? 'unit' : 'units';
-          showSuccess(`Queued ${mapped.totalNeededQuantity} ${unitsLabel} for Concept list #${mapped.shoppingListId}.`);
+          showSuccess(`Queued ${mapped.totalNeededQuantity} ${unitsLabel} for shopping list #${mapped.shoppingListId}.`);
         } else {
-          showSuccess('Queued stock for Concept list.');
+          showSuccess('Queued stock for shopping list.');
         }
 
         handleDialogOpenChange(false);
@@ -306,7 +306,7 @@ export function KitShoppingListDialog({
           className="space-y-6"
         >
           <DialogHeader>
-            <DialogTitle>Order stock to a Concept list</DialogTitle>
+            <DialogTitle>Order stock to a shopping list</DialogTitle>
             <DialogDescription>
               Push the kit&rsquo;s shortfalls to a shopping list. Honor reservations to
               avoid reallocating parts already committed to other kits.
@@ -358,7 +358,7 @@ export function KitShoppingListDialog({
           </div>
 
           <FormField className="space-y-1">
-            <FormLabel required>Concept list</FormLabel>
+            <FormLabel required>Shopping list</FormLabel>
             <div data-testid="kits.detail.shopping-list.selector">
               <ShoppingListSelector
                 value={form.values.listId ?? undefined}
@@ -371,7 +371,7 @@ export function KitShoppingListDialog({
                 enabled={open && hasBOM}
                 disabled={mutation.isPending || !hasBOM}
                 instrumentation={selectorInstrumentation}
-                placeholder="Search or create a Concept list"
+                placeholder="Search or create a shopping list"
                 error={form.touched.listId ? form.errors.listId : undefined}
                 onListCreated={({ id }) => {
                   form.setValue('listId', id);
@@ -379,7 +379,7 @@ export function KitShoppingListDialog({
               />
             </div>
             <FormDescription>
-              Inline create will open a Concept list dialog without leaving this flow.
+              Inline create will open a shopping list dialog without leaving this flow.
             </FormDescription>
           </FormField>
 
