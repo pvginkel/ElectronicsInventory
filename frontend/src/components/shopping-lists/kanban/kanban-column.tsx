@@ -113,7 +113,7 @@ export function KanbanColumn({
     <div
       data-testid={testIdBase}
       className={cn(
-        'flex flex-col w-80 shrink-0 rounded-lg border bg-card',
+        'flex flex-col w-80 shrink-0 rounded-lg bg-green-600',
         'max-h-full',
         className,
       )}
@@ -146,8 +146,8 @@ export function KanbanColumn({
         />
       )}
 
-      {/* Scrollable card list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
+      {/* Scrollable card list -- hide horizontal scrollbar */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-2 min-h-0">
         {group.lines.length === 0 ? (
           <EmptyColumnMessage isUnassigned={isUnassigned} />
         ) : (
@@ -192,7 +192,7 @@ export function KanbanColumn({
 function EmptyColumnMessage({ isUnassigned }: { isUnassigned: boolean }) {
   return (
     <div className="flex items-center justify-center px-3 py-6 text-center">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-green-200/60">
         {isUnassigned
           ? 'No items yet -- use the + button to add parts.'
           : 'No items. Drag cards here or use "Assign remaining."'}

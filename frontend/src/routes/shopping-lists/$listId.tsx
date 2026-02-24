@@ -661,7 +661,7 @@ function ShoppingListDetailRoute() {
       await updateGroupMutation.mutateAsync({
         listId: normalizedListId,
         sellerId: noteEditSellerId,
-        note: noteEditValue.trim() || null,
+        note: noteEditValue.trim(),
       });
       showSuccess('Order note updated');
       setNoteEditOpen(false);
@@ -811,7 +811,11 @@ function ShoppingListDetailRoute() {
   // Kanban board content
   const contentNode = (
     <div className="flex flex-col flex-1 min-h-0" data-testid="shopping-lists.kanban.content">
-      {detailHeaderSlots.linkChips}
+      {detailHeaderSlots.linkChips && (
+        <div className="px-6 pt-4">
+          {detailHeaderSlots.linkChips}
+        </div>
+      )}
       <KanbanBoard
         groups={sellerGroups}
         listId={normalizedListId}
@@ -849,6 +853,7 @@ function ShoppingListDetailRoute() {
         supplementary={detailHeaderSlots.supplementary}
         metadataRow={detailHeaderSlots.metadataRow}
         actions={detailHeaderSlots.actions}
+        contentProps={{ className: 'p-0 overflow-hidden' }}
       >
         {contentNode}
       </DetailScreenLayout>

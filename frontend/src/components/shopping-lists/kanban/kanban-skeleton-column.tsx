@@ -74,9 +74,8 @@ export function KanbanSkeletonColumn({
       )}
     >
       {/* Header area */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-dashed">
-        <Plus className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium text-muted-foreground">Add seller</h3>
+      <div className="flex items-center gap-2 px-3 py-2">
+        <h3 className="text-sm font-medium text-muted-foreground">Add Seller</h3>
       </div>
 
       {/* Body: toggle to show the dropdown */}

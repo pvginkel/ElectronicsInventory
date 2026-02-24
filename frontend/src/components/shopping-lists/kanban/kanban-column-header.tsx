@@ -52,23 +52,23 @@ export function UnassignedColumnHeader({
 }: UnassignedColumnHeaderProps) {
   return (
     <div
-      className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/30"
+      className="flex items-center gap-2 px-3 py-2"
       data-testid={`${testIdBase}.header`}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <h3 className="text-sm font-semibold truncate">Unassigned</h3>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          {lineCount}
-        </span>
-      </div>
+      <h3 className="text-sm font-semibold truncate text-green-50">Unassigned</h3>
+      <span className="shrink-0 rounded-full bg-green-700 px-2 py-0.5 text-xs text-green-100">
+        {lineCount}
+      </span>
+      <div className="flex-1" />
       {!isCompleted && (
         <button
           type="button"
           onClick={onAddPart}
           data-testid={`${testIdBase}.add-part`}
           className={cn(
-            'shrink-0 rounded p-1 text-muted-foreground hover:text-foreground',
-            'hover:bg-accent transition-colors',
+            'shrink-0 rounded p-1 cursor-pointer',
+            'text-green-200 hover:text-green-50 hover:bg-green-500/50',
+            'transition-colors',
           )}
           title="Add part"
         >
@@ -158,101 +158,98 @@ export function SellerColumnHeader({
 
   return (
     <div
-      className={cn(
-        'flex flex-col gap-1 px-3 py-2 border-b',
-        isOrdered ? 'bg-green-50 dark:bg-green-950/20' : 'bg-muted/30',
-      )}
+      className="flex items-center gap-2 px-3 py-2"
       data-testid={`${testIdBase}.header`}
     >
-      {/* Row 1: seller name + logo + line count */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {group.sellerLogoUrl && (
-            <img
-              src={group.sellerLogoUrl}
-              alt=""
-              className="h-5 w-5 shrink-0 rounded object-contain"
-            />
-          )}
-          <h3 className="text-sm font-semibold truncate" title={group.sellerName ?? undefined}>
-            {group.sellerName}
-          </h3>
-          {isOrdered && (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-          )}
-        </div>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          {lineCount}
-        </span>
-      </div>
-
-      {/* Row 2: website link (if available) */}
+      {/* Seller logo + name + external link */}
+      {group.sellerLogoUrl && (
+        <img
+          src={group.sellerLogoUrl}
+          alt=""
+          className="h-5 w-5 shrink-0 rounded object-contain"
+        />
+      )}
+      <h3 className="text-sm font-semibold truncate text-green-50" title={group.sellerName ?? undefined}>
+        {group.sellerName}
+      </h3>
       {group.sellerWebsite && (
         <a
           href={group.sellerWebsite}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground truncate"
+          className="shrink-0 text-green-200 hover:text-green-50 transition-colors"
           title={group.sellerWebsite}
         >
-          <ExternalLink className="h-3 w-3 shrink-0" />
-          <span className="truncate">{group.sellerWebsite}</span>
+          <ExternalLink className="h-3.5 w-3.5" />
         </a>
       )}
+      {isOrdered && (
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-green-300" />
+      )}
+      <span className="shrink-0 rounded-full bg-green-700 px-2 py-0.5 text-xs text-green-100">
+        {lineCount}
+      </span>
 
-      {/* Row 3: action buttons (hidden when list is done) */}
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Action buttons (hidden when list is done) */}
       {!isCompleted && (
-        <div className="flex items-center gap-1 mt-1">
+        <>
           {/* Add part button */}
           <button
             type="button"
             onClick={onAddPart}
             data-testid={`${testIdBase}.add-part`}
-            className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="shrink-0 rounded p-1 cursor-pointer text-green-200 hover:text-green-50 hover:bg-green-500/50 transition-colors"
             title="Add part"
           >
             <Plus className="h-4 w-4" />
           </button>
 
-          {/* Order note icon */}
-          <button
-            type="button"
-            onClick={onEditNote}
-            data-testid={`${testIdBase}.order-note`}
-            className={cn(
-              'relative rounded p-1 transition-colors',
-              'text-muted-foreground hover:text-foreground hover:bg-accent',
-            )}
-            title={hasNote ? 'Edit order note' : 'Add order note'}
+          {/* Order note icon with tooltip */}
+          <Tooltip
+            title={hasNote ? (group.orderNote ?? undefined) : undefined}
+            enabled={hasNote}
           >
-            <NotebookPen className="h-4 w-4" />
-            {/* Dot indicator when note exists */}
-            {hasNote && (
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={onEditNote}
+              data-testid={`${testIdBase}.order-note`}
+              className={cn(
+                'relative shrink-0 rounded p-1 cursor-pointer transition-colors',
+                'text-green-200 hover:text-green-50 hover:bg-green-500/50',
+              )}
+            >
+              <NotebookPen className="h-4 w-4" />
+              {/* Dot indicator when note exists */}
+              {hasNote && (
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-400" />
+              )}
+            </button>
+          </Tooltip>
 
-          {/* Complete/Order button (ordering mode only) */}
+          {/* Complete button (icon only, ordering mode only) */}
           {mode === 'ordering' && (
             <Tooltip
               title={completeDisabledReason}
               enabled={!canComplete}
+              testId={`${testIdBase}.complete`}
             >
               <button
                 type="button"
                 onClick={handleComplete}
                 disabled={!canComplete}
                 data-testid={`${testIdBase}.complete`}
+                title={canComplete ? 'Mark as ordered' : undefined}
                 className={cn(
-                  'ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
-                  'transition-colors',
+                  'shrink-0 rounded p-1 transition-colors',
                   canComplete
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed',
+                    ? 'cursor-pointer text-green-200 hover:text-green-50 hover:bg-green-500/50'
+                    : 'text-green-200/30 cursor-not-allowed',
                 )}
               >
-                <CheckCircle2 className="h-3 w-3" />
-                Complete
+                <CheckCircle2 className="h-4 w-4" />
               </button>
             </Tooltip>
           )}
@@ -260,10 +257,7 @@ export function SellerColumnHeader({
           {/* Overflow menu */}
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger
-              className={cn(
-                'rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
-                mode !== 'ordering' && 'ml-auto',
-              )}
+              className="shrink-0 rounded p-1 cursor-pointer text-green-200 hover:text-green-50 hover:bg-green-500/50 transition-colors"
               data-testid={`${testIdBase}.menu`}
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -311,7 +305,7 @@ export function SellerColumnHeader({
               </Tooltip>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        </>
       )}
     </div>
   );

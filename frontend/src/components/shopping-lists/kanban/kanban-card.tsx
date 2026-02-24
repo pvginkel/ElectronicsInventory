@@ -78,6 +78,7 @@ export function KanbanCard({
 
   // -- Derived display values --
   const canDelete = !isCompleted && mode !== 'receiving' && line.status === 'new';
+  const deleteDisabled = isReadOnly;
   const canReceive = mode === 'receiving' && line.canReceive && line.status !== 'done';
   const orderedWarning = line.ordered > 0 && line.ordered < line.needed;
   const sellerLinkUrl = line.sellerLink;
@@ -87,7 +88,7 @@ export function KanbanCard({
     <div
       data-testid={testIdBase}
       className={cn(
-        'group/card rounded-lg border bg-card p-3 shadow-sm',
+        'group/card rounded-md bg-green-950/80 p-3',
         'transition-shadow hover:shadow-md',
         isPending && 'opacity-60 pointer-events-none',
         highlightClassName,
@@ -105,7 +106,7 @@ export function KanbanCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-1">
-            <span className="font-semibold text-sm truncate" title={line.part.key}>
+            <span className="font-semibold text-sm truncate text-green-50" title={line.part.key}>
               {line.part.key}
             </span>
             {/* Seller link icon (ordering mode only, when seller link exists) */}
@@ -115,7 +116,7 @@ export function KanbanCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid={`${testIdBase}.seller-link`}
-                className="text-muted-foreground hover:text-foreground shrink-0"
+                className="text-green-300 hover:text-green-100 shrink-0"
                 title="Open seller product page"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -123,7 +124,7 @@ export function KanbanCard({
               </a>
             )}
           </div>
-          <p className="text-xs text-muted-foreground truncate" title={line.part.description}>
+          <p className="text-xs text-green-200/70 truncate" title={line.part.description}>
             {line.part.description}
           </p>
         </div>
@@ -134,7 +135,7 @@ export function KanbanCard({
         {/* Needed field -- editable in unassigned and ordering modes */}
         {(mode === 'unassigned' || mode === 'ordering') && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground text-xs">Needed</span>
+            <span className="text-green-200/60 text-xs">Needed</span>
             <KanbanCardField
               formId={`KanbanCard:needed`}
               value={line.needed}
@@ -145,6 +146,7 @@ export function KanbanCard({
               readOnly={isReadOnly}
               metadata={instrumentationMeta}
               className="text-right"
+              displayClassName="text-green-50"
             />
           </div>
         )}
@@ -156,7 +158,7 @@ export function KanbanCard({
             enabled={orderedWarning}
           >
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground text-xs">Ordered</span>
+              <span className="text-green-200/60 text-xs">Ordered</span>
               <KanbanCardField
                 formId={`KanbanCard:ordered`}
                 value={line.ordered}
@@ -168,7 +170,7 @@ export function KanbanCard({
                 showDashForZero
                 metadata={instrumentationMeta}
                 className="text-right"
-                displayClassName={orderedWarning ? 'text-amber-600' : undefined}
+                displayClassName={orderedWarning ? 'text-amber-400' : 'text-green-50'}
               />
             </div>
           </Tooltip>
@@ -178,7 +180,7 @@ export function KanbanCard({
         {mode === 'receiving' && (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground text-xs">Ordered</span>
+              <span className="text-green-200/60 text-xs">Ordered</span>
               <KanbanCardField
                 formId={`KanbanCard:ordered`}
                 value={line.ordered}
@@ -189,12 +191,13 @@ export function KanbanCard({
                 showDashForZero
                 metadata={instrumentationMeta}
                 className="text-right"
+                displayClassName="text-green-50"
               />
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground text-xs">Received</span>
+              <span className="text-green-200/60 text-xs">Received</span>
               <span
-                className="px-1 py-0.5 text-sm"
+                className="px-1 py-0.5 text-sm text-green-50"
                 data-testid={`${testIdBase}.field.received`}
               >
                 {line.received}
@@ -217,7 +220,7 @@ export function KanbanCard({
               multiline
               metadata={instrumentationMeta}
               className={cn(
-                'text-xs text-muted-foreground',
+                'text-xs text-green-200/70',
                 // 3-line clamp with expand on hover
                 'line-clamp-3 group-hover/card:line-clamp-none',
               )}
@@ -236,7 +239,7 @@ export function KanbanCard({
             onClick={handleReceive}
             data-testid={`${testIdBase}.receive`}
             className={cn(
-              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
+              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium cursor-pointer',
               'bg-primary text-primary-foreground hover:bg-primary/90',
               'transition-colors',
             )}
@@ -247,12 +250,18 @@ export function KanbanCard({
         )}
 
         {/* Trash icon (hidden for receiving mode, hidden when ordered/done) */}
-        {canDelete && !isReadOnly && (
+        {canDelete && (
           <button
             type="button"
             onClick={handleDelete}
+            disabled={deleteDisabled}
             data-testid={`${testIdBase}.delete`}
-            className="text-muted-foreground hover:text-destructive transition-colors p-1"
+            className={cn(
+              'rounded p-1 transition-colors cursor-pointer',
+              deleteDisabled
+                ? 'text-green-200/30 cursor-default'
+                : 'text-green-200/60 hover:text-red-400 hover:bg-red-950/40',
+            )}
             title="Delete line"
           >
             <Trash2 className="h-3.5 w-3.5" />

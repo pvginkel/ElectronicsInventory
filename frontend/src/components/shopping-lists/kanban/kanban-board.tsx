@@ -122,7 +122,10 @@ function DraggableCardWrapper({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn(isDragging && 'opacity-30')}
+      className={cn(
+        isDragging && 'opacity-30',
+        disabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
+      )}
       {...listeners}
       {...attributes}
     >
@@ -284,7 +287,7 @@ export function KanbanBoard({
           ref={boardRef}
           data-testid="shopping-lists.kanban.board"
           className={cn(
-            'flex gap-4 overflow-x-auto p-4',
+            'flex gap-4 overflow-x-auto py-4 px-4',
             'flex-1 min-h-0',
           )}
         >
@@ -325,7 +328,7 @@ export function KanbanBoard({
         {/* Drag overlay -- renders a clone of the dragged card outside the normal flow */}
         <DragOverlay>
           {activeLine ? (
-            <div className="w-80 opacity-90 shadow-xl">
+            <div className="w-80 opacity-90 shadow-xl rounded-md">
               <KanbanCard
                 line={activeLine}
                 mode={activeLineMode}
