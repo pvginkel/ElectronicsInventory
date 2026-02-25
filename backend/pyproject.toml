@@ -100,6 +100,10 @@ warn_return_any = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
+module = "vulture_whitelist"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
 ignore_errors = true
