@@ -5,9 +5,7 @@ import { Card } from '@/components/primitives/card';
 import { ExternalLink } from '@/components/primitives';
 import { ArrowRight } from 'lucide-react';
 import { TypeCreateDialog } from '@/components/types/type-create-dialog';
-import { SellerCreateDialog } from '@/components/sellers/seller-create-dialog';
 import { useCreateType } from '@/hooks/use-types';
-import { useCreateSeller } from '@/hooks/use-sellers';
 import type { CleanedPartData, CleanupFieldChange } from '@/types/ai-parts';
 import type { components } from '@/lib/api/generated/types';
 import { usePutPartsByPartKey } from '@/lib/api/generated/hooks';
@@ -27,7 +25,7 @@ interface AIPartCleanupMergeStepProps {
 }
 
 // Fields that contain URLs
-const URL_FIELDS = new Set(['productPage', 'sellerLink']);
+const URL_FIELDS = new Set(['productPage']);
 
 // Helper to check if a string is a URL
 const isUrl = (value: string | null): boolean => {
@@ -55,10 +53,8 @@ const FIELD_CONFIG: Record<string, { label: string; isArray?: boolean }> = {
   inputVoltage: { label: 'Input Voltage' },
   outputVoltage: { label: 'Output Voltage' },
   productPage: { label: 'Product Page' },
-  sellerLink: { label: 'Seller Link' },
   tags: { label: 'Tags', isArray: true },
   type: { label: 'Type' },
-  seller: { label: 'Seller' },
 };
 
 export function AIPartCleanupMergeStep({
@@ -70,12 +66,9 @@ export function AIPartCleanupMergeStep({
   const queryClient = useQueryClient();
   const [isApplying, setIsApplying] = useState(false);
   const [showCreateTypeDialog, setShowCreateTypeDialog] = useState(false);
-  const [showCreateSellerDialog, setShowCreateSellerDialog] = useState(false);
   const [createdTypeId, setCreatedTypeId] = useState<number | null>(null);
-  const [createdSellerId, setCreatedSellerId] = useState<number | null>(null);
 
   const createTypeMutation = useCreateType();
-  const createSellerMutation = useCreateSeller();
   const updatePartMutation = usePutPartsByPartKey();
 
   // Guidepost: Compute field changes by comparing current and cleaned part data
@@ -142,14 +135,10 @@ export function AIPartCleanupMergeStep({
     checkField('inputVoltage', currentPart.input_voltage, cleanedPart.inputVoltage);
     checkField('outputVoltage', currentPart.output_voltage, cleanedPart.outputVoltage);
     checkField('productPage', currentPart.product_page, cleanedPart.productPage);
-    checkField('sellerLink', currentPart.seller_link, cleanedPart.sellerLink);
     checkField('tags', currentPart.tags, cleanedPart.tags);
 
     // Type field (compare names, but we'll handle ID separately when applying)
     checkField('type', currentPart.type?.name, cleanedPart.type);
-
-    // Seller field (compare names)
-    checkField('seller', currentPart.seller?.name, cleanedPart.seller);
 
     return changes;
   }, [currentPart, cleanedPart]);
@@ -184,12 +173,9 @@ export function AIPartCleanupMergeStep({
       if (change.fieldName === 'type' && !cleanedPart.typeIsExisting && !createdTypeId) {
         return false;
       }
-      if (change.fieldName === 'seller' && !cleanedPart.sellerIsExisting && !createdSellerId) {
-        return false;
-      }
       return true;
     });
-  }, [fieldChanges, cleanedPart.typeIsExisting, cleanedPart.sellerIsExisting, createdTypeId, createdSellerId]);
+  }, [fieldChanges, cleanedPart.typeIsExisting, createdTypeId]);
 
   const headerCheckboxState = useMemo(() => {
     if (checkableFields.length === 0) return 'none';
@@ -235,24 +221,7 @@ export function AIPartCleanupMergeStep({
     }
   }, [createTypeMutation, queryClient]);
 
-  // Handler for seller creation
-  const handleCreateSeller = useCallback(async (data: { name: string; website: string }) => {
-    try {
-      const newSeller = await createSellerMutation.mutateAsync({
-        body: data
-      });
-      setCreatedSellerId(newSeller.id);
-      setShowCreateSellerDialog(false);
-
-      // Invalidate sellers list query to refresh UI
-      await queryClient.invalidateQueries({ queryKey: ['sellers'] });
-    } catch (error) {
-      console.error('Failed to create seller:', error);
-      // Error handling is automatic via global error handler
-    }
-  }, [createSellerMutation, queryClient]);
-
-  const applyEnabled = checkedFields.size > 0 && !createTypeMutation.isPending && !createSellerMutation.isPending && !updatePartMutation.isPending;
+  const applyEnabled = checkedFields.size > 0 && !createTypeMutation.isPending && !updatePartMutation.isPending;
 
   // Helper to render a value, making URLs clickable with external link icon
   const renderValue = (value: string | null, fieldName: string, className?: string) => {
@@ -311,10 +280,8 @@ export function AIPartCleanupMergeStep({
         input_voltage: currentPart.input_voltage,
         output_voltage: currentPart.output_voltage,
         product_page: currentPart.product_page,
-        seller_link: currentPart.seller_link,
         tags: currentPart.tags,
         type_id: currentPart.type?.id ?? null,
-        seller_id: currentPart.seller?.id ?? null,
       };
 
       // Override with checked changes
@@ -363,9 +330,6 @@ export function AIPartCleanupMergeStep({
           case 'productPage':
             body.product_page = cleanedPart.productPage;
             break;
-          case 'sellerLink':
-            body.seller_link = cleanedPart.sellerLink;
-            break;
           case 'tags':
             body.tags = cleanedPart.tags.length > 0 ? cleanedPart.tags : null;
             break;
@@ -375,14 +339,6 @@ export function AIPartCleanupMergeStep({
               body.type_id = createdTypeId;
             } else if (cleanedPart.typeIsExisting && cleanedPart.existingTypeId) {
               body.type_id = cleanedPart.existingTypeId;
-            }
-            break;
-          case 'seller':
-            // Use created seller ID if available, otherwise use existing seller ID
-            if (createdSellerId) {
-              body.seller_id = createdSellerId;
-            } else if (cleanedPart.sellerIsExisting && cleanedPart.existingSellerId) {
-              body.seller_id = cleanedPart.existingSellerId;
             }
             break;
         }
@@ -421,7 +377,7 @@ export function AIPartCleanupMergeStep({
       // Error handling is automatic via global error handler
       setIsApplying(false);
     }
-  }, [applyEnabled, isApplying, checkedFields, fieldChanges, cleanedPart, currentPart, updatePartMutation, onApplySuccess, createdTypeId, createdSellerId]);
+  }, [applyEnabled, isApplying, checkedFields, fieldChanges, cleanedPart, currentPart, updatePartMutation, onApplySuccess, createdTypeId]);
 
   return (
     <div className="space-y-6 flex-1 flex flex-col min-h-0" data-testid="parts.cleanup.merge">
@@ -493,40 +449,6 @@ export function AIPartCleanupMergeStep({
                 );
               }
 
-              // Special handling for seller field when not existing
-              if (change.fieldName === 'seller' && !cleanedPart.sellerIsExisting && !createdSellerId) {
-                return (
-                  <tr
-                    key={change.fieldName}
-                    data-testid="parts.cleanup.merge.row"
-                    data-field={change.fieldName}
-                  >
-                    <td className="py-1.5 px-2"></td>
-                    <td className="py-1.5 px-3">{change.fieldLabel}</td>
-                    <td className="py-1.5 px-3" data-value-type="old">
-                      {renderValue(change.oldValue, change.fieldName)}
-                    </td>
-                    <td className="py-1.5 px-1 text-center">
-                      <ArrowRight className="h-3.5 w-3.5 inline text-muted-foreground" />
-                    </td>
-                    <td className="py-1.5 px-3" data-value-type="new">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">{change.newValue}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowCreateSellerDialog(true)}
-                          disabled={createSellerMutation.isPending}
-                          className="h-7 text-xs"
-                        >
-                          Create Seller
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              }
-
               const oldColorClass = isChecked ? 'text-destructive' : undefined;
               const newColorClass = isChecked ? 'text-green-700 dark:text-green-400' : undefined;
 
@@ -586,18 +508,6 @@ export function AIPartCleanupMergeStep({
         />
       )}
 
-      {/* Seller Creation Dialog */}
-      {cleanedPart.seller && (
-        <SellerCreateDialog
-          open={showCreateSellerDialog}
-          onOpenChange={(open) => {
-            if (!open) setShowCreateSellerDialog(false);
-          }}
-          onSuccess={handleCreateSeller}
-          onCancel={() => setShowCreateSellerDialog(false)}
-          initialName={cleanedPart.seller}
-        />
-      )}
     </div>
   );
 }

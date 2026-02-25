@@ -81,6 +81,7 @@ export function createTestDataBundle(
       createMany: sellerFactory.createMany.bind(sellerFactory),
       createTestSet: sellerFactory.createTestSet.bind(sellerFactory),
       createWithPartLinks: sellerFactory.createWithPartLinks.bind(sellerFactory),
+      createPartSellerLink: sellerFactory.createPartSellerLink.bind(sellerFactory),
       randomSellerName: sellerFactory.randomSellerName.bind(sellerFactory),
       randomSellerUrl: sellerFactory.randomSellerUrl.bind(sellerFactory),
     },

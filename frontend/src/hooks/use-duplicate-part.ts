@@ -22,8 +22,6 @@ export function useDuplicatePart(partId: string | undefined) {
       tags: part.tags || [],
       manufacturer: part.manufacturer || '',
       productPage: part.product_page || '',
-      sellerId: part.seller?.id || undefined,
-      sellerLink: part.seller_link || '',
       dimensions: part.dimensions || '',
       mountingType: part.mounting_type || '',
       package: part.package || '',

@@ -79,10 +79,6 @@ export function transformAIPartAnalysisResult(
     inputVoltage: analysis?.input_voltage ?? undefined,
     outputVoltage: analysis?.output_voltage ?? undefined,
     productPageUrl: analysis?.product_page ?? undefined,
-    seller: analysis?.seller ?? undefined,
-    sellerIsExisting: analysis?.seller_is_existing ?? undefined,
-    existingSellerId: analysis?.existing_seller_id ?? undefined,
-    sellerLink: analysis?.seller_link ?? undefined,
   };
 
   // Add duplicate parts if present
@@ -118,8 +114,6 @@ export function transformToCreateSchema(data: {
   inputVoltage?: string | null;
   outputVoltage?: string | null;
   productPageUrl?: string | null;
-  sellerId?: number | null;
-  sellerLink?: string | null;
 }): components['schemas']['AIPartCreateSchema.63ff6da'] {
   return {
     description: data.description,
@@ -138,8 +132,6 @@ export function transformToCreateSchema(data: {
     input_voltage: data.inputVoltage ?? null,
     output_voltage: data.outputVoltage ?? null,
     product_page: data.productPageUrl ?? null,
-    seller_id: data.sellerId ?? null,
-    seller_link: data.sellerLink ?? null
   };
 }
 
@@ -172,7 +164,6 @@ export function transformCleanupResult(backendResult: {
     manufacturer_code: string | null;
     manufacturer: string | null;
     product_page: string | null;
-    seller_link: string | null;
     dimensions: string | null;
     package: string | null;
     pin_count: number | null;
@@ -185,9 +176,6 @@ export function transformCleanupResult(backendResult: {
     type: string | null;
     type_is_existing: boolean;
     existing_type_id: number | null;
-    seller: string | null;
-    seller_is_existing: boolean;
-    existing_seller_id: number | null;
     tags: string[];
   };
 }): import('@/types/ai-parts').TransformedCleanupResult {
@@ -199,7 +187,6 @@ export function transformCleanupResult(backendResult: {
       manufacturerCode: cleaned.manufacturer_code,
       manufacturer: cleaned.manufacturer,
       productPage: cleaned.product_page,
-      sellerLink: cleaned.seller_link,
       dimensions: cleaned.dimensions,
       package: cleaned.package,
       pinCount: cleaned.pin_count,
@@ -212,9 +199,6 @@ export function transformCleanupResult(backendResult: {
       type: cleaned.type,
       typeIsExisting: cleaned.type_is_existing,
       existingTypeId: cleaned.existing_type_id,
-      seller: cleaned.seller,
-      sellerIsExisting: cleaned.seller_is_existing,
-      existingSellerId: cleaned.existing_seller_id,
       tags: cleaned.tags
     }
   };
@@ -228,7 +212,6 @@ export function transformToUpdatePayload(changes: {
   manufacturerCode?: string | null;
   manufacturer?: string | null;
   productPage?: string | null;
-  sellerLink?: string | null;
   dimensions?: string | null;
   package?: string | null;
   pinCount?: number | null;
@@ -239,7 +222,6 @@ export function transformToUpdatePayload(changes: {
   inputVoltage?: string | null;
   outputVoltage?: string | null;
   typeId?: number | null;
-  sellerId?: number | null;
   tags?: string[];
 }): Record<string, string | number | null | string[]> {
   const payload: Record<string, string | number | null | string[]> = {};
@@ -248,7 +230,6 @@ export function transformToUpdatePayload(changes: {
   if (changes.manufacturerCode !== undefined) payload.manufacturer_code = changes.manufacturerCode;
   if (changes.manufacturer !== undefined) payload.manufacturer = changes.manufacturer;
   if (changes.productPage !== undefined) payload.product_page = changes.productPage;
-  if (changes.sellerLink !== undefined) payload.seller_link = changes.sellerLink;
   if (changes.dimensions !== undefined) payload.dimensions = changes.dimensions;
   if (changes.package !== undefined) payload.package = changes.package;
   if (changes.pinCount !== undefined) payload.pin_count = changes.pinCount;
@@ -259,7 +240,6 @@ export function transformToUpdatePayload(changes: {
   if (changes.inputVoltage !== undefined) payload.input_voltage = changes.inputVoltage;
   if (changes.outputVoltage !== undefined) payload.output_voltage = changes.outputVoltage;
   if (changes.typeId !== undefined) payload.type_id = changes.typeId;
-  if (changes.sellerId !== undefined) payload.seller_id = changes.sellerId;
   if (changes.tags !== undefined) payload.tags = changes.tags;
 
   return payload;

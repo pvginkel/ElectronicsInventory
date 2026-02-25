@@ -5717,6 +5717,20 @@
             "title": "Link",
             "type": "string"
           },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image, or null if no logo is uploaded",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
+          },
           "seller_id": {
             "description": "ID of the linked seller",
             "example": 1,
@@ -5831,6 +5845,20 @@
             "example": "https://www.digikey.com/en/products/detail/abc123",
             "title": "Link",
             "type": "string"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image, or null if no logo is uploaded",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
           },
           "seller_id": {
             "description": "ID of the linked seller",
@@ -6815,6 +6843,20 @@
             "example": "https://www.digikey.com/en/products/detail/abc123",
             "title": "Link",
             "type": "string"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "CAS URL for the seller logo image, or null if no logo is uploaded",
+            "example": "/api/cas/abc123def456",
+            "title": "Logo Url"
           },
           "seller_id": {
             "description": "ID of the linked seller",

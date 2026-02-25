@@ -155,17 +155,13 @@ export function PartListItem({
       </div>
 
       {/* Vendor and Location Section */}
-      <div className="flex flex-wrap gap-2 text-sm">
-        <VendorInfo
-          seller={part.seller}
-          sellerLink={part.seller_link}
-          inCardContext
-        />
-
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         <LocationSummary
           locations={part.locations || []}
           testId={`parts.list.card.location-summary-${part.key}`}
         />
+        <span className="flex-1" />
+        <VendorInfo sellerLinks={part.seller_links} />
       </div>
     </CardLink>
   );

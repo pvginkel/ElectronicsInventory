@@ -68,8 +68,6 @@ export class PartTestFactory {
       pin_count: null,
       pin_pitch: null,
       product_page: null,
-      seller_id: null,
-      seller_link: null,
       series: null,
       tags: null,
       voltage_rating: null,

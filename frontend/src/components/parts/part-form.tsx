@@ -3,7 +3,6 @@ import { Form, FormField, FormLabel } from '@/components/primitives/form';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { TypeSelector } from '@/components/types/type-selector';
-import { SellerSelector } from '@/components/sellers/seller-selector';
 import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { DuplicateDocumentGrid } from './duplicate-document-grid';
@@ -22,8 +21,6 @@ interface PartFormData {
   tags: string[];
   manufacturer: string;
   productPage: string;
-  sellerId?: number;
-  sellerLink: string;
   dimensions: string;
   mountingType: string;
   package: string;
@@ -58,8 +55,6 @@ export function PartForm({
     tags: [],
     manufacturer: '',
     productPage: '',
-    sellerId: undefined,
-    sellerLink: '',
     dimensions: '',
     mountingType: '',
     package: '',
@@ -110,8 +105,6 @@ export function PartForm({
         tags: existingPart.tags || [],
         manufacturer: existingPart.manufacturer || '',
         productPage: existingPart.product_page || '',
-        sellerId: existingPart.seller?.id || undefined,
-        sellerLink: existingPart.seller_link || '',
         dimensions: existingPart.dimensions || '',
         mountingType: existingPart.mounting_type || '',
         package: existingPart.package || '',
@@ -135,8 +128,6 @@ export function PartForm({
         tags: duplicateFormData.tags,
         manufacturer: duplicateFormData.manufacturer,
         productPage: duplicateFormData.productPage,
-        sellerId: duplicateFormData.sellerId,
-        sellerLink: duplicateFormData.sellerLink,
         dimensions: duplicateFormData.dimensions,
         mountingType: duplicateFormData.mountingType,
         package: duplicateFormData.package,
@@ -206,8 +197,6 @@ export function PartForm({
             tags: formData.tags.length > 0 ? formData.tags : null,
             manufacturer: formData.manufacturer || null,
             product_page: formData.productPage || null,
-            seller_id: formData.sellerId || null,
-            seller_link: formData.sellerLink || null,
             dimensions: formData.dimensions || null,
             mounting_type: formData.mountingType || null,
             package: formData.package || null,
@@ -232,8 +221,6 @@ export function PartForm({
             tags: formData.tags.length > 0 ? formData.tags : null,
             manufacturer: formData.manufacturer || null,
             product_page: formData.productPage || null,
-            seller_id: formData.sellerId || null,
-            seller_link: formData.sellerLink || null,
             dimensions: formData.dimensions || null,
             mounting_type: formData.mountingType || null,
             package: formData.package || null,
@@ -544,11 +531,11 @@ export function PartForm({
         </div>
       </div>
 
-      {/* Seller Information */}
+      {/* Manufacturer & Links */}
       <div className="space-y-4">
         <div className="border-b pb-2">
-          <h3 className="text-lg font-medium">Seller Information</h3>
-          <p className="text-sm text-muted-foreground">Manufacturer and vendor details</p>
+          <h3 className="text-lg font-medium">Manufacturer & Links</h3>
+          <p className="text-sm text-muted-foreground">Manufacturer and product page details</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -579,30 +566,13 @@ export function PartForm({
               placeholder="e.g., https://www.ti.com/product/SN74HC595"
             />
           </FormField>
-
-          <FormField>
-            <FormLabel>
-              Seller
-            </FormLabel>
-            <SellerSelector
-              value={formData.sellerId}
-              onChange={(value) => updateFormData('sellerId', value)}
-              error={errors.sellerId}
-            />
-          </FormField>
-
-          <FormField>
-            <FormLabel htmlFor="sellerLink">
-              Seller Link
-            </FormLabel>
-            <Input
-              id="sellerLink"
-              value={formData.sellerLink}
-              onChange={(e) => updateFormData('sellerLink', e.target.value)}
-              error={errors.sellerLink}
-            />
-          </FormField>
         </div>
+
+        {isEditing && (
+          <p className="text-sm text-muted-foreground">
+            Seller links can be managed from the part detail screen after saving.
+          </p>
+        )}
       </div>
 
       {/* Documents Section - only shown in duplication mode */}

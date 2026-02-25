@@ -74,9 +74,7 @@ export function AIPartCleanupDialog({ open, onClose, partId }: AIPartCleanupDial
       { old: current.input_voltage, new: cleaned.inputVoltage },
       { old: current.output_voltage, new: cleaned.outputVoltage },
       { old: current.product_page, new: cleaned.productPage },
-      { old: current.seller_link, new: cleaned.sellerLink },
       { old: current.type?.name, new: cleaned.type },
-      { old: current.seller?.name, new: cleaned.seller },
     ];
 
     for (const { old, new: newVal } of fieldsToCompare) {

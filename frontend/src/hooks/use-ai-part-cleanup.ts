@@ -11,7 +11,6 @@ interface CleanupTaskResult {
     manufacturer_code: string | null;
     manufacturer: string | null;
     product_page: string | null;
-    seller_link: string | null;
     dimensions: string | null;
     package: string | null;
     pin_count: number | null;
@@ -24,9 +23,6 @@ interface CleanupTaskResult {
     type: string | null;
     type_is_existing: boolean;
     existing_type_id: number | null;
-    seller: string | null;
-    seller_is_existing: boolean;
-    existing_seller_id: number | null;
     tags: string[];
   };
 }

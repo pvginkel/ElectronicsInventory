@@ -37,12 +37,8 @@ export interface PartAnalysisDetailsSchema {
   series: string | null;
   dimensions: string | null;
   documents: DocumentSuggestionSchema[];
-  seller: string | null;
-  seller_link: string | null;
   type_is_existing: boolean;
   existing_type_id: number | null;
-  seller_is_existing: boolean;
-  existing_seller_id: number | null;
 }
 
 /**
@@ -92,10 +88,6 @@ export interface TransformedAIPartAnalysisResult {
   inputVoltage?: string;
   outputVoltage?: string;
   productPageUrl?: string;
-  seller?: string;
-  sellerIsExisting?: boolean;
-  existingSellerId?: number;
-  sellerLink?: string;
 
   // Duplicate detection field (present when duplicate_parts populated)
   duplicateParts?: DuplicatePartEntry[];
@@ -117,7 +109,6 @@ export interface CleanedPartData {
   manufacturerCode: string | null;
   manufacturer: string | null;
   productPage: string | null;
-  sellerLink: string | null;
   dimensions: string | null;
   package: string | null;
   pinCount: number | null;
@@ -130,9 +121,6 @@ export interface CleanedPartData {
   type: string | null;
   typeIsExisting: boolean;
   existingTypeId: number | null;
-  seller: string | null;
-  sellerIsExisting: boolean;
-  existingSellerId: number | null;
   tags: string[];
 }
 

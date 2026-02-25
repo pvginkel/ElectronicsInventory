@@ -154,15 +154,14 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
       result = result.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
         const { displayId, displayDescription, displayManufacturerCode, displayManufacturer } = formatPartForDisplay(part);
         const typeName = part.type_id ? typeMap.get(part.type_id) : '';
-        const sellerName = part.seller?.name;
 
         const data: FuzzySearchTerm[] = [
           { term: displayId, type: 'literal' },
           { term: displayDescription, type: 'text' },
           { term: displayManufacturerCode ?? '', type: 'text' },
           { term: displayManufacturer ?? '', type: 'text' },
-          { term: sellerName ?? '', type: 'text' },
           { term: typeName ?? '', type: 'text' },
+          ...(part.seller_links ?? []).map(sl => ({ term: sl.seller_name ?? '', type: 'text' as const })),
           ...(part.tags ?? []).map(tag => ({ term: tag, type: 'text' as const })),
         ];
 

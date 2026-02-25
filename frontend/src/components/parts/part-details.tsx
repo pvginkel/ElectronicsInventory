@@ -137,7 +137,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
       id: numericId,
       key: part.key,
       description: part.description,
-      defaultSellerId: part.seller?.id ?? null,
+      defaultSellerId: null,
     };
   }, [part]);
 
@@ -517,21 +517,17 @@ export function PartDetails({ partId }: PartDetailsProps) {
                         </div>
                       )}
 
-                      {(part.seller || part.seller_link) && (
+                      {(part.seller_links ?? []).length > 0 && (
                         <div>
-                          <SectionHeading>Seller Information</SectionHeading>
+                          <SectionHeading>Seller Links</SectionHeading>
                           <DescriptionList spacing="default">
-                            {part.seller ? (
-                              <DescriptionItem label="Seller" value={part.seller.name} />
-                            ) : null}
-
-                            {part.seller_link ? (
-                              <DescriptionItem label="Seller Link" variant="compact">
-                                <ExternalLink href={part.seller_link}>
-                                  {part.seller_link}
+                            {(part.seller_links ?? []).map((sl) => (
+                              <DescriptionItem key={sl.id} label={sl.seller_name} variant="compact">
+                                <ExternalLink href={sl.link} className="break-all">
+                                  {sl.link}
                                 </ExternalLink>
                               </DescriptionItem>
-                            ) : null}
+                            ))}
                           </DescriptionList>
                         </div>
                       )}

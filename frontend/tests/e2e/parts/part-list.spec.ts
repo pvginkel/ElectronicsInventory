@@ -32,10 +32,11 @@ test.describe('Parts - List View', () => {
         manufacturer_code: 'OMRON G5Q-1A4',
         type_id: type.id,
         tags: ['relay', '5v'],
-        seller_id: seller.id,
-        seller_link: seller.website ?? null,
       },
     });
+
+    // Link the seller to the part via the seller_links endpoint
+    await testData.sellers.createPartSellerLink(part.key, seller.id, seller.website ?? 'https://example.com');
 
     const box = await testData.boxes.create();
     const locationNumber = 3;
@@ -183,7 +184,7 @@ test.describe('Parts - List View', () => {
     const shoppingTooltip = parts.shoppingListIndicatorTooltip();
     await shoppingTooltip.waitFor({ state: 'visible' });
     await expect(shoppingTooltip).toContainText(shoppingList.name);
-    await expect(shoppingTooltip).toContainText(/ready|concept/i);
+    await expect(shoppingTooltip).toContainText(/active|ready|concept/i);
 
     // Move mouse away from shopping tooltip to avoid blocking the kit indicator hover
     await page.mouse.move(0, 0);

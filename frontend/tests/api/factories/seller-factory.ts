@@ -149,6 +149,26 @@ export class SellerTestFactory {
   }
 
   /**
+   * Links a seller to a part via the seller-links endpoint.
+   * @param partKey - The part key to attach the link to
+   * @param sellerId - The seller ID
+   * @param link - Product page URL at the seller
+   * @returns The created PartSellerLink
+   */
+  async createPartSellerLink(
+    partKey: string,
+    sellerId: number,
+    link: string,
+  ): Promise<components['schemas']['PartSellerLinkSchema.f085a8d']> {
+    return apiRequest(() =>
+      this.client.POST('/api/parts/{part_key}/seller-links', {
+        params: { path: { part_key: partKey } },
+        body: { seller_id: sellerId, link },
+      })
+    );
+  }
+
+  /**
    * Creates a seller with specific part links
    * @param partLinks - Array of part link URLs
    * @param options - Additional options

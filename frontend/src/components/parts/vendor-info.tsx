@@ -1,70 +1,75 @@
-import { ExternalLink } from '@/components/primitives';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
 
-interface VendorInfoProps {
-  seller?: { id: number; name: string } | null;
-  sellerLink?: string | null;
-  /**
-   * When true, renders the link as a clickable span instead of an anchor.
-   * Use this when VendorInfo is rendered inside another anchor element (e.g., a card link)
-   * to avoid invalid nested anchor HTML.
-   */
-  inCardContext?: boolean;
+interface SellerLink {
+  id: number;
+  seller_id: number;
+  seller_name: string;
+  seller_website: string;
+  link: string;
+  logo_url: string | null;
+  created_at: string;
 }
 
-export function VendorInfo({ seller, sellerLink, inCardContext = false }: VendorInfoProps) {
-  if (!seller) return null;
+interface VendorInfoProps {
+  sellerLinks?: SellerLink[];
+  /** Maximum number of seller chips/icons to show before overflow indicator. */
+  maxVisible?: number;
+}
 
-  const truncatedSeller = seller.name.length > 25 ? seller.name.substring(0, 22) + '...' : seller.name;
+const MAX_VISIBLE_DEFAULT = 3;
 
-  // When inside a card context, we can't use an anchor (would create nested <a> tags)
-  // Instead, use a clickable span that opens the link in a new tab
-  const handleLinkClick = (e: React.MouseEvent) => {
+/**
+ * Renders a row of seller icons/chips from the seller_links array.
+ * Each chip is clickable (opens the seller link in a new tab).
+ * If logo_url is available, shows the logo; otherwise shows a name chip.
+ * Always renders inside a card context (clickable spans, not anchors).
+ */
+export function VendorInfo({ sellerLinks, maxVisible = MAX_VISIBLE_DEFAULT }: VendorInfoProps) {
+  if (!sellerLinks || sellerLinks.length === 0) return null;
+
+  const visible = sellerLinks.slice(0, maxVisible);
+  const overflow = sellerLinks.length - maxVisible;
+
+  const handleClick = (e: React.MouseEvent, link: string) => {
     e.stopPropagation();
     e.preventDefault();
-    if (sellerLink) {
-      window.open(sellerLink, '_blank', 'noopener,noreferrer');
-    }
+    window.open(link, '_blank', 'noopener,noreferrer');
   };
 
   return (
-    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-      {sellerLink ? (
-        <>
-          <span className="text-xs">🏪</span>
-          {inCardContext ? (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={handleLinkClick}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleLinkClick(e as unknown as React.MouseEvent);
-                }
-              }}
-              className="inline-flex items-center gap-1 text-link hover:underline cursor-pointer"
-              title={`${seller.name} - Product page (opens in new tab)`}
-              aria-label={`${seller.name} - Product page`}
-            >
-              {truncatedSeller}
+    <span className="inline-flex items-center gap-1.5 text-sm" data-testid="parts.list.card.seller-links">
+      {visible.map((sl) => (
+        <span
+          key={sl.id}
+          role="button"
+          tabIndex={0}
+          onClick={(e) => handleClick(e, sl.link)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleClick(e as unknown as React.MouseEvent, sl.link);
+            }
+          }}
+          title={`${sl.seller_name} - Product page (opens in new tab)`}
+          aria-label={`${sl.seller_name} - Product page`}
+          data-testid="parts.list.card.seller-chip"
+        >
+          {sl.logo_url ? (
+            <img
+              src={sl.logo_url}
+              alt={sl.seller_name}
+              className="h-5 w-5 rounded-sm object-contain cursor-pointer hover:opacity-80"
+            />
+          ) : (
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground cursor-pointer hover:bg-secondary/80">
+              {sl.seller_name}
               <ExternalLinkIcon className="inline w-3 h-3 flex-shrink-0" />
             </span>
-          ) : (
-            <ExternalLink
-              href={sellerLink}
-              onClick={(e) => e.stopPropagation()}
-              ariaLabel={`${seller.name} - Product page`}
-            >
-              {truncatedSeller}
-            </ExternalLink>
           )}
-        </>
-      ) : (
-        <>
-          <span className="text-xs">🏪</span>
-          <span title={seller.name}>{truncatedSeller}</span>
-        </>
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span className="text-xs text-muted-foreground">+{overflow}</span>
       )}
     </span>
   );

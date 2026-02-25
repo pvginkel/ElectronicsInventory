@@ -153,8 +153,8 @@ export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSel
         { term: option.displayDescription, type: 'text' },
         { term: option.displayManufacturerCode ?? '', type: 'text' },
         { term: option.manufacturer ?? '', type: 'text' },
-        { term: raw?.seller?.name ?? '', type: 'text' },
         { term: option.typeName ?? '', type: 'text' },
+        ...(raw?.seller_links ?? []).map(sl => ({ term: sl.seller_name ?? '', type: 'text' as const })),
         ...(raw?.tags ?? []).map(tag => ({ term: tag, type: 'text' as const })),
       ];
       return fuzzyMatch(data, searchTerm);
