@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from sqlalchemy import String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,13 +27,17 @@ class Seller(db.Model):  # type: ignore[name-defined]
     )
 
     @property
-    def logo_url(self) -> str | None:
-        """Build CAS URL for the seller logo image.
+    def logo_url(self) -> str:
+        """Build URL for the seller logo image.
 
-        Returns the base URL for the logo, or None if no logo is set.
-        Client can append ?thumbnail=<size> to get a specific thumbnail size.
+        Returns the CAS URL if a logo is uploaded, otherwise falls back to
+        Google's favicon service using the seller's website domain.
         """
-        return build_cas_url(self.logo_s3_key)
+        cas_url = build_cas_url(self.logo_s3_key)
+        if cas_url:
+            return cas_url
+        domain = urlparse(self.website).hostname or self.website
+        return f"https://www.google.com/s2/favicons?domain={domain}&sz=32"
 
     def __repr__(self) -> str:
         return f"<Seller(id={self.id}, name='{self.name}', website='{self.website}')>"

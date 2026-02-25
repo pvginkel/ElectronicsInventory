@@ -48,6 +48,7 @@ def add_seller_link(
         seller_name=part_seller.seller.name,
         seller_website=part_seller.seller.website,
         link=part_seller.link,
+        logo_url=part_seller.logo_url,
         created_at=part_seller.created_at,
     )
     return response.model_dump(), 201

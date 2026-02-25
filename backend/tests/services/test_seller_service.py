@@ -564,11 +564,11 @@ class TestSellerServiceLogo:
         assert seller.logo_s3_key is not None
         assert seller.logo_url is not None
 
-        # Delete logo
+        # Delete logo — falls back to Google favicon
         updated = service.delete_logo(seller.id)
 
         assert updated.logo_s3_key is None
-        assert updated.logo_url is None
+        assert updated.logo_url == "https://www.google.com/s2/favicons?domain=www.digikey.com&sz=32"
 
     def test_delete_logo_without_logo(self, app: Flask, session: Session, container: ServiceContainer):
         """Test deleting logo when none is set does not raise an error."""
@@ -580,7 +580,7 @@ class TestSellerServiceLogo:
         updated = service.delete_logo(seller.id)
 
         assert updated.logo_s3_key is None
-        assert updated.logo_url is None
+        assert updated.logo_url == "https://www.google.com/s2/favicons?domain=www.digikey.com&sz=32"
 
     def test_delete_logo_nonexistent_seller(self, app: Flask, session: Session, container: ServiceContainer):
         """Test delete_logo for non-existent seller raises RecordNotFoundException."""
@@ -591,13 +591,13 @@ class TestSellerServiceLogo:
 
         assert "Seller 999 was not found" in str(exc_info.value)
 
-    def test_logo_url_none_when_no_logo(self, app: Flask, session: Session, container: ServiceContainer):
-        """Test that logo_url property is None when logo_s3_key is None."""
+    def test_logo_url_favicon_fallback_when_no_logo(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test that logo_url falls back to Google favicon when logo_s3_key is None."""
         service = container.seller_service()
         seller = service.create_seller("DigiKey", "https://www.digikey.com")
 
         assert seller.logo_s3_key is None
-        assert seller.logo_url is None
+        assert seller.logo_url == "https://www.google.com/s2/favicons?domain=www.digikey.com&sz=32"
 
     def test_logo_url_returns_cas_url_when_set(self, app: Flask, session: Session, container: ServiceContainer, sample_png_bytes: bytes):
         """Test that logo_url returns a proper CAS URL when logo is set."""

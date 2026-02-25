@@ -47,9 +47,8 @@ class PartSellerLinkSchema(BaseModel):
         description="Seller-specific product page URL",
         json_schema_extra={"example": "https://www.digikey.com/en/products/detail/abc123"}
     )
-    logo_url: str | None = Field(
-        default=None,
-        description="CAS URL for the seller logo image, or null if no logo is uploaded",
+    logo_url: str = Field(
+        description="URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
         json_schema_extra={"example": "/api/cas/abc123def456"}
     )
     created_at: datetime = Field(
