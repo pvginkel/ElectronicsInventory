@@ -75,7 +75,7 @@ class TestSellerAPI:
         assert data["website"] == "https://www.digikey.com"
         assert "id" in data
         assert "logo_url" in data
-        assert data["logo_url"] is None
+        assert data["logo_url"] == "https://www.google.com/s2/favicons?domain=www.digikey.com&sz=32"
         assert "created_at" in data
         assert "updated_at" in data
 
@@ -158,7 +158,7 @@ class TestSellerAPI:
         assert data["id"] == seller.id
         assert data["name"] == "DigiKey"
         assert data["website"] == "https://www.digikey.com"
-        assert data["logo_url"] is None
+        assert data["logo_url"] == "https://www.google.com/s2/favicons?domain=www.digikey.com&sz=32"
         assert "created_at" in data
         assert "updated_at" in data
 
@@ -396,7 +396,7 @@ class TestSellerAPI:
         assert isinstance(data["id"], int)
         assert isinstance(data["name"], str)
         assert isinstance(data["website"], str)
-        assert data["logo_url"] is None  # No logo set
+        assert isinstance(data["logo_url"], str)  # Favicon fallback
         assert isinstance(data["created_at"], str)
         assert isinstance(data["updated_at"], str)
 
@@ -423,7 +423,7 @@ class TestSellerAPI:
         assert isinstance(seller_data["id"], int)
         assert isinstance(seller_data["name"], str)
         assert isinstance(seller_data["website"], str)
-        assert seller_data["logo_url"] is None
+        assert isinstance(seller_data["logo_url"], str)  # Favicon fallback
 
 
 class TestSellerLogoAPI:
@@ -575,7 +575,7 @@ class TestSellerLogoAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data["logo_url"] is None
+        assert data["logo_url"] == "https://www.google.com/s2/favicons?domain=www.digikey.com&sz=32"
         assert data["id"] == seller.id
         assert data["name"] == "DigiKey"
 
@@ -589,7 +589,7 @@ class TestSellerLogoAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data["logo_url"] is None
+        assert data["logo_url"] == "https://www.google.com/s2/favicons?domain=www.digikey.com&sz=32"
 
     def test_delete_logo_seller_not_found(self, app: Flask, client: FlaskClient, session: Session):
         """Test DELETE /api/sellers/{id}/logo with non-existent seller returns 404."""

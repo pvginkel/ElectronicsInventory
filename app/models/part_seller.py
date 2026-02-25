@@ -44,9 +44,9 @@ class PartSeller(db.Model):  # type: ignore[name-defined]
         return self.seller.website if self.seller else ""
 
     @property
-    def logo_url(self) -> str | None:
+    def logo_url(self) -> str:
         """Seller logo URL for flat schema serialization via from_attributes."""
-        return self.seller.logo_url if self.seller else None
+        return self.seller.logo_url if self.seller else ""
 
     def __repr__(self) -> str:
         return f"<PartSeller id={self.id} part_id={self.part_id} seller_id={self.seller_id}>"
