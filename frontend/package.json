@@ -10,7 +10,7 @@
     "check": "pnpm check:lint && pnpm check:type-check && pnpm check:knip",
     "check:lint": "eslint .",
     "check:type-check": "tsc -b --noEmit",
-    "check:knip": "knip",
+    "check:knip": "knip --no-config-hints",
     "preview": "vite preview --port 3000",
     "generate:routes": "tsr generate",
     "generate:api": "node scripts/generate-api.js --fetch",
