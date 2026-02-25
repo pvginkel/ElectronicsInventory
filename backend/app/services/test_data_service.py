@@ -79,8 +79,9 @@ class TestDataService:
             parts,
         )
 
-        # Load part images (requires S3 service)
+        # Load images (requires S3 service)
         self.load_part_images(data_dir, parts)
+        self.load_seller_logos(data_dir, sellers)
 
         # Commit all changes
         self.db.commit()
@@ -929,3 +930,92 @@ class TestDataService:
             )
 
         logger.info(f"Loaded {loaded_count} part images")
+
+    def load_seller_logos(self, data_dir: Path, sellers: dict[int, Seller]) -> None:
+        """Load seller logos from seller_logos directory and upload to S3 using CAS.
+
+        For each seller with a 'logo' field in sellers.json, this method:
+        1. Reads the image file from seller_logos/
+        2. Computes SHA-256 hash and uploads to S3 using CAS format
+        3. Sets seller.logo_s3_key to the CAS key
+
+        Args:
+            data_dir: Path to test_data directory
+            sellers: Dictionary mapping JSON seller IDs to Seller objects
+        """
+        logos_dir = data_dir / "seller_logos"
+        if not logos_dir.exists():
+            logger.info("No seller_logos directory found, skipping logo loading")
+            return
+
+        # Load sellers.json to get logo mappings
+        sellers_file = data_dir / "sellers.json"
+        try:
+            with sellers_file.open() as f:
+                sellers_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            raise InvalidOperationException(
+                "load seller logos",
+                f"failed to read {sellers_file}: {e}"
+            ) from e
+
+        # Build mapping of JSON seller id -> logo filename
+        logo_map: dict[int, str] = {}
+        for seller_data in sellers_data:
+            if "logo" in seller_data:
+                logo_map[seller_data["id"]] = seller_data["logo"]
+
+        if not logo_map:
+            logger.info("No sellers with logos defined, skipping logo loading")
+            return
+
+        logger.info(f"Loading {len(logo_map)} seller logos from {logos_dir}")
+        loaded_count = 0
+        errors = []
+
+        for json_seller_id, logo_filename in logo_map.items():
+            seller = sellers.get(json_seller_id)
+            if not seller:
+                errors.append(f"Seller with JSON id {json_seller_id} not found for logo {logo_filename}")
+                continue
+
+            logo_path = logos_dir / logo_filename
+            if not logo_path.exists():
+                errors.append(f"Logo file not found: {logo_path}")
+                continue
+
+            try:
+                logo_bytes = logo_path.read_bytes()
+            except OSError as e:
+                errors.append(f"Could not read logo file {logo_path}: {e}")
+                continue
+
+            # Compute CAS key and upload if needed
+            cas_key = self.s3_service.generate_cas_key(logo_bytes)
+
+            if not self.s3_service.file_exists(cas_key):
+                try:
+                    content_type = mimetypes.guess_type(logo_filename)[0] or "image/png"
+                    file_obj = BytesIO(logo_bytes)
+                    self.s3_service.upload_file(file_obj, cas_key, content_type)
+                    logger.debug(f"Uploaded {logo_filename} to S3 as {cas_key}")
+                except Exception as e:
+                    errors.append(f"Failed to upload {logo_filename} to S3: {e}")
+                    continue
+            else:
+                logger.debug(f"Logo {logo_filename} already exists in S3 as {cas_key}")
+
+            # Set logo on the seller record
+            seller.logo_s3_key = cas_key
+            loaded_count += 1
+
+        if errors:
+            error_summary = "; ".join(errors[:5])
+            if len(errors) > 5:
+                error_summary += f" (and {len(errors) - 5} more errors)"
+            raise InvalidOperationException(
+                "load seller logos",
+                f"failed to load {len(errors)} logos: {error_summary}"
+            )
+
+        logger.info(f"Loaded {loaded_count} seller logos")

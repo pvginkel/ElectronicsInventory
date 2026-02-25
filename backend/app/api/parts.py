@@ -106,6 +106,7 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
             "seller_name": ps.seller.name if ps.seller else "",
             "seller_website": ps.seller.website if ps.seller else "",
             "link": ps.link,
+            "logo_url": ps.logo_url,
             "created_at": ps.created_at.isoformat() if ps.created_at else None,
         })
 
