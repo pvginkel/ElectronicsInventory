@@ -257,7 +257,7 @@ class TestOpenAIRunnerAttachments:
             )
 
             # Execute - should raise from upload failure
-            with pytest.raises(Exception, match="Upload failed"):  # noqa: B017
+            with pytest.raises(Exception, match="Upload failed"):
                 runner.run(request, function_tools=[])
 
             # Verify partial uploads were cleaned up

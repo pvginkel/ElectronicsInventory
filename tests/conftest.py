@@ -21,7 +21,7 @@ from sqlalchemy.pool import StaticPool
 # fixtures so that session-scoped fixtures (template_connection) use
 # EI-specific defaults (ai_testing_mode=True, etc.).
 # ---------------------------------------------------------------------------
-import tests.conftest_infrastructure as _infra  # noqa: E402
+import tests.conftest_infrastructure as _infra
 from app import create_app
 from app.app_config import AppSettings
 
@@ -34,7 +34,7 @@ def _ei_build_test_app_settings() -> AppSettings:
 _infra._build_test_app_settings = _ei_build_test_app_settings
 
 # Import all infrastructure fixtures
-from tests.conftest_infrastructure import *  # noqa: F401, F403, E402
+from tests.conftest_infrastructure import *  # noqa: F403, E402
 from tests.conftest_infrastructure import _build_test_settings  # noqa: E402
 
 # Import domain fixtures to make them available to all tests
