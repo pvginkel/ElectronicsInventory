@@ -58,15 +58,7 @@ _PROGRESS_STEP = 0.25
 
 class OpenAIRunner(AIRunner):
     def __init__(self, api_key: str):
-        def on_request(request: Any) -> None:
-            logger.info(f"Sending request to URL {request.method} {request.url}")
-            logger.info(f"Body {request.content}")
-
-        self.http_client = httpx.Client(
-            event_hooks={
-                # "request": [on_request],
-            }
-        )
+        self.http_client = httpx.Client()
         self.client = OpenAI(api_key=api_key, http_client=self.http_client)
 
     def run(self, request: AIRequest, function_tools: list[AIFunction], progress_handle: ProgressHandle | None = None, streaming: bool = False) -> AIResponse:
@@ -397,9 +389,6 @@ class OpenAIRunner(AIRunner):
                         progress_handle.send_progress_text(match.group(1))
                 if isinstance(event, ResponseCompletedEvent):
                     return event.response
-
-                # logger.info(event)
-                # logger.info(event.model_dump_json())
 
         raise Exception("Did not get ResponseCompletedEvent")
 
