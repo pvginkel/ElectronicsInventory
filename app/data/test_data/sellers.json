@@ -2,36 +2,43 @@
   {
     "id": 1,
     "name": "AliExpress",
-    "website": "https://www.aliexpress.com"
+    "website": "https://www.aliexpress.com",
+    "logo": "AliExpress.png"
   },
   {
     "id": 2,
     "name": "Amazon",
-    "website": "https://www.amazon.com"
+    "website": "https://www.amazon.com",
+    "logo": "Amazon.png"
   },
   {
     "id": 3,
     "name": "TinyTronics",
-    "website": "https://tinytronics.nl"
+    "website": "https://tinytronics.nl",
+    "logo": "TinyTronics.png"
   },
   {
     "id": 4,
     "name": "DigiKey",
-    "website": "https://www.digikey.com"
+    "website": "https://www.digikey.com",
+    "logo": "DigiKey.png"
   },
   {
     "id": 5,
     "name": "Mouser",
-    "website": "https://www.mouser.com"
+    "website": "https://www.mouser.com",
+    "logo": "Mouser.png"
   },
   {
     "id": 6,
     "name": "Adafruit",
-    "website": "https://www.adafruit.com"
+    "website": "https://www.adafruit.com",
+    "logo": "Adafruit.png"
   },
   {
     "id": 7,
     "name": "SparkFun",
-    "website": "https://www.sparkfun.com"
+    "website": "https://www.sparkfun.com",
+    "logo": "Sparkfun.png"
   }
 ]
