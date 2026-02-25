@@ -518,7 +518,23 @@ class TestSellerGroupService:
         ).scalar_one()
         assert row.note == "Combine with bench order"
 
-    def test_update_seller_group_rejects_done_list(self, session, container):
+    def test_update_seller_group_note_allowed_on_done_list(self, session, container):
+        shopping_list, seller, _ = self._create_list_with_seller_group(
+            container, session
+        )
+        shopping_list_service = container.shopping_list_service()
+
+        shopping_list_service.set_list_status(shopping_list.id, ShoppingListStatus.DONE)
+        session.commit()
+
+        result = shopping_list_service.update_seller_group(
+            shopping_list.id,
+            seller.id,
+            note="Post-completion annotation",
+        )
+        assert result.note == "Post-completion annotation"
+
+    def test_update_seller_group_status_rejected_on_done_list(self, session, container):
         shopping_list, seller, _ = self._create_list_with_seller_group(
             container, session
         )
@@ -531,7 +547,7 @@ class TestSellerGroupService:
             shopping_list_service.update_seller_group(
                 shopping_list.id,
                 seller.id,
-                note="Should fail",
+                status=ShoppingListSellerStatus.ORDERED,
             )
 
     def test_order_seller_group_success(self, session, container):

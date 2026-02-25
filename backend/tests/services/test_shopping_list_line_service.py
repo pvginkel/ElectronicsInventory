@@ -212,7 +212,31 @@ class TestShoppingListLineService:
         session.refresh(shopping_list)
         assert shopping_list.updated_at > after_add
 
-    def test_update_line_rejects_done_list(self, session, container):
+    def test_update_line_note_allowed_on_done_list(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list("Done But Notes OK")
+        part = part_service.create_part(description="Config jumper")
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=2,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        updated = shopping_list_line_service.update_line(
+            line.id,
+            note="Post-completion annotation",
+        )
+        assert updated.note == "Post-completion annotation"
+
+    def test_update_line_non_note_fields_rejected_on_done_list(self, session, container):
         shopping_list_service = container.shopping_list_service()
         shopping_list_line_service = container.shopping_list_line_service()
         part_service = container.part_service()
@@ -230,16 +254,11 @@ class TestShoppingListLineService:
             ShoppingListStatus.DONE,
         )
 
-        with pytest.raises(InvalidOperationException) as exc:
+        with pytest.raises(InvalidOperationException):
             shopping_list_line_service.update_line(
                 line.id,
-                note="Attempt edit",
+                needed=5,
             )
-
-        assert (
-            exc.value.message
-            == "Cannot update shopping list line because lines cannot be modified on a list that is marked done"
-        )
 
     def test_update_line_allows_clearing_seller_override(self, session, container):
         shopping_list, part = self._create_list_with_part(container)

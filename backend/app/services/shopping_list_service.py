@@ -281,13 +281,15 @@ class ShoppingListService:
     ) -> SellerGroupDetail:
         """Update a seller group's note and/or status."""
         shopping_list = self._get_list_for_update(list_id)
-        if shopping_list.status == ShoppingListStatus.DONE:
+        seller_group = self._get_seller_group_row(list_id, seller_id)
+
+        # Notes can always be edited regardless of list status.
+        # Status changes are blocked when the list is done.
+        if status is not None and shopping_list.status == ShoppingListStatus.DONE:
             raise InvalidOperationException(
                 "update seller group",
-                "cannot modify seller groups on a completed list",
+                "cannot change seller group status on a completed list",
             )
-
-        seller_group = self._get_seller_group_row(list_id, seller_id)
 
         if note is not None:
             seller_group.note = note

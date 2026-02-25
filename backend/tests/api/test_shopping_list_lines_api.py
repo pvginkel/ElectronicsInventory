@@ -390,15 +390,20 @@ class TestShoppingListLinesAPI:
             == "Cannot add part to shopping list because lines cannot be modified on a list that is marked done"
         )
 
+        # Note-only updates are allowed even on done lists
+        note_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"note": "Post-completion annotation"},
+        )
+        assert note_resp.status_code == 200
+        assert note_resp.get_json()["note"] == "Post-completion annotation"
+
+        # Non-note updates are still blocked
         update_resp = client.put(
             f"/api/shopping-list-lines/{line_id}",
-            json={"note": "Attempt update"},
+            json={"needed": 99},
         )
         assert update_resp.status_code == 409
-        assert (
-            update_resp.get_json()["error"]
-            == "Cannot update shopping list line because lines cannot be modified on a list that is marked done"
-        )
 
         delete_resp = client.delete(f"/api/shopping-list-lines/{line_id}")
         assert delete_resp.status_code == 409

@@ -199,13 +199,22 @@ class ShoppingListLineService:
         line = self._get_line_for_update(line_id)
         shopping_list = self._get_list_for_update(line.shopping_list_id)
 
-        if shopping_list.status == ShoppingListStatus.DONE:
+        # Notes can always be edited regardless of list/line status.
+        # All other fields are blocked when the list or line is done.
+        note_only = (
+            note is not None
+            and not seller_id_provided
+            and needed is None
+            and ordered is None
+        )
+
+        if not note_only and shopping_list.status == ShoppingListStatus.DONE:
             raise InvalidOperationException(
                 "update shopping list line",
                 "lines cannot be modified on a list that is marked done",
             )
 
-        if line.status == ShoppingListLineStatus.DONE:
+        if not note_only and line.status == ShoppingListLineStatus.DONE:
             raise InvalidOperationException(
                 "update shopping list line",
                 "completed lines cannot be edited",
