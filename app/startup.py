@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from flask import Blueprint, Flask
+from flask.wrappers import Response
 
 if TYPE_CHECKING:
     import click
@@ -149,7 +150,7 @@ def register_error_handlers(app: Flask) -> None:
     )
 
     @app.errorhandler(DependencyException)
-    def handle_dependency_exception(error: DependencyException):
+    def handle_dependency_exception(error: DependencyException) -> tuple[Response, int]:
         _mark_request_failed()
         return build_error_response(
             error.message,
@@ -159,7 +160,7 @@ def register_error_handlers(app: Flask) -> None:
         )
 
     @app.errorhandler(InsufficientQuantityException)
-    def handle_insufficient_quantity(error: InsufficientQuantityException):
+    def handle_insufficient_quantity(error: InsufficientQuantityException) -> tuple[Response, int]:
         _mark_request_failed()
         return build_error_response(
             error.message,
@@ -169,7 +170,7 @@ def register_error_handlers(app: Flask) -> None:
         )
 
     @app.errorhandler(CapacityExceededException)
-    def handle_capacity_exceeded(error: CapacityExceededException):
+    def handle_capacity_exceeded(error: CapacityExceededException) -> tuple[Response, int]:
         _mark_request_failed()
         return build_error_response(
             error.message,

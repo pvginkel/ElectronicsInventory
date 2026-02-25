@@ -316,7 +316,7 @@ def get_temp_file_manager() -> TempFileManager:
     tmp_path = os.path.join(os.path.dirname(__file__), "tmp")
     os.makedirs(tmp_path, exist_ok=True)
 
-    return TempFileManager(tmp_path, 1, Mock())
+    return TempFileManager(Mock(), tmp_path, 1)
 
 
 def get_document_service() -> DocumentService:
