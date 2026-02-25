@@ -518,11 +518,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
                         </div>
                       )}
 
-                      <SellerLinkSection
-                        partId={partId}
-                        sellerLinks={part.seller_links ?? []}
-                      />
-
                       {displayManufacturerCode ? (
                         <DescriptionItem
                           label="Manufacturer Code"
@@ -679,7 +674,19 @@ export function PartDetails({ partId }: PartDetailsProps) {
             </Card>
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
+            <Card data-testid="parts.detail.seller-links-card">
+              <CardHeader>
+                <CardTitle>Seller Links</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SellerLinkSection
+                  partId={partId}
+                  sellerLinks={part.seller_links ?? []}
+                />
+              </CardContent>
+            </Card>
+
             <Card data-testid="parts.detail.locations">
               <CardHeader>
                 <CardTitle>Stock Locations</CardTitle>

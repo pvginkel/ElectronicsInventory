@@ -3881,18 +3881,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -3910,7 +3902,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -5718,18 +5711,10 @@
             "type": "string"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image, or null if no logo is uploaded",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "seller_id": {
             "description": "ID of the linked seller",
@@ -5756,6 +5741,7 @@
           "seller_name",
           "seller_website",
           "link",
+          "logo_url",
           "created_at"
         ],
         "title": "PartSellerLinkSchema",
@@ -5847,18 +5833,10 @@
             "type": "string"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image, or null if no logo is uploaded",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "seller_id": {
             "description": "ID of the linked seller",
@@ -5885,6 +5863,7 @@
           "seller_name",
           "seller_website",
           "link",
+          "logo_url",
           "created_at"
         ],
         "title": "PartSellerLinkSchema",
@@ -6117,18 +6096,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -6146,7 +6117,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -6269,18 +6241,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -6298,7 +6262,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -6428,18 +6393,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -6457,7 +6414,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -6845,18 +6803,10 @@
             "type": "string"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image, or null if no logo is uploaded",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "seller_id": {
             "description": "ID of the linked seller",
@@ -6883,6 +6833,7 @@
           "seller_name",
           "seller_website",
           "link",
+          "logo_url",
           "created_at"
         ],
         "title": "PartSellerLinkSchema",
@@ -7328,18 +7279,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -7357,7 +7300,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -7580,18 +7524,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -7609,7 +7545,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -7630,18 +7567,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -7666,6 +7595,7 @@
           "id",
           "name",
           "website",
+          "logo_url",
           "created_at",
           "updated_at"
         ],
@@ -8161,18 +8091,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -8190,7 +8112,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -8777,18 +8700,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -8806,7 +8721,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -9357,18 +9273,10 @@
             "type": "integer"
           },
           "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "CAS URL for the seller logo image",
+            "description": "URL for the seller logo image (CAS URL if uploaded, otherwise Google favicon)",
             "example": "/api/cas/abc123def456",
-            "title": "Logo Url"
+            "title": "Logo Url",
+            "type": "string"
           },
           "name": {
             "description": "Seller name",
@@ -9386,7 +9294,8 @@
         "required": [
           "id",
           "name",
-          "website"
+          "website",
+          "logo_url"
         ],
         "title": "SellerListSchema",
         "type": "object"

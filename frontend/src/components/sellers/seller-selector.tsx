@@ -14,6 +14,8 @@ interface SellerSelectorProps {
   placeholder?: string
   error?: string
   className?: string
+  /** Seller IDs to exclude from the dropdown (e.g. already-linked sellers). */
+  excludeIds?: number[]
 }
 
 export function SellerSelector({
@@ -21,7 +23,8 @@ export function SellerSelector({
   onChange,
   placeholder = "Search or select seller...",
   error,
-  className
+  className,
+  excludeIds,
 }: SellerSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -35,13 +38,17 @@ export function SellerSelector({
     error: loadError
   } = useSellers()
 
-  // Filter sellers based on search term using fuzzy matching
+  // Filter sellers: exclude already-linked, then apply fuzzy search
+  const excludeSet = useMemo(() => new Set(excludeIds ?? []), [excludeIds])
   const sellers = useMemo(() => {
-    if (!searchTerm.trim()) return allSellers
-    return allSellers.filter(seller =>
+    const eligible = excludeSet.size > 0
+      ? allSellers.filter(s => !excludeSet.has(s.id))
+      : allSellers
+    if (!searchTerm.trim()) return eligible
+    return eligible.filter(seller =>
       fuzzyMatch([{ term: seller.name, type: 'text' }], searchTerm)
     )
-  }, [allSellers, searchTerm])
+  }, [allSellers, excludeSet, searchTerm])
   const createMutation = useCreateSeller()
 
   // Find selected seller for displaying website below

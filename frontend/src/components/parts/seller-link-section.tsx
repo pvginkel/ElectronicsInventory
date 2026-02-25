@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { ConfirmDialog } from '@/components/primitives/dialog';
 import { Input } from '@/components/primitives/input';
 import { ExternalLink } from '@/components/primitives';
-import { SectionHeading } from '@/components/ui';
 import { SellerSelector } from '@/components/sellers/seller-selector';
 import {
   usePostPartsSellerLinksByPartKey,
@@ -54,6 +53,12 @@ export function SellerLinkSection({ partId, sellerLinks }: SellerLinkSectionProp
   const isAddFormValid = sellerId !== undefined && linkUrl.trim().length > 0;
   const hasLinks = sellerLinks.length > 0;
 
+  // Exclude sellers that already have a link on this part
+  const linkedSellerIds = useMemo(
+    () => sellerLinks.map((sl) => sl.seller_id),
+    [sellerLinks],
+  );
+
   // -- Handlers --
 
   const resetForm = () => {
@@ -101,8 +106,6 @@ export function SellerLinkSection({ partId, sellerLinks }: SellerLinkSectionProp
 
   return (
     <div data-testid="parts.detail.seller-links">
-      <SectionHeading>Seller Links</SectionHeading>
-
       {/* Existing seller link rows */}
       {hasLinks ? (
         <div className="space-y-2 mb-3">
@@ -112,14 +115,11 @@ export function SellerLinkSection({ partId, sellerLinks }: SellerLinkSectionProp
               className="flex items-center gap-2"
               data-testid="parts.detail.seller-links.row"
             >
-              {/* Logo (if available), matching VendorInfo pattern */}
-              {sl.logo_url && (
-                <img
-                  src={sl.logo_url}
-                  alt={sl.seller_name}
-                  className="h-5 w-5 rounded-sm object-contain flex-shrink-0"
-                />
-              )}
+              <img
+                src={sl.logo_url}
+                alt={sl.seller_name}
+                className="h-5 w-5 rounded-sm object-contain flex-shrink-0"
+              />
               <span className="text-sm font-medium flex-shrink-0">{sl.seller_name}</span>
               <ExternalLink href={sl.link} className="text-sm break-all min-w-0">
                 {sl.link}
@@ -167,6 +167,7 @@ export function SellerLinkSection({ partId, sellerLinks }: SellerLinkSectionProp
               value={sellerId}
               onChange={setSellerId}
               placeholder="Select seller..."
+              excludeIds={linkedSellerIds}
             />
           </div>
 
