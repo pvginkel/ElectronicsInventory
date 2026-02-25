@@ -18,7 +18,7 @@ import type { KitContentRow, KitDetail } from '@/types/kits';
 
 type KitDetailQuery = UseKitDetailResult['query'];
 
-export interface KitContentFormMetadata extends Record<string, unknown> {
+interface KitContentFormMetadata extends Record<string, unknown> {
   kitId: number;
   contentId?: number | null;
   partKey?: string | null;

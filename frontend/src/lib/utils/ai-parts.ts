@@ -10,7 +10,7 @@ import type {
 /**
  * Deduplicate documents by URL to prevent duplicate downloads and storage
  */
-export function deduplicateDocuments(documents: DocumentSuggestionSchema[]): DocumentSuggestionSchema[] {
+function deduplicateDocuments(documents: DocumentSuggestionSchema[]): DocumentSuggestionSchema[] {
   const urlMap = new Map<string, DocumentSuggestionSchema>();
 
   for (const document of documents) {
@@ -204,43 +204,3 @@ export function transformCleanupResult(backendResult: {
   };
 }
 
-/**
- * Transform cleanup changes to PATCH payload (camelCase to snake_case)
- */
-export function transformToUpdatePayload(changes: {
-  description?: string | null;
-  manufacturerCode?: string | null;
-  manufacturer?: string | null;
-  productPage?: string | null;
-  dimensions?: string | null;
-  package?: string | null;
-  pinCount?: number | null;
-  pinPitch?: string | null;
-  mountingType?: string | null;
-  series?: string | null;
-  voltageRating?: string | null;
-  inputVoltage?: string | null;
-  outputVoltage?: string | null;
-  typeId?: number | null;
-  tags?: string[];
-}): Record<string, string | number | null | string[]> {
-  const payload: Record<string, string | number | null | string[]> = {};
-
-  if (changes.description !== undefined) payload.description = changes.description;
-  if (changes.manufacturerCode !== undefined) payload.manufacturer_code = changes.manufacturerCode;
-  if (changes.manufacturer !== undefined) payload.manufacturer = changes.manufacturer;
-  if (changes.productPage !== undefined) payload.product_page = changes.productPage;
-  if (changes.dimensions !== undefined) payload.dimensions = changes.dimensions;
-  if (changes.package !== undefined) payload.package = changes.package;
-  if (changes.pinCount !== undefined) payload.pin_count = changes.pinCount;
-  if (changes.pinPitch !== undefined) payload.pin_pitch = changes.pinPitch;
-  if (changes.mountingType !== undefined) payload.mounting_type = changes.mountingType;
-  if (changes.series !== undefined) payload.series = changes.series;
-  if (changes.voltageRating !== undefined) payload.voltage_rating = changes.voltageRating;
-  if (changes.inputVoltage !== undefined) payload.input_voltage = changes.inputVoltage;
-  if (changes.outputVoltage !== undefined) payload.output_voltage = changes.outputVoltage;
-  if (changes.typeId !== undefined) payload.type_id = changes.typeId;
-  if (changes.tags !== undefined) payload.tags = changes.tags;
-
-  return payload;
-}

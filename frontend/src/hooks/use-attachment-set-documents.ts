@@ -1,21 +1,6 @@
 import { useMemo } from 'react';
 import { useGetAttachmentSetsAttachmentsBySetId } from '@/lib/api/generated/hooks';
 
-export interface AttachmentDocument {
-  id: string;
-  name: string;
-  type: 'url' | 'file';
-  attachmentType: 'url' | 'image' | 'pdf'; // Original type from API
-  url: string | null;
-  filename: string | null;
-  fileSize: number | null;
-  mimeType: string | null;
-  createdAt: string;
-  previewUrl: string | null;
-  attachmentUrl: string | null;
-  has_image: boolean;
-}
-
 export function useAttachmentSetDocuments(attachmentSetId: number | undefined) {
   const query = useGetAttachmentSetsAttachmentsBySetId(
     { path: { set_id: attachmentSetId ?? 0 } },

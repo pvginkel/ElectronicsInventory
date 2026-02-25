@@ -40,7 +40,7 @@ export interface KanbanDragData {
 }
 
 /** Represents a pending move that needs confirmation (ordered > 0 being cleared). */
-export interface PendingMoveConfirmation {
+interface PendingMoveConfirmation {
   lineId: number;
   linePartKey: string;
   fromSellerId: number | null;
@@ -48,7 +48,7 @@ export interface PendingMoveConfirmation {
   orderedAmount: number;
 }
 
-export interface UseKanbanDndOptions {
+interface UseKanbanDndOptions {
   /** All seller groups (used to look up target column seller IDs). */
   groups: ShoppingListSellerGroup[];
   /** Whether the board is in a completed/read-only state. */
@@ -57,7 +57,7 @@ export interface UseKanbanDndOptions {
   onMoveLine: (lineId: number, toSellerId: number | null, clearOrdered: boolean) => Promise<void>;
 }
 
-export interface UseKanbanDndReturn {
+interface UseKanbanDndReturn {
   /** Configured DnD sensors (pass to <DndContext>). */
   sensors: ReturnType<typeof useSensors>;
   /** The currently dragged line, or null when idle. */

@@ -7,13 +7,13 @@ type AttachmentResponse = components['schemas']['AttachmentResponseSchema.20ffa9
 type AttachmentListItem = components['schemas']['AttachmentListSchemaList.a9993e3.AttachmentListSchema'];
 type CoverResponse = components['schemas']['AttachmentSetCoverSchema.20ffa95'];
 
-export interface CreateUrlAttachmentOptions {
+interface CreateUrlAttachmentOptions {
   title?: string;
   url?: string;
   previewText?: string;
 }
 
-export interface CreateBinaryAttachmentOptions {
+interface CreateBinaryAttachmentOptions {
   title?: string;
   filename?: string;
   contentType?: string;

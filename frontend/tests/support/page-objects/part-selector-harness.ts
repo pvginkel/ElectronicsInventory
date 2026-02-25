@@ -4,7 +4,7 @@ import { BasePage } from './base-page';
 import { partsSelectors } from '../selectors-domain';
 import { waitForListLoading, waitTestEvent } from '../helpers';
 
-export const PART_SELECTOR_HARNESS_FORM_ID = 'partselectorharness_submit';
+const PART_SELECTOR_HARNESS_FORM_ID = 'partselectorharness_submit';
 
 export class PartSelectorHarnessPage extends BasePage {
   constructor(page: Page) {

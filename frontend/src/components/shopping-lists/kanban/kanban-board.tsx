@@ -28,7 +28,7 @@ import type { ShoppingListLine, ShoppingListSellerGroup } from '@/types/shopping
 // Props
 // ---------------------------------------------------------------------------
 
-export interface KanbanBoardProps {
+interface KanbanBoardProps {
   /** All seller groups (including the ungrouped bucket). */
   groups: ShoppingListSellerGroup[];
   /** Shopping list ID. */

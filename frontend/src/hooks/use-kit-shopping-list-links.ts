@@ -38,7 +38,7 @@ function invalidateKitShoppingListCaches(
   queryClient.invalidateQueries({ queryKey: ['getShoppingListsKitsByListId'] });
 }
 
-export interface KitShoppingListLinkInput {
+interface KitShoppingListLinkInput {
   kitId: number;
   shoppingListId: number;
   requestedUnits: number;
@@ -46,13 +46,13 @@ export interface KitShoppingListLinkInput {
   notePrefix: string | null;
 }
 
-export interface KitShoppingListUnlinkInput {
+interface KitShoppingListUnlinkInput {
   kitId: number;
   linkId: number;
   shoppingListId: number;
 }
 
-export interface KitShoppingListLinkMutationResult {
+interface KitShoppingListLinkMutationResult {
   link: KitShoppingListLink | null;
   shoppingListId: number | null;
   shoppingListStatus: ShoppingListStatus | null;

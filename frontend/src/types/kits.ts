@@ -11,7 +11,6 @@ import type {
 import type { ShoppingListStatus } from '@/types/shopping-lists';
 
 export type KitStatus = KitSummarySchemaList_a9993e3_KitStatus;
-export type KitSummaryRecord = KitSummarySchemaList_a9993e3_KitSummarySchema;
 
 export interface KitSummary {
   id: number;
@@ -36,18 +35,6 @@ export interface KitOverviewCounts {
   archived: number;
 }
 
-export interface KitOverviewQueryResult {
-  status: KitStatus;
-  kits: KitSummary[];
-  total: number;
-  isFiltered: boolean;
-}
-
-export interface KitLifecycleMetadata {
-  kitId: number;
-  targetStatus: KitStatus;
-}
-
 export function mapKitSummary(model: KitSummarySchemaList_a9993e3_KitSummarySchema): KitSummary {
   return {
     id: model.id,
@@ -60,21 +47,6 @@ export function mapKitSummary(model: KitSummarySchemaList_a9993e3_KitSummarySche
     shoppingListBadgeCount: model.shopping_list_badge_count ?? 0,
     pickListBadgeCount: model.pick_list_badge_count ?? 0,
     coverUrl: model.cover_url ?? null,
-  };
-}
-
-export function toKitSummaryRecord(summary: KitSummary): KitSummaryRecord {
-  return {
-    id: summary.id,
-    name: summary.name,
-    description: summary.description,
-    status: summary.status,
-    build_target: summary.buildTarget,
-    archived_at: summary.archivedAt,
-    updated_at: summary.updatedAt,
-    shopping_list_badge_count: summary.shoppingListBadgeCount,
-    pick_list_badge_count: summary.pickListBadgeCount,
-    cover_url: summary.coverUrl,
   };
 }
 
@@ -158,108 +130,6 @@ export interface KitContentRow {
   version: number;
   note: string | null;
   activeReservations: KitReservationEntry[];
-}
-
-export interface KitShoppingListPreviewRow {
-  contentId: number;
-  partId: number;
-  partKey: string;
-  partDescription: string;
-  requestedUnits: number;
-  requiredPerUnit: number;
-  totalRequired: number;
-  availableHonoringReserved: number;
-  availableIgnoringReserved: number;
-  neededWithHonor: number;
-  neededWithoutHonor: number;
-}
-
-export interface KitShoppingListPreviewSummary {
-  totalNeededWithHonor: number;
-  totalNeededWithoutHonor: number;
-  linesWithNeedWithHonor: number;
-  linesWithNeedWithoutHonor: number;
-}
-
-export interface KitShoppingListPreview {
-  rows: KitShoppingListPreviewRow[];
-  summary: KitShoppingListPreviewSummary;
-}
-
-/**
- * Derive per-part quantities for the shopping list dialog preview.
- * Keeps both honor-reserved and ignore-reserved projections so the UI can
- * surface the delta alongside the toggle without recomputing.
- */
-export function buildKitShoppingListPreview(contents: KitContentRow[], requestedUnits: number): KitShoppingListPreview {
-  const normalizedUnits = Number.isFinite(requestedUnits) ? Math.max(0, Math.trunc(requestedUnits)) : 0;
-
-  if (normalizedUnits <= 0 || contents.length === 0) {
-    return {
-      rows: [],
-      summary: {
-        totalNeededWithHonor: 0,
-        totalNeededWithoutHonor: 0,
-        linesWithNeedWithHonor: 0,
-        linesWithNeedWithoutHonor: 0,
-      },
-    };
-  }
-
-  const computedRows = contents.map<KitShoppingListPreviewRow>((row) => {
-    const requiredPerUnit = clampNonNegative(row.requiredPerUnit);
-    const totalRequired = requiredPerUnit * normalizedUnits;
-    const availableHonoringReserved = clampNonNegative(row.available);
-    const availableIgnoringReserved = clampNonNegative(row.inStock);
-    const neededWithHonor = Math.max(totalRequired - availableHonoringReserved, 0);
-    const neededWithoutHonor = Math.max(totalRequired - availableIgnoringReserved, 0);
-
-    return {
-      contentId: row.id,
-      partId: row.partId,
-      partKey: row.part.key,
-      partDescription: row.part.description,
-      requestedUnits: normalizedUnits,
-      requiredPerUnit,
-      totalRequired,
-      availableHonoringReserved,
-      availableIgnoringReserved,
-      neededWithHonor,
-      neededWithoutHonor,
-    };
-  });
-
-  const summary = computedRows.reduce<KitShoppingListPreviewSummary>(
-    (totals, row) => ({
-      totalNeededWithHonor: totals.totalNeededWithHonor + row.neededWithHonor,
-      totalNeededWithoutHonor: totals.totalNeededWithoutHonor + row.neededWithoutHonor,
-      linesWithNeedWithHonor: totals.linesWithNeedWithHonor + (row.neededWithHonor > 0 ? 1 : 0),
-      linesWithNeedWithoutHonor: totals.linesWithNeedWithoutHonor + (row.neededWithoutHonor > 0 ? 1 : 0),
-    }),
-    {
-      totalNeededWithHonor: 0,
-      totalNeededWithoutHonor: 0,
-      linesWithNeedWithHonor: 0,
-      linesWithNeedWithoutHonor: 0,
-    }
-  );
-
-  const sortedRows = [...computedRows].sort((a, b) => {
-    const honorDelta = b.neededWithHonor - a.neededWithHonor;
-    if (honorDelta !== 0) {
-      return honorDelta;
-    }
-    const withoutHonorDelta = b.neededWithoutHonor - a.neededWithoutHonor;
-    if (withoutHonorDelta !== 0) {
-      return withoutHonorDelta;
-    }
-    return a.partKey.localeCompare(b.partKey);
-  });
-
-  return {
-    rows: sortedRows,
-    summary,
-  };
 }
 
 export interface KitShoppingListLink {
@@ -436,7 +306,7 @@ function mapKitReservation(model: KitDetailResponseSchema_b98797e_KitReservation
   };
 }
 
-export function mapKitShoppingListLinks(
+function mapKitShoppingListLinks(
   links?: KitDetailResponseSchema_b98797e_KitShoppingListLinkSchema[] | null
 ): KitShoppingListLink[] {
   if (!links?.length) {
@@ -512,54 +382,4 @@ export interface ShortfallPartRow {
   availableQuantity: number;
   shortfallAmount: number;   // requiredQuantity - availableQuantity
   selectedAction: ShortfallAction | null;
-}
-
-/**
- * Calculates parts with insufficient stock for the requested number of kit builds.
- * A part has a shortfall when: requestedUnits * requiredPerUnit > available
- *
- * @param contents Kit content rows with availability data
- * @param requestedUnits Number of kit builds to fulfill
- * @returns Array of shortfall parts sorted by shortfall amount (descending), then by part key
- */
-export function calculateShortfallParts(
-  contents: KitContentRow[],
-  requestedUnits: number
-): ShortfallPartRow[] {
-  const normalizedUnits = Number.isFinite(requestedUnits) ? Math.max(0, Math.trunc(requestedUnits)) : 0;
-
-  if (normalizedUnits <= 0 || contents.length === 0) {
-    return [];
-  }
-
-  const shortfallParts: ShortfallPartRow[] = [];
-
-  for (const content of contents) {
-    const requiredPerUnit = clampNonNegative(content.requiredPerUnit);
-    const requiredQuantity = requiredPerUnit * normalizedUnits;
-    const availableQuantity = clampNonNegative(content.available);
-
-    // Part has shortfall when required exceeds available
-    if (requiredQuantity > availableQuantity) {
-      shortfallParts.push({
-        partKey: content.part.key,
-        partDescription: content.part.description,
-        coverUrl: content.part.coverUrl,
-        manufacturerCode: content.part.manufacturerCode,
-        requiredQuantity,
-        availableQuantity,
-        shortfallAmount: requiredQuantity - availableQuantity,
-        selectedAction: null,
-      });
-    }
-  }
-
-  // Sort by shortfall amount descending, then by part key for stable ordering
-  return shortfallParts.sort((a, b) => {
-    const shortfallDelta = b.shortfallAmount - a.shortfallAmount;
-    if (shortfallDelta !== 0) {
-      return shortfallDelta;
-    }
-    return a.partKey.localeCompare(b.partKey);
-  });
 }

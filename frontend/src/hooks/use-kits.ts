@@ -11,7 +11,7 @@ import {
 type KitsQueryParams = { query: { status: KitStatus } };
 
 /** Build query params for the kits endpoint. Search is handled client-side via fuzzy matching. */
-export function createKitsQueryParams(status: KitStatus): KitsQueryParams {
+function createKitsQueryParams(status: KitStatus): KitsQueryParams {
   return { query: { status } };
 }
 
@@ -19,11 +19,7 @@ export function createKitsQueryParams(status: KitStatus): KitsQueryParams {
 const ACTIVE_PARAMS = createKitsQueryParams('active');
 const ARCHIVED_PARAMS = createKitsQueryParams('archived');
 
-export function buildKitsQueryKey(status: KitStatus) {
-  return ['getKits', createKitsQueryParams(status)] as const;
-}
-
-export interface UseKitsOverviewResult {
+interface UseKitsOverviewResult {
   queries: {
     active: ReturnType<typeof useGetKits>;
     archived: ReturnType<typeof useGetKits>;

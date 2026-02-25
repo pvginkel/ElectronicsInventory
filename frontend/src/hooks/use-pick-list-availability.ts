@@ -35,7 +35,7 @@ interface UsePickListAvailabilityOptions {
   enabled?: boolean;
 }
 
-export interface UsePickListAvailabilityResult {
+interface UsePickListAvailabilityResult {
   queries: UseQueryResult<PickListAvailabilityResponse, unknown>[];
   availabilityByPartKey: Map<string, PickListPartLocationAvailability>;
   errorDetails: PickListAvailabilityErrorDetail[];

@@ -35,7 +35,7 @@ export async function apiRequest<T>(
  * Creates a typed API client for use in tests.
  * Uses the generated paths type from the OpenAPI spec for full type safety.
  */
-export interface CreateApiClientOptions {
+interface CreateApiClientOptions {
   baseUrl?: string;
 }
 

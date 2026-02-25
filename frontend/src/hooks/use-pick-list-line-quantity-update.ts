@@ -52,7 +52,7 @@ interface UsePickListLineQuantityUpdateArgs {
   kitId: number | undefined;
 }
 
-export interface UsePickListLineQuantityUpdateResult {
+interface UsePickListLineQuantityUpdateResult {
   updateQuantity: (lineId: number, newQuantity: number) => Promise<void>;
   isPending: boolean;
   pendingLineId: number | null;

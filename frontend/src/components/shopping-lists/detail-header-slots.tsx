@@ -21,7 +21,7 @@ interface MetadataFormValues extends Record<string, unknown> {
   description: string;
 }
 
-export interface ShoppingListDetailHeaderSlots {
+interface ShoppingListDetailHeaderSlots {
   breadcrumbs?: ReactNode;
   title: ReactNode;
   titleMetadata?: ReactNode;
@@ -32,7 +32,7 @@ export interface ShoppingListDetailHeaderSlots {
   linkChips?: ReactNode;
 }
 
-export interface ShoppingListDetailHeaderRender {
+interface ShoppingListDetailHeaderRender {
   slots: ShoppingListDetailHeaderSlots;
   overlays: ReactNode | null;
   kitsQuery: ReturnType<typeof useGetShoppingListsKitsByListId>;

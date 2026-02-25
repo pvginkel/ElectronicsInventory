@@ -14,7 +14,7 @@ type ShortfallAction = components['schemas']['KitPickListCreateSchema.b247181.Sh
 type KitShoppingListRequestSchema = components['schemas']['KitShoppingListRequestSchema.b98797e'];
 type KitShoppingListLinkResponseSchema = components['schemas']['KitShoppingListLinkResponseSchema.b98797e'];
 
-export interface PickListShortfallHandling {
+interface PickListShortfallHandling {
   [partKey: string]: { action: ShortfallAction };
 }
 

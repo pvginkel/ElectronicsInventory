@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
-export interface NormalizedMembershipKeys<TKey> {
+interface NormalizedMembershipKeys<TKey> {
   original: TKey[];
   unique: TKey[];
 }
@@ -34,7 +34,7 @@ export function normalizeMembershipKeys<TKey>(
   return { original, unique };
 }
 
-export interface MembershipLookupConfig<TKey, TResponse, TSummary> {
+interface MembershipLookupConfig<TKey, TResponse, TSummary> {
   keys: TKey | TKey[] | undefined;
   includeDone?: boolean;
   enabled?: boolean;
@@ -54,7 +54,7 @@ export interface MembershipLookupConfig<TKey, TResponse, TSummary> {
   };
 }
 
-export interface MembershipLookupResult<TKey, TResponse, TSummary> {
+interface MembershipLookupResult<TKey, TResponse, TSummary> {
   keys: TKey[];
   uniqueKeys: TKey[];
   summaries: TSummary[];

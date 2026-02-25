@@ -69,7 +69,7 @@ interface UsePickListExecutionArgs {
   kitId?: number;
 }
 
-export interface UsePickListExecutionResult {
+interface UsePickListExecutionResult {
   isExecuting: boolean;
   pendingLineId: number | null;
   pendingAction: ExecutionAction | null;

@@ -45,7 +45,6 @@ import {
   type ShoppingListLineCounts,
   type ShoppingListLineCreateInput,
   type ShoppingListLineSortKey,
-  type ShoppingListLineSortOption,
   type ShoppingListLineUpdateInput,
   type ShoppingListLineSnapshot,
   type ShoppingListOption,
@@ -395,106 +394,7 @@ function buildDuplicateCheck(lines: ShoppingListLine[]): ShoppingListDuplicateCh
   return { byPartKey };
 }
 
-export const SHOPPING_LIST_LINE_SORT_OPTIONS: ShoppingListLineSortOption[] = [
-  { key: 'description', label: 'Part description' },
-  { key: 'mpn', label: 'Part / MPN' },
-  { key: 'createdAt', label: 'Date added' },
-];
-
-// Guidepost: shared collators keep alphabetical ordering deterministic across browsers and locales.
-const listCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
-
-function compareByDescription(a: ShoppingListLine, b: ShoppingListLine): number {
-  const comparison = listCollator.compare(a.part.description, b.part.description);
-  if (comparison !== 0) {
-    return comparison;
-  }
-  return a.id - b.id;
-}
-
-function compareByMpn(a: ShoppingListLine, b: ShoppingListLine): number {
-  const left = a.part.manufacturerCode ?? a.part.key;
-  const right = b.part.manufacturerCode ?? b.part.key;
-  const comparison = listCollator.compare(left, right);
-  if (comparison !== 0) {
-    return comparison;
-  }
-  return a.id - b.id;
-}
-
-function compareByCreatedAt(a: ShoppingListLine, b: ShoppingListLine): number {
-  const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  if (diff !== 0) {
-    return diff;
-  }
-  return a.id - b.id;
-}
-
-function pickComparator(sortKey: ShoppingListLineSortKey) {
-  switch (sortKey) {
-    case 'mpn':
-      return compareByMpn;
-    case 'createdAt':
-      return compareByCreatedAt;
-    case 'description':
-    default:
-      return compareByDescription;
-  }
-}
-
-export function sortShoppingListLines(
-  lines: ShoppingListLine[],
-  sortKey: ShoppingListLineSortKey
-): ShoppingListLine[] {
-  const comparator = pickComparator(sortKey);
-  return [...lines].sort(comparator);
-}
-
-export function useSortedShoppingListLines(
-  lines: ShoppingListLine[],
-  sortKey: ShoppingListLineSortKey
-): ShoppingListLine[] {
-  return useMemo(() => sortShoppingListLines(lines, sortKey), [lines, sortKey]);
-}
-
-export function sortSellerGroupsForReadyView(
-  groups: ShoppingListSellerGroup[]
-): ShoppingListSellerGroup[] {
-  const compareGroups = (a: ShoppingListSellerGroup, b: ShoppingListSellerGroup) => {
-    const aUngrouped = a.sellerId == null;
-    const bUngrouped = b.sellerId == null;
-
-    if (aUngrouped && bUngrouped) {
-      return listCollator.compare(a.groupKey, b.groupKey);
-    }
-    if (aUngrouped) {
-      return 1;
-    }
-    if (bUngrouped) {
-      return -1;
-    }
-
-    const nameComparison = listCollator.compare(a.sellerName ?? '', b.sellerName ?? '');
-    if (nameComparison !== 0) {
-      return nameComparison;
-    }
-
-    return listCollator.compare(a.groupKey, b.groupKey);
-  };
-
-  const sortLinesByDescription = (lines: ShoppingListLine[]) => {
-    return [...lines].sort((a, b) => compareByDescription(a, b));
-  };
-
-  return [...groups]
-    .sort(compareGroups)
-    .map((group) => ({
-      ...group,
-      lines: sortLinesByDescription(group.lines),
-    }));
-}
-
-export function summarizeSellerGroupVisibility(group: ShoppingListSellerGroup): ShoppingListSellerGroupVisibility {
+function summarizeSellerGroupVisibility(group: ShoppingListSellerGroup): ShoppingListSellerGroupVisibility {
   const visibleTotals = group.lines.reduce<ShoppingListSellerGroupTotals>((accumulator, line) => {
     return {
       needed: accumulator.needed + line.needed,
@@ -514,7 +414,7 @@ export function summarizeSellerGroupVisibility(group: ShoppingListSellerGroup): 
   };
 }
 
-export function buildSellerGroupInstrumentation(
+function buildSellerGroupInstrumentation(
   groups: ShoppingListSellerGroup[]
 ): ShoppingListSellerGroupInstrumentation[] {
   return groups.map((group) => {
@@ -526,39 +426,6 @@ export function buildSellerGroupInstrumentation(
       filteredDiff: visibility.filteredDiff,
     };
   });
-}
-
-export function flattenReceivableLines(
-  groups: ShoppingListSellerGroup[]
-): ShoppingListLine[] {
-  const orderedGroups = sortSellerGroupsForReadyView(groups);
-  const orderedLines: ShoppingListLine[] = [];
-  for (const group of orderedGroups) {
-    for (const line of group.lines) {
-      if (line.status === 'ordered') {
-        orderedLines.push(line);
-      }
-    }
-  }
-  return orderedLines;
-}
-
-export function findNextReceivableLine(
-  currentLineId: number,
-  groups: ShoppingListSellerGroup[]
-): ShoppingListLine | undefined {
-  const orderedLines = flattenReceivableLines(groups);
-  const currentIndex = orderedLines.findIndex(line => line.id === currentLineId);
-  if (currentIndex < 0) {
-    return undefined;
-  }
-  for (let index = currentIndex + 1; index < orderedLines.length; index += 1) {
-    const candidate = orderedLines[index];
-    if (candidate.canReceive) {
-      return candidate;
-    }
-  }
-  return undefined;
 }
 
 const selectOverviewLists = (data?: ShoppingListListSchemaList_a9993e3_ShoppingListListSchema[]): ShoppingListOverviewSummary[] => {
@@ -575,7 +442,7 @@ export interface UseShoppingListOptionsParams {
   enabled?: boolean;
 }
 
-export interface UseShoppingListOptionsResult {
+interface UseShoppingListOptionsResult {
   options: ShoppingListOption[];
   statuses: ShoppingListStatus[];
   isLoading: boolean;

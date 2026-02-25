@@ -1,4 +1,4 @@
-import { createApiClient, apiRequest } from './client';
+import { createApiClient } from './client';
 import { TypeTestFactory } from './factories/type-factory';
 import { PartTestFactory } from './factories/part-factory';
 import { AttachmentTestFactory } from './factories/attachment-factory';
@@ -7,15 +7,7 @@ import { SellerTestFactory } from './factories/seller-factory';
 import { ShoppingListTestFactory } from './factories/shopping-list-factory';
 import { KitTestFactory } from './factories/kit-factory';
 
-// Re-export the main functions and factories
-export { createApiClient, apiRequest };
-export { TypeTestFactory };
-export { PartTestFactory };
-export { AttachmentTestFactory };
-export { BoxTestFactory };
-export { SellerTestFactory };
-export { ShoppingListTestFactory };
-export { KitTestFactory };
+export { createApiClient };
 
 /**
  * Creates a testData bundle with all factories for use in fixtures

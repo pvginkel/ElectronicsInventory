@@ -6,13 +6,13 @@ import {
   type KitResponseSchema_b98797e,
 } from '@/lib/api/generated/hooks';
 
-export interface KitCreateInput {
+interface KitCreateInput {
   name: string;
   description: string | null;
   buildTarget: number;
 }
 
-export interface UseKitCreateResult {
+interface UseKitCreateResult {
   createKit: (input: KitCreateInput) => Promise<KitResponseSchema_b98797e>;
   isPending: boolean;
   error: Error | null;

@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { SearchableSelect } from '@/components/primitives/searchable-select';
 import { useSellers } from '@/hooks/use-sellers';
 
-export interface KanbanSkeletonColumnProps {
+interface KanbanSkeletonColumnProps {
   /** IDs of sellers that already have columns (excluded from dropdown). */
   existingSellerIds: Set<number>;
   /** Whether a create mutation is in flight. */

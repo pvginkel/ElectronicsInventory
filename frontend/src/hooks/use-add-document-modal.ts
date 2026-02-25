@@ -4,7 +4,7 @@ import { useAttachmentSetUpload } from './use-attachment-set-upload';
 import { useUrlPreview } from './use-url-preview';
 import { extractFilenameFromFile, generateTimestampFilename } from '@/lib/utils/filename-extraction';
 
-export interface DocumentToAdd {
+interface DocumentToAdd {
   type?: 'file' | 'url' | 'camera';
   file?: File;
   url?: string;

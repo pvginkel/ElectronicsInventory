@@ -29,8 +29,3 @@ export interface MediaViewerProps {
   onNavigate?: (documentId: string) => void;
 }
 
-// Event handler types
-export type DocumentClickHandler = (document: DocumentItem) => void;
-export type DocumentToggleHandler = (documentId: string) => void;
-export type DocumentDeleteHandler = (documentId: string) => Promise<boolean>;
-export type DocumentNavigateHandler = (documentId: string) => void;

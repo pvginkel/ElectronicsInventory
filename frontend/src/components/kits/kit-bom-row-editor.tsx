@@ -56,7 +56,7 @@ interface KitBOMRowEditorEditProps extends KitBOMRowEditorSharedProps {
   onPartSelectionChange?: never;
 }
 
-export type KitBOMRowEditorProps = KitBOMRowEditorCreateProps | KitBOMRowEditorEditProps;
+type KitBOMRowEditorProps = KitBOMRowEditorCreateProps | KitBOMRowEditorEditProps;
 
 export function KitBOMRowEditor(props: KitBOMRowEditorProps) {
   const {

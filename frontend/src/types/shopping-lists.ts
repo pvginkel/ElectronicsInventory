@@ -198,11 +198,6 @@ export interface ShoppingListLine extends Record<string, unknown> {
 
 export type ShoppingListLineSortKey = 'description' | 'mpn' | 'createdAt';
 
-export interface ShoppingListLineSortOption {
-  key: ShoppingListLineSortKey;
-  label: string;
-}
-
 export function mapShoppingListKitLinks(links?: KitChipSchemaList_a9993e3 | null): ShoppingListKitLink[] {
   if (!links?.length) {
     return [];

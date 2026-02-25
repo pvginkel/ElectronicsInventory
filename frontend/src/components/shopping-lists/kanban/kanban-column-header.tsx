@@ -38,7 +38,7 @@ import type { ShoppingListSellerGroup } from '@/types/shopping-lists';
 // Unassigned header
 // ---------------------------------------------------------------------------
 
-export interface UnassignedColumnHeaderProps {
+interface UnassignedColumnHeaderProps {
   lineCount: number;
   isCompleted: boolean;
   onAddPart: () => void;
@@ -83,7 +83,7 @@ export function UnassignedColumnHeader({
 // Seller column header
 // ---------------------------------------------------------------------------
 
-export interface SellerColumnHeaderProps {
+interface SellerColumnHeaderProps {
   group: ShoppingListSellerGroup;
   mode: KanbanCardMode;
   lineCount: number;

@@ -34,12 +34,12 @@ interface PartSelectorOptionMeta {
   summary: PartSelectorSummary;
 }
 
-export interface UsePartsSelectorOptions {
+interface UsePartsSelectorOptions {
   excludePartKeys?: string[];
   includePartKeys?: string[];
 }
 
-export interface UsePartsSelectorResult {
+interface UsePartsSelectorResult {
   options: PartSelectorOption[];
   searchTerm: string;
   onSearchChange: (term: string) => void;

@@ -8,7 +8,7 @@ export interface PartAssignment {
   cover_url?: string | null;
 }
 
-export interface LocationWithParts {
+interface LocationWithParts {
   boxNo: number;
   locNo: number;
   isOccupied: boolean;

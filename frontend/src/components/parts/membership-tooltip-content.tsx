@@ -14,7 +14,7 @@ export interface MembershipTooltipContentItem {
   metadata?: ReactNode[];
 }
 
-export interface MembershipTooltipContentProps {
+interface MembershipTooltipContentProps {
   heading: string;
   items: MembershipTooltipContentItem[];
   emptyMessage: string;

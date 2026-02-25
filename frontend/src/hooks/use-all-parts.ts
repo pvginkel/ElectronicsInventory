@@ -26,7 +26,7 @@ const INCLUDE_PARAMS = 'locations,kits,shopping_lists,cover';
 
 type PartWithIncludes = PartWithTotalSchemaList_a9993e3_PartWithTotalSchema;
 
-export type UseAllPartsResult = UsePaginatedFetchAllResult<PartWithIncludes>;
+type UseAllPartsResult = UsePaginatedFetchAllResult<PartWithIncludes>;
 
 /**
  * Fetches all parts with consolidated includes across all pages automatically.

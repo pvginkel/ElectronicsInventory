@@ -4,7 +4,6 @@ import {
   usePostSellers,
   usePutSellersBySellerId,
   useDeleteSellersBySellerId,
-  useGetSellersBySellerId
 } from '@/lib/api/generated/hooks';
 
 export function useSellers(searchTerm?: string) {
@@ -26,33 +25,6 @@ export function useSellers(searchTerm?: string) {
     ...query,
     data: filteredSellers,
   };
-}
-
-export function useSellersSearch(searchTerm?: string) {
-  const { data: allSellers, ...rest } = useGetSellers();
-
-  const filteredSellers = useMemo(() => {
-    if (!allSellers || !searchTerm?.trim()) {
-      return allSellers || [];
-    }
-
-    const term = searchTerm.toLowerCase();
-    return allSellers.filter((seller) =>
-      seller.name.toLowerCase().includes(term)
-    );
-  }, [allSellers, searchTerm]);
-
-  return {
-    ...rest,
-    data: filteredSellers,
-  };
-}
-
-export function useSellerById(sellerId: number) {
-  return useGetSellersBySellerId(
-    { path: { seller_id: sellerId } },
-    { enabled: !!sellerId }
-  );
 }
 
 export function useCreateSeller() {

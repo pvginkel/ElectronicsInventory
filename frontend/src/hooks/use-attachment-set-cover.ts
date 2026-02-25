@@ -1,6 +1,5 @@
 import {
   usePutAttachmentSetsCoverBySetId,
-  useDeleteAttachmentSetsCoverBySetId,
 } from '@/lib/api/generated/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -33,30 +32,3 @@ export function useSetAttachmentSetCover() {
   };
 }
 
-/**
- * Hook to remove the cover attachment from an attachment set.
- * After removing the cover, invalidates both attachment-set and parent entity queries.
- */
-export function useRemoveAttachmentSetCover() {
-  const queryClient = useQueryClient();
-  const mutation = useDeleteAttachmentSetsCoverBySetId();
-
-  return {
-    ...mutation,
-    mutateAsync: async (variables: { attachmentSetId: number }) => {
-      const result = await mutation.mutateAsync({
-        path: { set_id: variables.attachmentSetId }
-      });
-
-      // Invalidate attachment-set queries
-      await queryClient.invalidateQueries({
-        queryKey: ['getAttachmentSetsAttachmentsBySetId', { path: { set_id: variables.attachmentSetId } }]
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['getAttachmentSetsCoverBySetId', { path: { set_id: variables.attachmentSetId } }]
-      });
-
-      return result;
-    }
-  };
-}

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { isValidUrl, normalizeUrl } from '@/lib/utils/url-metadata';
 import { usePostPartsAttachmentPreview } from '@/lib/api/generated/hooks';
 
-export interface UrlPreviewState {
+interface UrlPreviewState {
   url: string;
   title: string;
   isLoading: boolean;

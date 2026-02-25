@@ -12,7 +12,7 @@ export interface ApiDocument {
   attachmentUrl?: string | null;
 }
 
-export interface CoverAttachment {
+interface CoverAttachment {
   id: number;
 }
 

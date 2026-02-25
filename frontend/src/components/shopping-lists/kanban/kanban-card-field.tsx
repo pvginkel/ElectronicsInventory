@@ -24,9 +24,9 @@ import {
   trackFormError,
 } from '@/lib/test/form-instrumentation';
 
-export type KanbanCardFieldType = 'number' | 'text';
+type KanbanCardFieldType = 'number' | 'text';
 
-export interface KanbanCardFieldProps {
+interface KanbanCardFieldProps {
   /** Instrumentation form ID, e.g. "KanbanCard:needed". */
   formId: string;
   /** Current persisted value shown in display mode. */

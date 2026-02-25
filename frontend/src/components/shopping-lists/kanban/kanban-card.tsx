@@ -22,7 +22,7 @@ import { Tooltip } from '@/components/primitives/tooltip';
 import type { ShoppingListLine } from '@/types/shopping-lists';
 import type { KanbanCardMode } from './kanban-utils';
 
-export interface KanbanCardProps {
+interface KanbanCardProps {
   line: ShoppingListLine;
   /** Column mode drives which fields and actions are shown. */
   mode: KanbanCardMode;

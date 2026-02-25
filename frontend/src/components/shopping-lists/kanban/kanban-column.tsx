@@ -35,12 +35,12 @@ const cardCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
  * Render-prop that wraps each card with DnD behavior (provided by KanbanBoard).
  * The wrapper receives the card's React element and the line it represents.
  */
-export type CardWrapper = (
+type CardWrapper = (
   cardElement: React.ReactElement,
   line: ShoppingListLine,
 ) => React.ReactNode;
 
-export interface KanbanColumnProps {
+interface KanbanColumnProps {
   /** The seller group backing this column. */
   group: ShoppingListSellerGroup;
   /** List ID for instrumentation metadata. */

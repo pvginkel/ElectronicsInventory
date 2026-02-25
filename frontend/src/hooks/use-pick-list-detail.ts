@@ -8,7 +8,7 @@ import {
   type PickListStatus,
 } from '@/types/pick-lists';
 
-export function createPickListDetailParams(pickListId: number) {
+function createPickListDetailParams(pickListId: number) {
   return {
     path: { pick_list_id: pickListId },
   } as const;
@@ -18,7 +18,7 @@ export function buildPickListDetailQueryKey(pickListId: number) {
   return ['getPickListsByPickListId', createPickListDetailParams(pickListId)] as const;
 }
 
-export interface UsePickListDetailResult {
+interface UsePickListDetailResult {
   pickListId: number | null;
   isPickListIdValid: boolean;
   query: ReturnType<typeof useGetPickListsByPickListId>;

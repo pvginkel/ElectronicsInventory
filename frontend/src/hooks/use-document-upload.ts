@@ -5,14 +5,14 @@ import { useToast } from '@/hooks/use-toast';
 import { parseApiError } from '@/lib/utils/error-parsing';
 import { makeUniqueToken } from '@/lib/utils/random';
 
-export interface UploadProgress {
+interface UploadProgress {
   partId: string;
   progress: number;
   isUploading: boolean;
   error?: string;
 }
 
-export interface DocumentUploadOptions {
+interface DocumentUploadOptions {
   partId: string;
   file?: File;
   url?: string;
@@ -20,7 +20,7 @@ export interface DocumentUploadOptions {
   onProgress?: (progress: number) => void;
 }
 
-export interface DocumentUploadResult {
+interface DocumentUploadResult {
   id: number;
   title: string;
 }

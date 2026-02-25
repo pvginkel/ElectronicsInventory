@@ -15,7 +15,7 @@ import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
 
-export interface KitDetailHeaderSlots {
+interface KitDetailHeaderSlots {
   breadcrumbs: ReactNode;
   title: ReactNode;
   titleMetadata?: ReactNode;
@@ -25,7 +25,7 @@ export interface KitDetailHeaderSlots {
   linkChips?: ReactNode;
 }
 
-export interface KitDetailHeaderOptions {
+interface KitDetailHeaderOptions {
   kit?: KitDetail;
   isLoading: boolean;
   overviewStatus: KitStatus;
