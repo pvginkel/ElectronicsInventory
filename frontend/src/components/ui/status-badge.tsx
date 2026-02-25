@@ -32,7 +32,7 @@ export interface StatusBadgeProps {
  *
  * Pure presentational component that renders entity status with bold, high-contrast colors.
  * Does NOT know about domain-specific status values — call sites must map domain status
- * (e.g., "concept", "ready", "done") to badge color and label.
+ * (e.g., "active", "done") to badge color and label.
  *
  * Intentionally does not support custom className prop to enforce the 3-color abstraction.
  *
@@ -43,10 +43,8 @@ export interface StatusBadgeProps {
  *
  * @example
  * // Call-site mapping (shopping list status)
- * const { color, label } = status === 'concept'
- *   ? { color: 'inactive' as const, label: 'Concept' }
- *   : status === 'ready'
- *   ? { color: 'active' as const, label: 'Ready' }
+ * const { color, label } = status === 'active'
+ *   ? { color: 'active' as const, label: 'Active' }
  *   : { color: 'inactive' as const, label: 'Completed' };
  *
  * <StatusBadge color={color} label={label} testId="shopping-lists.detail.header.status" />

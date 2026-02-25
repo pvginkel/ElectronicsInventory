@@ -13,7 +13,7 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 import { useGetBoxes } from '@/lib/api/generated/hooks';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import type {
-  ShoppingListConceptLine,
+  ShoppingListLine,
   ShoppingListLinePartLocation,
   ShoppingListLineReceiveAllocationInput,
 } from '@/types/shopping-lists';
@@ -59,7 +59,7 @@ type SubmitMode = 'save' | 'complete' | 'complete-retry';
 
 interface UpdateStockDialogProps {
   open: boolean;
-  line: ShoppingListConceptLine | null;
+  line: ShoppingListLine | null;
   onClose: () => void;
   onSubmit: (payload: {
     mode: SubmitMode;
@@ -94,7 +94,7 @@ function createExistingAllocationDraft(location: ShoppingListLinePartLocation): 
   };
 }
 
-function buildInitialAllocations(line: ShoppingListConceptLine | null): AllocationDraft[] {
+function buildInitialAllocations(line: ShoppingListLine | null): AllocationDraft[] {
   if (!line) {
     return [];
   }

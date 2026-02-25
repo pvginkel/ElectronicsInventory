@@ -53,9 +53,8 @@ function getKitStatusBadgeProps(status: KitStatus): { color: 'active' | 'inactiv
 }
 
 const SHOPPING_STATUS_ORDER: Record<string, number> = {
-  concept: 0,
-  ready: 1,
-  done: 2,
+  active: 0,
+  done: 1,
 };
 
 /**

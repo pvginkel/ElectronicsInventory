@@ -488,7 +488,7 @@ test.describe('Kanban Card Actions', () => {
     await expect(card).toHaveCount(0);
 
     // Verify undo button appears
-    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${lineId}`);
+    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${lineId}`);
     await expect(undoButton).toBeVisible();
   });
 });

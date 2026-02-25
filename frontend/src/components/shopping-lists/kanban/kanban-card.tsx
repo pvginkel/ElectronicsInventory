@@ -19,11 +19,11 @@ import { cn } from '@/lib/utils';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { KanbanCardField } from './kanban-card-field';
 import { Tooltip } from '@/components/primitives/tooltip';
-import type { ShoppingListConceptLine } from '@/types/shopping-lists';
+import type { ShoppingListLine } from '@/types/shopping-lists';
 import type { KanbanCardMode } from './kanban-utils';
 
 export interface KanbanCardProps {
-  line: ShoppingListConceptLine;
+  line: ShoppingListLine;
   /** Column mode drives which fields and actions are shown. */
   mode: KanbanCardMode;
   /** List ID used for instrumentation metadata. */

@@ -1,5 +1,5 @@
 /**
- * Shopping list domain types shared across overview and concept views.
+ * Shopping list domain types shared across overview and detail views.
  * These map generated API payloads into camelCase models we can reason about.
  */
 
@@ -66,7 +66,7 @@ export interface ShoppingListSellerGroup extends Record<string, unknown> {
   completed: boolean;
   orderNote: string | null;
   totals: ShoppingListSellerGroupTotals;
-  lines: ShoppingListConceptLine[];
+  lines: ShoppingListLine[];
   hasOrderedLines: boolean;
   hasNewLines: boolean;
   hasDoneLines: boolean;
@@ -86,7 +86,7 @@ export interface ShoppingListSellerGroupInstrumentation extends Record<string, u
 
 export interface ShoppingListDetail extends ShoppingListOverviewSummary {
   createdAt: string;
-  lines: ShoppingListConceptLine[];
+  lines: ShoppingListLine[];
   sellerGroups: ShoppingListSellerGroup[];
   hasOrderedLines: boolean;
 }
@@ -171,7 +171,7 @@ export interface ShoppingListMembershipSummary extends Record<string, unknown> {
   completedCount: number;
 }
 
-export interface ShoppingListConceptLine extends Record<string, unknown> {
+export interface ShoppingListLine extends Record<string, unknown> {
   id: number;
   shoppingListId: number;
   needed: number; // >= 1
@@ -266,7 +266,7 @@ export interface ShoppingListLineUpdateInput extends Record<string, unknown> {
 }
 
 export interface ShoppingListDuplicateCheck extends Record<string, unknown> {
-  byPartKey: Map<string, ShoppingListConceptLine>;
+  byPartKey: Map<string, ShoppingListLine>;
 }
 
 export interface ShoppingListStatusUpdateInput extends Record<string, unknown> {

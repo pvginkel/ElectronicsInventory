@@ -91,19 +91,19 @@ export class ShoppingListSelectorHarness {
   }
 
   get inlineCreateDialog(): Locator {
-    return this.page.getByTestId('ShoppingListCreate:concept.dialog');
+    return this.page.getByTestId('ShoppingListCreate:list.dialog');
   }
 
   async fillInlineCreate(values: { name?: string; description?: string }): Promise<void> {
     if (values.name !== undefined) {
-      await this.page.getByTestId('ShoppingListCreate:concept.field.name').fill(values.name);
+      await this.page.getByTestId('ShoppingListCreate:list.field.name').fill(values.name);
     }
     if (values.description !== undefined) {
-      await this.page.getByTestId('ShoppingListCreate:concept.field.description').fill(values.description);
+      await this.page.getByTestId('ShoppingListCreate:list.field.description').fill(values.description);
     }
   }
 
   async submitInlineCreate(): Promise<void> {
-    await this.page.getByTestId('ShoppingListCreate:concept.submit').click();
+    await this.page.getByTestId('ShoppingListCreate:list.submit').click();
   }
 }

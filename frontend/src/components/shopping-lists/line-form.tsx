@@ -12,23 +12,23 @@ import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
 import { snapshotLineFields, useCreateShoppingListLineMutation, useUpdateShoppingListLineMutation } from '@/hooks/use-shopping-lists';
 import { useToast } from '@/hooks/use-toast';
-import type { ShoppingListConceptLine, ShoppingListDuplicateCheck } from '@/types/shopping-lists';
+import type { ShoppingListLine, ShoppingListDuplicateCheck } from '@/types/shopping-lists';
 import { ApiError } from '@/lib/api/api-error';
 import type { PartSelectorSummary } from '@/hooks/use-parts-selector';
 
-type ConceptLineFormMode = 'add' | 'edit';
+type LineFormMode = 'add' | 'edit';
 
-interface ConceptLineFormProps {
+interface LineFormProps {
   open: boolean;
-  mode: ConceptLineFormMode;
+  mode: LineFormMode;
   listId: number;
   /** Pre-populate seller when adding from a seller column. */
   defaultSellerId?: number;
   onClose: () => void;
   duplicateCheck: ShoppingListDuplicateCheck;
   duplicateNotice: { lineId: number; partKey: string } | null;
-  line?: ShoppingListConceptLine;
-  onDuplicateDetected?: (line: ShoppingListConceptLine, partKey: string) => void;
+  line?: ShoppingListLine;
+  onDuplicateDetected?: (line: ShoppingListLine, partKey: string) => void;
   onDismissDuplicateNotice?: () => void;
 }
 
@@ -42,7 +42,7 @@ interface LineFormValues extends Record<string, unknown> {
 
 const NOTE_LIMIT = 500;
 
-export function ConceptLineForm({
+export function LineForm({
   open,
   mode,
   listId,
@@ -53,7 +53,7 @@ export function ConceptLineForm({
   duplicateNotice,
   onDuplicateDetected,
   onDismissDuplicateNotice,
-}: ConceptLineFormProps) {
+}: LineFormProps) {
   const queryClient = useQueryClient();
   const { showSuccess, showException } = useToast();
   const createMutation = useCreateShoppingListLineMutation();
@@ -153,7 +153,7 @@ export function ConceptLineForm({
             sellerId: values.sellerId ?? null,
             note: values.note.trim() ? values.note.trim() : null,
           });
-          showSuccess('Added part to concept list');
+          showSuccess('Added part to shopping list');
         } else if (mode === 'edit' && line) {
           await updateMutation.mutateAsync({
             listId,
@@ -274,9 +274,9 @@ export function ConceptLineForm({
               onDismissDuplicateNotice?.();
               setDuplicateError(null);
             }}
-            testId="shopping-lists.concept.duplicate-banner"
+            testId="shopping-lists.detail.duplicate-banner"
           >
-            Part with key <strong>{duplicateNotice.partKey}</strong> already exists on this Concept list.
+            Part with key <strong>{duplicateNotice.partKey}</strong> already exists on this shopping list.
             Edit the existing line instead of creating a duplicate.
           </Alert>
         )}

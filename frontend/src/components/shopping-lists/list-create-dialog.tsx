@@ -82,7 +82,7 @@ export function ListCreateDialog({
     },
   });
 
-  const resolvedFormId = useMemo(() => 'ShoppingListCreate:concept', []);
+  const resolvedFormId = useMemo(() => 'ShoppingListCreate:list', []);
 
   const instrumentation = useFormInstrumentation({
     formId: resolvedFormId,
@@ -141,7 +141,7 @@ export function ListCreateDialog({
               <Input
                 id={`${resolvedFormId}.name`}
                 maxLength={NAME_LIMIT}
-                placeholder="Concept list name (e.g., Spring Synth Build)"
+                placeholder="Shopping list name (e.g., Spring Synth Build)"
                 value={form.values.name}
                 onChange={(event) => form.setValue('name', event.target.value)}
                 onBlur={() => form.setFieldTouched('name')}
@@ -206,7 +206,7 @@ export function ListCreateDialog({
                 event.stopPropagation();
               }}
             >
-              Create Concept List
+              Add Shopping List
             </Button>
           </DialogFooter>
         </Form>

@@ -16,14 +16,10 @@ export class ShoppingListsPage extends BasePage {
   readonly overviewSummary: Locator;
   readonly detailLayout: Locator;
   readonly detailHeader: Locator;
-  /** @deprecated The concept/ready split no longer exists. Use detailContent. */
-  readonly detailContentConcept: Locator;
-  /** @deprecated The concept/ready split no longer exists. Use detailContent. */
-  readonly detailContentReady: Locator;
   readonly detailActions: Locator;
   readonly detailKitChips: Locator;
-  readonly conceptToolbar: Locator;
-  readonly conceptTable: Locator;
+  readonly detailToolbar: Locator;
+  readonly detailTable: Locator;
   readonly readyToolbar: Locator;
   readonly updateStockDialog: Locator;
   readonly updateStockForm: Locator;
@@ -41,13 +37,10 @@ export class ShoppingListsPage extends BasePage {
     this.overviewSummary = page.getByTestId('shopping-lists.overview.summary');
     this.detailLayout = page.getByTestId('shopping-lists.detail.layout');
     this.detailHeader = page.getByTestId('shopping-lists.detail.header');
-    // Legacy locators -- concept/ready split is gone; both point at the Kanban content area
-    this.detailContentConcept = page.getByTestId('shopping-lists.detail.content');
-    this.detailContentReady = page.getByTestId('shopping-lists.detail.content');
     this.detailActions = page.getByTestId('shopping-lists.detail.actions');
-    this.detailKitChips = page.getByTestId('shopping-lists.concept.body.kits');
-    this.conceptToolbar = page.getByTestId('shopping-lists.concept.toolbar');
-    this.conceptTable = page.getByTestId('shopping-lists.concept.table');
+    this.detailKitChips = page.getByTestId('shopping-lists.detail.body.kits');
+    this.detailToolbar = page.getByTestId('shopping-lists.detail.toolbar');
+    this.detailTable = page.getByTestId('shopping-lists.detail.table');
     this.readyToolbar = page.getByTestId('shopping-lists.ready.toolbar');
     this.updateStockDialog = page.getByTestId('shopping-lists.ready.update-stock.dialog');
     this.updateStockForm = page.getByTestId('shopping-lists.ready.update-stock.form');
@@ -113,9 +106,8 @@ export class ShoppingListsPage extends BasePage {
     });
   }
 
-  /** Returns the detail content area. The concept/ready argument is accepted for backward compatibility but ignored. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  detailContent(_view?: 'concept' | 'ready'): Locator {
+  /** Returns the detail content area. */
+  detailContent(): Locator {
     return this.page.getByTestId('shopping-lists.detail.content');
   }
 
@@ -127,19 +119,18 @@ export class ShoppingListsPage extends BasePage {
   }
 
   kitChip(kitId: number): Locator {
-    return this.page.getByTestId(`shopping-lists.concept.body.kits.${kitId}`);
+    return this.page.getByTestId(`shopping-lists.detail.body.kits.${kitId}`);
   }
 
-  async getToolbarRect(view: 'concept' | 'ready'): Promise<{ top: number; bottom: number; height: number }> {
-    const target = view === 'concept' ? this.conceptToolbar : this.readyToolbar;
-    return target.evaluate((element) => {
+  async getToolbarRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.detailToolbar.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, height: rect.height };
     });
   }
 
-  async scrollDetailContent(view: 'concept' | 'ready', target: number | 'bottom' = 'bottom'): Promise<void> {
-    const container = this.detailContent(view);
+  async scrollDetailContent(target: number | 'bottom' = 'bottom'): Promise<void> {
+    const container = this.detailContent();
     await container.evaluate((element, value) => {
       if (value === 'bottom') {
         element.scrollTo({ top: element.scrollHeight });
@@ -149,8 +140,8 @@ export class ShoppingListsPage extends BasePage {
     }, target);
   }
 
-  async detailContentScrollTop(view: 'concept' | 'ready'): Promise<number> {
-    return this.detailContent(view).evaluate((element) => element.scrollTop);
+  async detailContentScrollTop(): Promise<number> {
+    return this.detailContent().evaluate((element) => element.scrollTop);
   }
 
   async scrollOverviewContent(target: number | 'bottom' = 'bottom'): Promise<void> {
@@ -195,22 +186,22 @@ export class ShoppingListsPage extends BasePage {
       .first();
   }
 
-  async createConceptList(options: { name: string; description?: string }): Promise<void> {
+  async createList(options: { name: string; description?: string }): Promise<void> {
     await this.overviewCreateButton.click();
     const dialog = this.page.getByRole('dialog', { name: /create shopping list/i });
     await expect(dialog).toBeVisible();
 
-    await dialog.getByTestId('ShoppingListCreate:concept.field.name').fill(options.name);
+    await dialog.getByTestId('ShoppingListCreate:list.field.name').fill(options.name);
     if (options.description !== undefined) {
-      await dialog.getByTestId('ShoppingListCreate:concept.field.description').fill(options.description);
+      await dialog.getByTestId('ShoppingListCreate:list.field.description').fill(options.description);
     }
 
-    await dialog.getByTestId('ShoppingListCreate:concept.submit').click();
+    await dialog.getByTestId('ShoppingListCreate:list.submit').click();
   }
 
-  async deleteConceptListByName(name: string): Promise<void> {
-    await this.openConceptListByName(name);
-    const deleteButton = this.page.getByTestId('shopping-lists.concept.header.delete');
+  async deleteListByName(name: string): Promise<void> {
+    await this.openListByName(name);
+    const deleteButton = this.page.getByTestId('shopping-lists.detail.header.delete');
     await expect(deleteButton).toBeVisible();
     await deleteButton.click();
 
@@ -221,19 +212,15 @@ export class ShoppingListsPage extends BasePage {
     await this.waitForOverviewReady();
   }
 
-  async openConceptListByName(name: string, tab: 'active' | 'completed' = 'active'): Promise<void> {
+  async openListByName(name: string, tab: 'active' | 'completed' = 'active'): Promise<void> {
     const card = this.overviewCardByName(name, tab);
     await expect(card).toBeVisible();
     await card.click();
-    await this.waitForConceptReady();
+    await this.waitForDetailReady();
   }
 
-  /**
-   * Navigate to a shopping list detail view (Kanban board).
-   * Legacy alias -- the concept/ready split no longer exists; every list
-   * opens the Kanban board.
-   */
-  async gotoConcept(listId: number): Promise<ListLoadingTestEvent> {
+  /** Navigate to a shopping list detail view (Kanban board). */
+  async gotoDetail(listId: number): Promise<ListLoadingTestEvent> {
     return this.gotoKanban(listId);
   }
 
@@ -245,11 +232,8 @@ export class ShoppingListsPage extends BasePage {
     return this.gotoKanban(listId);
   }
 
-  /**
-   * Wait for the shopping list detail (Kanban) to finish loading.
-   * Legacy alias -- delegates to waitForKanbanReady().
-   */
-  async waitForConceptReady(): Promise<ListLoadingTestEvent> {
+  /** Wait for the shopping list detail (Kanban) to finish loading. */
+  async waitForDetailReady(): Promise<ListLoadingTestEvent> {
     return this.waitForKanbanReady();
   }
 
@@ -261,9 +245,9 @@ export class ShoppingListsPage extends BasePage {
     return this.waitForKanbanReady();
   }
 
-  conceptRowByPart(part: string | RegExp): Locator {
+  detailRowByPart(part: string | RegExp): Locator {
     return this.page
-      .locator('[data-testid^="shopping-lists.concept.row."]')
+      .locator('[data-testid^="shopping-lists.detail.row."]')
       .filter({ hasText: part })
       .first();
   }
@@ -304,20 +288,20 @@ export class ShoppingListsPage extends BasePage {
     return this.readyLineRow(part).getByTestId(new RegExp(`actions\\.${action}$`));
   }
 
-  conceptStatusBadge(part: string | RegExp): Locator {
-    return this.conceptRowByPart(part).getByTestId(/\.status\.badge$/);
+  detailStatusBadge(part: string | RegExp): Locator {
+    return this.detailRowByPart(part).getByTestId(/\.status\.badge$/);
   }
 
-  conceptSellerBadge(part: string | RegExp): Locator {
-    return this.conceptRowByPart(part).getByTestId(/\.seller\.badge$/);
+  detailSellerBadge(part: string | RegExp): Locator {
+    return this.detailRowByPart(part).getByTestId(/\.seller\.badge$/);
   }
 
-  conceptBadge(badge: 'total' | 'new' | 'ordered' | 'done'): Locator {
-    return this.page.getByTestId(`shopping-lists.concept.header.badge.${badge}`);
+  detailBadge(badge: 'total' | 'new' | 'ordered' | 'done'): Locator {
+    return this.page.getByTestId(`shopping-lists.detail.header.badge.${badge}`);
   }
 
-  conceptToolbarLineCount(): Locator {
-    return this.conceptToolbar.getByTestId('shopping-lists.concept.toolbar.line-count');
+  detailToolbarLineCount(): Locator {
+    return this.detailToolbar.getByTestId('shopping-lists.detail.toolbar.line-count');
   }
 
   readyGroupTotals(seller: string | RegExp): { needed: Locator; ordered: Locator; received: Locator } {
@@ -371,13 +355,13 @@ export class ShoppingListsPage extends BasePage {
     await confirmDialog.getByRole('button', { name: /complete list|mark as completed/i }).click();
   }
 
-  async addConceptLine(options: {
+  async addLine(options: {
     partSearch: string;
     needed?: number;
     sellerName?: string;
     note?: string;
   }): Promise<void> {
-    await this.page.getByTestId('shopping-lists.concept.table.add').click();
+    await this.page.getByTestId('shopping-lists.detail.table.add').click();
     const dialog = this.page.getByTestId('ShoppingListLineForm:add.dialog');
     await expect(dialog).toBeVisible();
 
@@ -402,11 +386,11 @@ export class ShoppingListsPage extends BasePage {
     }
 
     await dialog.getByTestId('ShoppingListLineForm:add.submit').click();
-    await this.waitForConceptReady();
+    await this.waitForDetailReady();
   }
 
-  async editConceptLine(part: string | RegExp, updates: { needed?: number; sellerName?: string | null; note?: string }): Promise<void> {
-    const row = this.conceptRowByPart(part);
+  async editLine(part: string | RegExp, updates: { needed?: number; sellerName?: string | null; note?: string }): Promise<void> {
+    const row = this.detailRowByPart(part);
     await expect(row).toBeVisible();
     await row.getByTestId(/\.edit$/).click();
 
@@ -436,7 +420,7 @@ export class ShoppingListsPage extends BasePage {
     }
 
     await dialog.getByRole('button', { name: /save/i }).click();
-    await this.waitForConceptReady();
+    await this.waitForDetailReady();
   }
 
   async editReadyLine(part: string | RegExp, updates: { sellerName?: string | null; needed?: number; note?: string }): Promise<void> {
@@ -472,15 +456,15 @@ export class ShoppingListsPage extends BasePage {
     await this.waitForReadyView();
   }
 
-  async deleteConceptLine(part: string | RegExp): Promise<void> {
-    const row = this.conceptRowByPart(part);
+  async deleteLine(part: string | RegExp): Promise<void> {
+    const row = this.detailRowByPart(part);
     await expect(row).toBeVisible();
     await row.getByTestId(/\.delete$/).click();
-    await this.waitForConceptReady();
+    await this.waitForDetailReady();
   }
 
   async markReady(): Promise<void> {
-    const button = this.page.getByTestId('shopping-lists.concept.toolbar.mark-ready');
+    const button = this.page.getByTestId('shopping-lists.detail.toolbar.mark-ready');
     await button.click();
   }
 
@@ -549,7 +533,7 @@ export class ShoppingListsPage extends BasePage {
   }
 
   async expectStatus(label: string | RegExp): Promise<void> {
-    await expect(this.page.getByTestId('shopping-lists.concept.header.status')).toHaveText(label);
+    await expect(this.page.getByTestId('shopping-lists.detail.header.status')).toHaveText(label);
   }
 
   async markLineOrdered(part: string | RegExp, quantity: number): Promise<void> {
@@ -606,9 +590,9 @@ export class ShoppingListsPage extends BasePage {
     await this.waitForReadyView();
   }
 
-  async backToConcept(): Promise<void> {
-    await this.page.getByTestId('shopping-lists.ready.toolbar.back-to-concept').click();
-    await this.waitForConceptReady();
+  async backToPlanning(): Promise<void> {
+    await this.page.getByTestId('shopping-lists.ready.toolbar.back-to-planning').click();
+    await this.waitForDetailReady();
   }
 
   // =========================================================================

@@ -74,7 +74,7 @@ test.describe('Shopping List Line Deletion Undo', () => {
     );
 
     // Click undo button
-    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${lineId}`);
+    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${lineId}`);
     await expect(undoButton).toBeVisible();
     await undoButton.click();
 
@@ -123,7 +123,7 @@ test.describe('Shopping List Line Deletion Undo', () => {
     await waitForListLoading(shoppingLists.playwrightPage, 'shoppingLists.kanban', 'ready');
 
     // Verify undo button appears
-    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${lineId}`);
+    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${lineId}`);
     await expect(undoButton).toBeVisible();
 
     // Wait for toast to auto-dismiss (15 seconds + buffer)
@@ -169,8 +169,8 @@ test.describe('Shopping List Line Deletion Undo', () => {
     await waitForListLoading(shoppingLists.playwrightPage, 'shoppingLists.kanban', 'ready');
 
     // Verify both undo buttons are visible
-    const undo1 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${line1Id}`);
-    const undo2 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${line2Id}`);
+    const undo1 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${line1Id}`);
+    const undo2 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${line2Id}`);
     await expect(undo1).toBeVisible();
     await expect(undo2).toBeVisible();
 
@@ -221,7 +221,7 @@ test.describe('Shopping List Line Deletion Undo', () => {
     const undoSuccess = waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', (event) =>
       event.formId === 'ShoppingListLine:restore' && event.phase === 'success' && event.metadata?.undo === true
     );
-    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${lineId}`);
+    const undoButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${lineId}`);
     await undoButton.click();
     await undoSuccess;
     await waitForListLoading(shoppingLists.playwrightPage, 'shoppingLists.kanban', 'ready');
@@ -278,9 +278,9 @@ test.describe('Shopping List Line Deletion Undo', () => {
     await waitForListLoading(shoppingLists.playwrightPage, 'shoppingLists.kanban', 'ready');
 
     // Verify all three undo buttons are visible
-    const undo1 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${line1Id}`);
-    const undo2 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${line2Id}`);
-    const undo3 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.toast.undo.${line3Id}`);
+    const undo1 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${line1Id}`);
+    const undo2 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${line2Id}`);
+    const undo3 = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.toast.undo.${line3Id}`);
     await expect(undo1).toBeVisible();
     await expect(undo2).toBeVisible();
     await expect(undo3).toBeVisible();

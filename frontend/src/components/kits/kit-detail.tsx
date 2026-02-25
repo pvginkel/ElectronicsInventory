@@ -745,8 +745,7 @@ function buildLinkReadyMetadata(detail: KitDetail | undefined) {
   }
 
   const shoppingStatusCounts: Record<string, number> = {
-    concept: 0,
-    ready: 0,
+    active: 0,
     done: 0,
   };
 

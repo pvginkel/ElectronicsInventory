@@ -41,7 +41,7 @@ export interface ListSectionHeaderProps {
  * @example
  * // Simple string usage
  * <ListSectionHeader
- *   title="Concept lines"
+ *   title="Shopping list lines"
  *   description="Lines that need seller assignment"
  *   actions={<Button>Add Line</Button>}
  * />

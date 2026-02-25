@@ -21,7 +21,7 @@ function About() {
     {
       icon: '🛒',
       title: 'Procurement Workflow',
-      description: 'Shopping lists with three-phase workflow: concept planning, ordering from vendors, and receiving into inventory.'
+      description: 'Shopping lists with three-phase workflow: planning, ordering from vendors, and receiving into inventory.'
     },
     {
       icon: '🔨',
@@ -144,7 +144,7 @@ function About() {
             <div>
               <h3 className="font-medium mb-2">🛒 Procurement Pipeline</h3>
               <p className="text-sm text-muted-foreground">
-                Shopping lists progress through concept, ordering, and receiving phases.
+                Shopping lists progress through planning, ordering, and receiving phases.
                 Track orders by seller, manage vendor relationships, and receive stock into inventory.
               </p>
             </div>

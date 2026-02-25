@@ -22,7 +22,7 @@ import { KanbanSkeletonColumn } from './kanban-skeleton-column';
 import { KanbanCard } from './kanban-card';
 import { useKanbanDnd, type KanbanDragData } from './use-kanban-dnd';
 import { deriveCardMode } from './kanban-utils';
-import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
+import type { ShoppingListLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -95,7 +95,7 @@ function DraggableCardWrapper({
   dragOverSameColumn,
   children,
 }: {
-  line: ShoppingListConceptLine;
+  line: ShoppingListLine;
   groupKey: string;
   sellerId: number | null;
   disabled: boolean;
@@ -292,7 +292,7 @@ export function KanbanBoard({
   // -- Create the wrapCard render-prop for DnD integration --
   const createWrapCard = useCallback(
     (group: ShoppingListSellerGroup) => {
-      return (cardElement: React.ReactElement, line: ShoppingListConceptLine) => {
+      return (cardElement: React.ReactElement, line: ShoppingListLine) => {
         // Cards cannot be dragged when: list is done, card is pending,
         // line is ordered, or the entire group is ordered (receiving mode)
         const dragDisabled =

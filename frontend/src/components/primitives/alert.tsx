@@ -103,7 +103,7 @@ export interface AlertProps {
  *   icon={true}
  *   title="Duplicate part detected"
  *   onDismiss={() => setError(null)}
- *   testId="shopping-lists.concept.duplicate-banner"
+ *   testId="shopping-lists.detail.duplicate-banner"
  * >
  *   Part {partKey} already exists in this list.
  * </Alert>

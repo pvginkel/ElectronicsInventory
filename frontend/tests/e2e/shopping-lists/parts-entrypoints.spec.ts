@@ -6,7 +6,7 @@ import type { FormTestEvent } from '@/lib/test/test-events';
 const ADD_FORM_ID = 'ShoppingListMembership:addFromPart';
 
 test.describe('Shopping List Phase 3 entry points', () => {
-  test('adds a part to a new concept list from the detail dialog', async ({ parts, shoppingLists, testData, toastHelper }) => {
+  test('adds a part to a new list from the detail dialog', async ({ parts, shoppingLists, testData, toastHelper }) => {
     const seller = await testData.sellers.create({
       overrides: { name: testData.sellers.randomSellerName(), website: 'https://example-seller.com' },
     });
@@ -22,11 +22,11 @@ test.describe('Shopping List Phase 3 entry points', () => {
     const selector = parts.createShoppingListSelectorHarness();
     await selector.waitForReady();
 
-    const listName = testData.shoppingLists.randomName('Detail Concept');
-    const listDescription = 'Concept list created from part detail dialog';
+    const listName = testData.shoppingLists.randomName('Detail List');
+    const listDescription = 'Shopping list created from part detail dialog';
 
-    const listCreateSubmit = waitTestEvent<FormTestEvent>(parts.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:concept' && event.phase === 'submit');
-    const listCreateSuccess = waitTestEvent<FormTestEvent>(parts.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:concept' && event.phase === 'success');
+    const listCreateSubmit = waitTestEvent<FormTestEvent>(parts.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:list' && event.phase === 'submit');
+    const listCreateSuccess = waitTestEvent<FormTestEvent>(parts.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:list' && event.phase === 'success');
 
     await selector.triggerInlineCreate(listName);
     await selector.fillInlineCreate({ name: listName, description: listDescription });
@@ -79,12 +79,12 @@ test.describe('Shopping List Phase 3 entry points', () => {
     expect(kanbanEvent.metadata?.lineCount).toBeGreaterThan(0);
   });
 
-  test('surfaces duplicate guard when adding to an existing concept list', async ({ parts, testData }) => {
+  test('surfaces duplicate guard when adding to an existing list', async ({ parts, testData }) => {
     const { part } = await testData.parts.create({
       overrides: { description: 'Duplicate guard target' },
     });
     const list = await testData.shoppingLists.createWithLines({
-      listOverrides: { name: testData.shoppingLists.randomName('Existing Concept') },
+      listOverrides: { name: testData.shoppingLists.randomName('Existing List') },
       lines: [{ partKey: part.key, needed: 2 }],
     });
 
@@ -109,7 +109,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await parts.closeAddToShoppingListDialog();
   });
 
-  test('renders badges for concept and ready memberships on the detail page', async ({ parts, shoppingLists, testData, apiClient }) => {
+  test('renders badges for active memberships on the detail page', async ({ parts, shoppingLists, testData, apiClient }) => {
     const { part } = await testData.parts.create({
       overrides: { description: 'Badge rendering part' },
     });
@@ -132,8 +132,8 @@ test.describe('Shopping List Phase 3 entry points', () => {
       requiredPerUnit: 1,
     });
 
-    const conceptList = await testData.shoppingLists.createWithLines({
-      listOverrides: { name: testData.shoppingLists.randomName('Concept Badge') },
+    const shoppingList = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Badge List') },
       lines: [{ partKey: part.key, needed: 4 }],
     });
 
@@ -149,7 +149,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await waitForListLoading(parts.playwrightPage, 'parts.detail.kits', 'ready');
 
     await expect(parts.detailShoppingListBadges).toHaveCount(2);
-    await expect(parts.shoppingListBadgeByName(conceptList.name)).toContainText('Active');
+    await expect(parts.shoppingListBadgeByName(shoppingList.name)).toContainText('Active');
     await expect(parts.shoppingListBadgeByName(readyList.name)).toContainText('Active');
     await expect(parts.detailKitBadges).toHaveCount(1);
     const kitBadge = parts.kitBadgeByName(kit.name);
@@ -157,10 +157,10 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await expect(kitBadge).toContainText('Active');
 
     await Promise.all([
-      shoppingLists.playwrightPage.waitForURL(new RegExp(`/shopping-lists/${conceptList.id}`)),
-      parts.shoppingListBadgeByName(conceptList.name).click(),
+      shoppingLists.playwrightPage.waitForURL(new RegExp(`/shopping-lists/${shoppingList.id}`)),
+      parts.shoppingListBadgeByName(shoppingList.name).click(),
     ]);
-    await shoppingLists.waitForConceptReady();
+    await shoppingLists.waitForDetailReady();
 
     await parts.goto(`/parts/${part.key}`);
     await parts.expectDetailHeading(part.description);
@@ -182,7 +182,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     });
 
     await testData.shoppingLists.createWithLines({
-      listOverrides: { name: testData.shoppingLists.randomName('Indicator Concept') },
+      listOverrides: { name: testData.shoppingLists.randomName('Indicator List') },
       lines: [{ partKey: activePart.key, needed: 2 }],
     });
 
@@ -221,7 +221,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await activeIndicator.hover();
     const activeTooltip = parts.shoppingListIndicatorTooltip();
     await expect(activeTooltip).toBeVisible();
-    await expect(activeTooltip).toContainText('Indicator Concept');
+    await expect(activeTooltip).toContainText('Indicator List');
 
     await expect(parts.shoppingListIndicator(donePart.key)).toHaveCount(0);
 

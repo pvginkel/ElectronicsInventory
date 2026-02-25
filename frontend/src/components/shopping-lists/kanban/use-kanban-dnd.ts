@@ -25,7 +25,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { emitTestEvent } from '@/lib/test/event-emitter';
-import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
+import type { ShoppingListLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,7 +34,7 @@ import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/s
 /** Metadata attached to each draggable card via `useDraggable({ data })`. */
 export interface KanbanDragData {
   type: 'card';
-  line: ShoppingListConceptLine;
+  line: ShoppingListLine;
   sourceGroupKey: string;
   sourceSellerId: number | null;
 }
@@ -61,7 +61,7 @@ export interface UseKanbanDndReturn {
   /** Configured DnD sensors (pass to <DndContext>). */
   sensors: ReturnType<typeof useSensors>;
   /** The currently dragged line, or null when idle. */
-  activeLine: ShoppingListConceptLine | null;
+  activeLine: ShoppingListLine | null;
   /** Whether a drag is in progress. */
   isDragging: boolean;
   /** Group key of the column the drag started from. */
@@ -103,7 +103,7 @@ export function useKanbanDnd({
   const sensors = useSensors(pointerSensor, touchSensor);
 
   // -- Drag state --
-  const [activeLine, setActiveLine] = useState<ShoppingListConceptLine | null>(null);
+  const [activeLine, setActiveLine] = useState<ShoppingListLine | null>(null);
   const [activeSourceGroupKey, setActiveSourceGroupKey] = useState<string | null>(null);
   const [overGroupKey, setOverGroupKey] = useState<string | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingMoveConfirmation | null>(null);

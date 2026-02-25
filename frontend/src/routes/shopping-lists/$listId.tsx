@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ConceptLineForm } from '@/components/shopping-lists/concept-line-form';
+import { LineForm } from '@/components/shopping-lists/line-form';
 import { UpdateStockDialog } from '@/components/shopping-lists/ready/update-stock-dialog';
 import { KanbanBoard } from '@/components/shopping-lists/kanban/kanban-board';
 import { useListArchiveConfirm, useListDeleteConfirm } from '@/components/shopping-lists/list-delete-confirm';
@@ -20,7 +20,7 @@ import {
 } from '@/hooks/use-seller-group-mutations';
 import { usePostShoppingListsLinesByListId } from '@/lib/api/generated/hooks';
 import type {
-  ShoppingListConceptLine,
+  ShoppingListLine,
   ShoppingListLineSortKey,
   ShoppingListLineReceiveAllocationInput,
   ShoppingListOverviewSummary,
@@ -113,7 +113,7 @@ function ShoppingListDetailRoute() {
   const [lineFormOpen, setLineFormOpen] = useState(false);
   const [lineFormMode, setLineFormMode] = useState<'add' | 'edit'>('add');
   const [lineFormDefaultSellerId, setLineFormDefaultSellerId] = useState<number | undefined>(undefined);
-  const [selectedLine, setSelectedLine] = useState<ShoppingListConceptLine | undefined>(undefined);
+  const [selectedLine, setSelectedLine] = useState<ShoppingListLine | undefined>(undefined);
   const [duplicateNotice, setDuplicateNotice] = useState<{ lineId: number; partKey: string } | null>(null);
   const [highlightedLineId, setHighlightedLineId] = useState<number | null>(null);
   const [updateStockState, setUpdateStockState] = useState<UpdateStockState>({ open: false, lineId: null, trigger: null });
@@ -269,7 +269,7 @@ function ShoppingListDetailRoute() {
   }, [addLineMutation, queryClient, showException, showSuccess]);
 
   // -- Delete line handler (from Kanban card trash icon) --
-  const handleDeleteLine = useCallback(async (line: ShoppingListConceptLine) => {
+  const handleDeleteLine = useCallback(async (line: ShoppingListLine) => {
     const snapshot: DeletedLineSnapshot = {
       lineId: line.id,
       listId: line.shoppingListId,
@@ -304,7 +304,7 @@ function ShoppingListDetailRoute() {
         action: {
           id: 'undo',
           label: 'Undo',
-          testId: `shopping-lists.concept.toast.undo.${line.id}`,
+          testId: `shopping-lists.detail.toast.undo.${line.id}`,
           onClick: handleUndoDeleteLine(line.id),
         },
       });
@@ -328,7 +328,7 @@ function ShoppingListDetailRoute() {
     }
   }, [handleDeleteLine, lines]);
 
-  const handleDuplicateDetected = useCallback((existingLine: ShoppingListConceptLine, partKey: string) => {
+  const handleDuplicateDetected = useCallback((existingLine: ShoppingListLine, partKey: string) => {
     setDuplicateNotice({ lineId: existingLine.id, partKey });
     setHighlightedLineId(existingLine.id);
   }, []);
@@ -831,7 +831,7 @@ function ShoppingListDetailRoute() {
     if (optimisticMoves.length === 0) return sellerGroups;
     const groups = sellerGroups.map(g => ({ ...g, lines: [...g.lines] }));
     for (const move of optimisticMoves) {
-      let movedLine: ShoppingListConceptLine | null = null;
+      let movedLine: ShoppingListLine | null = null;
       for (const group of groups) {
         const idx = group.lines.findIndex(l => l.id === move.lineId);
         if (idx !== -1) {
@@ -866,7 +866,7 @@ function ShoppingListDetailRoute() {
 
   if (!hasValidListId) {
     return (
-      <div className="space-y-4 p-6" data-testid="shopping-lists.concept.invalid">
+      <div className="space-y-4 p-6" data-testid="shopping-lists.detail.invalid">
         <h1 className="text-3xl font-semibold text-foreground">Shopping Lists</h1>
         <p className="text-sm text-destructive">Invalid shopping list identifier.</p>
       </div>
@@ -925,7 +925,7 @@ function ShoppingListDetailRoute() {
 
       {headerOverlays}
 
-      <ConceptLineForm
+      <LineForm
         open={lineFormOpen}
         mode={lineFormMode}
         listId={normalizedListId}

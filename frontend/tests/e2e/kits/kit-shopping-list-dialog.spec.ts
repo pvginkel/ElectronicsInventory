@@ -5,7 +5,7 @@ import { ShoppingListSelectorHarness } from '../../support/page-objects/shopping
 import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/generated/hooks';
 
 test.describe('Kit shopping list dialog', () => {
-  test('selecting an existing concept list does not raise validation error', async ({
+  test('selecting an existing shopping list does not raise validation error', async ({
     kits,
     apiClient,
     testData,
@@ -36,8 +36,8 @@ test.describe('Kit shopping list dialog', () => {
       requiredPerUnit: 1,
     });
 
-    const listName = testData.shoppingLists.randomName('Dialog Concept');
-    const conceptList = await testData.shoppingLists.create({
+    const listName = testData.shoppingLists.randomName('Dialog List');
+    const shoppingList = await testData.shoppingLists.create({
       name: listName,
     });
 
@@ -57,12 +57,12 @@ test.describe('Kit shopping list dialog', () => {
     });
     await selector.waitForReady();
     await selector.input.focus();
-    await selector.selectOption(conceptList.name);
-    await selector.expectSelected(conceptList.name);
+    await selector.selectOption(shoppingList.name);
+    await selector.expectSelected(shoppingList.name);
 
     await expect(selector.input).not.toHaveAttribute('aria-invalid', 'true');
     await expect(
-      kits.detailOrderForm.getByText('Select a Concept list', { exact: true })
+      kits.detailOrderForm.getByText('Select a shopping list', { exact: true })
     ).toHaveCount(0);
     await expect(kits.detailOrderSubmit).toBeEnabled();
   });

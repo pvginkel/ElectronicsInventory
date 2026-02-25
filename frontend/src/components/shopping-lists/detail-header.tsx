@@ -1,7 +1,7 @@
 import type { ShoppingListDetail, ShoppingListKitLink } from '@/types/shopping-lists';
 import { useShoppingListDetailHeaderSlots } from './detail-header-slots';
 
-export interface ConceptHeaderProps {
+export interface DetailHeaderProps {
   list?: ShoppingListDetail;
   onUpdateMetadata: (update: { name: string; description: string | null }) => Promise<void>;
   isUpdating: boolean;
@@ -12,14 +12,14 @@ export interface ConceptHeaderProps {
   unlinkingLinkId?: number | null;
 }
 
-export function ConceptHeader(props: ConceptHeaderProps) {
+export function DetailHeader(props: DetailHeaderProps) {
   const { list } = props;
   const { slots, overlays } = useShoppingListDetailHeaderSlots(props);
   const { breadcrumbs, title, titleMetadata, description, metadataRow, actions } = slots;
 
   if (!list) {
     return (
-      <div className="space-y-4" data-testid="shopping-lists.concept.header.loading">
+      <div className="space-y-4" data-testid="shopping-lists.detail.header.loading">
         {breadcrumbs}
         <div className="space-y-2">
           {title}
@@ -31,7 +31,7 @@ export function ConceptHeader(props: ConceptHeaderProps) {
   }
 
   return (
-    <div className="space-y-4" data-testid="shopping-lists.concept.header">
+    <div className="space-y-4" data-testid="shopping-lists.detail.header">
       {breadcrumbs}
 
       <div className="flex flex-wrap items-start justify-between gap-4">

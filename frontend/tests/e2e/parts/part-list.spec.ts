@@ -184,7 +184,7 @@ test.describe('Parts - List View', () => {
     const shoppingTooltip = parts.shoppingListIndicatorTooltip();
     await shoppingTooltip.waitFor({ state: 'visible' });
     await expect(shoppingTooltip).toContainText(shoppingList.name);
-    await expect(shoppingTooltip).toContainText(/active|ready|concept/i);
+    await expect(shoppingTooltip).toContainText(/active|ready/i);
 
     // Move mouse away from shopping tooltip to avoid blocking the kit indicator hover
     await page.mouse.move(0, 0);

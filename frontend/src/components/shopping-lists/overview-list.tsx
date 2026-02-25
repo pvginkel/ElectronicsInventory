@@ -248,7 +248,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       <div data-testid="shopping-lists.overview.loading">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Shopping Lists</h1>
-          <Button disabled>Create Concept List</Button>
+          <Button disabled>Add Shopping List</Button>
         </div>
 
         <div className="relative mb-6">
@@ -331,8 +331,8 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   const content = !hasLists ? (
     <EmptyState
       testId="shopping-lists.overview.empty"
-      title="No concept lists yet"
-      description="Start by creating a Concept list, then populate it with parts ready for purchasing."
+      title="No shopping lists yet"
+      description="Start by adding a shopping list, then populate it with parts ready for purchasing."
       action={{
         label: 'Create your first list',
         onClick: () => setCreateDialogOpen(true),
@@ -343,7 +343,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     <EmptyState
       testId="shopping-lists.overview.no-results"
       title={`No lists match "${searchTerm}"`}
-      description="Adjust the search or create a new Concept list tailored to your build."
+      description="Adjust the search or create a new shopping list tailored to your build."
     />
   ) : hasVisibleLists ? (
     <CollectionGrid testId={`shopping-lists.overview.grid.${activeTab}`}>
@@ -383,7 +383,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
         title={<span data-testid="shopping-lists.overview.heading">Shopping Lists</span>}
         actions={
           <Button onClick={() => setCreateDialogOpen(true)} data-testid="shopping-lists.overview.create">
-            Create Concept List
+            Add Shopping List
           </Button>
         }
         search={searchNode}

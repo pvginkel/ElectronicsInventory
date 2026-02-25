@@ -26,7 +26,7 @@ import {
   SellerColumnHeader,
 } from './kanban-column-header';
 import { deriveCardMode } from './kanban-utils';
-import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
+import type { ShoppingListLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 
 /** Collator for stable, case-insensitive, numeric card ordering. */
 const cardCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -37,7 +37,7 @@ const cardCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
  */
 export type CardWrapper = (
   cardElement: React.ReactElement,
-  line: ShoppingListConceptLine,
+  line: ShoppingListLine,
 ) => React.ReactNode;
 
 export interface KanbanColumnProps {
@@ -56,7 +56,7 @@ export interface KanbanColumnProps {
   /** Whether a drag is currently in progress (disables inline editing). */
   isDragging?: boolean;
   /** The line currently being dragged (for ghost preview rendering). */
-  activeDragLine?: ShoppingListConceptLine | null;
+  activeDragLine?: ShoppingListLine | null;
   /** Whether this column is the current drop target (hover). */
   isDropTarget?: boolean;
   /**
@@ -188,7 +188,7 @@ export function KanbanColumn({
         {sortedLines.length === 0 ? (
           <EmptyColumnMessage isUnassigned={isUnassigned} />
         ) : (
-          sortedLines.map((line: ShoppingListConceptLine) => {
+          sortedLines.map((line: ShoppingListLine) => {
             const isGhost = !nativeLineIds.has(line.id);
 
             const card = (

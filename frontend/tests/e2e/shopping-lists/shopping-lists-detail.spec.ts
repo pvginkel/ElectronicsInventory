@@ -24,7 +24,7 @@ test.describe('Shopping List Detail', () => {
     });
 
     const list = await testData.shoppingLists.create({
-      name: testData.shoppingLists.randomName('Attribution Concept List'),
+      name: testData.shoppingLists.randomName('Attribution List'),
       description: null,
     });
 
@@ -127,7 +127,7 @@ test.describe('Kit Chip Unlink Flow', () => {
     await expect(kitChip).toContainText(kit.name);
 
     // Verify unlink button is hidden initially
-    const unlinkButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.body.kits.${kit.id}.unlink`);
+    const unlinkButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.body.kits.${kit.id}.unlink`);
     await expect(unlinkButton).toHaveCSS('opacity', '0');
 
     // Hover over chip to reveal unlink button
@@ -227,7 +227,7 @@ test.describe('Kit Chip Unlink Flow', () => {
     const kitChip = shoppingLists.kitChip(kit.id);
     await expect(kitChip).toBeVisible();
 
-    const unlinkButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.body.kits.${kit.id}.unlink`);
+    const unlinkButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.body.kits.${kit.id}.unlink`);
     await kitChip.hover();
     await unlinkButton.click();
 
@@ -288,7 +288,7 @@ test.describe('Kit Chip Unlink Flow', () => {
     await expect(kitChip).toBeVisible();
     await expect(kitChip).toContainText(kit.name);
 
-    const unlinkButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.body.kits.${kit.id}.unlink`);
+    const unlinkButton = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.body.kits.${kit.id}.unlink`);
     await expect(unlinkButton).toHaveCount(0);
   });
 
@@ -357,7 +357,7 @@ test.describe('Kit Chip Unlink Flow', () => {
     await expect(kitChipB).toBeVisible();
 
     // Unlink first kit
-    const unlinkButtonA = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.body.kits.${kitA.id}.unlink`);
+    const unlinkButtonA = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.body.kits.${kitA.id}.unlink`);
     await kitChipA.hover();
     await unlinkButtonA.click();
     const confirmDialogA = shoppingLists.playwrightPage.getByTestId('shopping-lists.detail.kit-unlink.dialog');
@@ -371,7 +371,7 @@ test.describe('Kit Chip Unlink Flow', () => {
     await expect(kitChipB).toBeVisible();
 
     // Unlink second kit
-    const unlinkButtonB = shoppingLists.playwrightPage.getByTestId(`shopping-lists.concept.body.kits.${kitB.id}.unlink`);
+    const unlinkButtonB = shoppingLists.playwrightPage.getByTestId(`shopping-lists.detail.body.kits.${kitB.id}.unlink`);
     await kitChipB.hover();
     await unlinkButtonB.click();
     const confirmDialogB = shoppingLists.playwrightPage.getByTestId('shopping-lists.detail.kit-unlink.dialog');

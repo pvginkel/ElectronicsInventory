@@ -23,16 +23,16 @@ const overviewSummaryText = ({
   return `${totalText} ${category} ${noun}`;
 };
 test.describe('Shopping Lists', () => {
-  test('creates, opens, and deletes a concept list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
+  test('creates, opens, and deletes a list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
     await shoppingLists.gotoOverview();
 
-    const listName = testData.shoppingLists.randomName('UI Concept List');
+    const listName = testData.shoppingLists.randomName('UI List');
     const listDescription = 'Overview CRUD smoke description';
 
-    await shoppingLists.createConceptList({ name: listName, description: listDescription });
+    await shoppingLists.createList({ name: listName, description: listDescription });
 
-    await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:concept' && event.phase === 'submit');
-    await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:concept' && event.phase === 'success');
+    await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:list' && event.phase === 'submit');
+    await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:list' && event.phase === 'success');
 
     await shoppingLists.waitForKanbanReady();
     await expect(shoppingLists.detailLayout).toBeVisible();
@@ -41,7 +41,7 @@ test.describe('Shopping Lists', () => {
     await shoppingLists.gotoOverview();
     await expect(shoppingLists.overviewCardByName(listName)).toBeVisible();
 
-    await shoppingLists.deleteConceptListByName(listName);
+    await shoppingLists.deleteListByName(listName);
     await toastHelper.expectSuccessToast(new RegExp(`Deleted shopping list "${listName}"`, 'i'));
     await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.overviewCardByName(listName)).toHaveCount(0);
@@ -147,7 +147,7 @@ test.describe('Shopping Lists', () => {
     await shoppingLists.expectStatus(/Completed/i);
 
     const breadcrumbLink = shoppingLists.playwrightPage
-      .getByTestId('shopping-lists.concept.header.breadcrumb')
+      .getByTestId('shopping-lists.detail.header.breadcrumb')
       .getByRole('link', { name: /shopping lists/i });
     await breadcrumbLink.click();
 

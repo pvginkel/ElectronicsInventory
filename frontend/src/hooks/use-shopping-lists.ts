@@ -34,7 +34,7 @@ import {
   type PostShoppingListLinesCompleteByLineIdParameters,
 } from '@/lib/api/generated/hooks';
 import {
-  type ShoppingListConceptLine,
+  type ShoppingListLine,
   type ShoppingListLineCompleteInput,
   type ShoppingListLinePartLocation,
   type ShoppingListLineReceiveAllocationInput,
@@ -111,7 +111,7 @@ function totalLines(counts: ShoppingListLineCounts): number {
   return counts.new + counts.ordered + counts.done;
 }
 
-function mapSeller(seller: ShoppingListResponseSchema_46f0cf6_SellerListSchema | null): ShoppingListConceptLine['seller'] {
+function mapSeller(seller: ShoppingListResponseSchema_46f0cf6_SellerListSchema | null): ShoppingListLine['seller'] {
   if (!seller) {
     return null;
   }
@@ -143,8 +143,8 @@ function mapPartLocations(locations: AnyPartLocationResponse): ShoppingListLineP
 
 type AnyShoppingListLineResponse = ShoppingListResponseSchema_46f0cf6_ShoppingListLineResponseSchema | ShoppingListLineResponseSchema_d9ccce0;
 
-function mapConceptLine(line: AnyShoppingListLineResponse): ShoppingListConceptLine {
-  const normalizedStatus: ShoppingListConceptLine['status'] =
+function mapLine(line: AnyShoppingListLineResponse): ShoppingListLine {
+  const normalizedStatus: ShoppingListLine['status'] =
     line.status === 'ordered' && line.ordered === 0 ? 'new' : line.status;
 
   return {
@@ -189,9 +189,9 @@ function mapGroupTotals(
 
 function mapSellerGroup(
   group: ShoppingListResponseSchema_46f0cf6_ShoppingListSellerGroupSchema,
-  lineLookup: Map<number, ShoppingListConceptLine>
+  lineLookup: Map<number, ShoppingListLine>
 ): ShoppingListSellerGroup {
-  const lines = group.lines.map((line) => lineLookup.get(line.id) ?? mapConceptLine(line));
+  const lines = group.lines.map((line) => lineLookup.get(line.id) ?? mapLine(line));
   const hasOrderedLines = lines.some(line => line.status === 'ordered');
   const hasNewLines = lines.some(line => line.status === 'new');
   const hasDoneLines = lines.some(line => line.status === 'done');
@@ -218,7 +218,7 @@ function mapSellerGroup(
 
 function derivePrimarySeller(
   _detail: ShoppingListResponseSchema_46f0cf6,
-  lines: ShoppingListConceptLine[]
+  lines: ShoppingListLine[]
 ): string | null {
   for (const line of lines) {
     if (line.effectiveSeller?.name?.trim()) {
@@ -235,7 +235,7 @@ function derivePrimarySeller(
   return null;
 }
 
-function computeLineCountsFromLines(lines: ShoppingListConceptLine[]): ShoppingListLineCounts {
+function computeLineCountsFromLines(lines: ShoppingListLine[]): ShoppingListLineCounts {
   return lines.reduce<ShoppingListLineCounts>((acc, line) => {
     switch (line.status) {
       case 'done':
@@ -255,7 +255,7 @@ function computeLineCountsFromLines(lines: ShoppingListConceptLine[]): ShoppingL
 function mergeUpdatedLineIntoDetail(
   queryClient: ReturnType<typeof useQueryClient>,
   listId: number,
-  updatedLine: ShoppingListConceptLine
+  updatedLine: ShoppingListLine
 ) {
   queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(listId), (current) => {
     if (!current) {
@@ -289,7 +289,7 @@ function mergeUpdatedLineIntoDetail(
 
 function updateSellerGroupsWithLine(
   groups: ShoppingListSellerGroup[] | undefined,
-  updatedLine: ShoppingListConceptLine
+  updatedLine: ShoppingListLine
 ): ShoppingListSellerGroup[] {
   if (!groups?.length) {
     return [];
@@ -360,10 +360,10 @@ function mapOverviewToOption(list: ShoppingListOverviewSummary): ShoppingListOpt
 }
 
 function mapShoppingListDetail(detail: ShoppingListResponseSchema_46f0cf6): ShoppingListDetail {
-  const lines = detail.lines.map(mapConceptLine);
+  const lines = detail.lines.map(mapLine);
   const lineCounts = computeLineCountsFromLines(lines);
   const total = totalLines(lineCounts);
-  const lineLookup = new Map<number, ShoppingListConceptLine>();
+  const lineLookup = new Map<number, ShoppingListLine>();
   for (const line of lines) {
     lineLookup.set(line.id, line);
   }
@@ -387,8 +387,8 @@ function mapShoppingListDetail(detail: ShoppingListResponseSchema_46f0cf6): Shop
   };
 }
 
-function buildDuplicateCheck(lines: ShoppingListConceptLine[]): ShoppingListDuplicateCheck {
-  const byPartKey = new Map<string, ShoppingListConceptLine>();
+function buildDuplicateCheck(lines: ShoppingListLine[]): ShoppingListDuplicateCheck {
+  const byPartKey = new Map<string, ShoppingListLine>();
   for (const line of lines) {
     byPartKey.set(line.part.key, line);
   }
@@ -404,7 +404,7 @@ export const SHOPPING_LIST_LINE_SORT_OPTIONS: ShoppingListLineSortOption[] = [
 // Guidepost: shared collators keep alphabetical ordering deterministic across browsers and locales.
 const listCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
 
-function compareByDescription(a: ShoppingListConceptLine, b: ShoppingListConceptLine): number {
+function compareByDescription(a: ShoppingListLine, b: ShoppingListLine): number {
   const comparison = listCollator.compare(a.part.description, b.part.description);
   if (comparison !== 0) {
     return comparison;
@@ -412,7 +412,7 @@ function compareByDescription(a: ShoppingListConceptLine, b: ShoppingListConcept
   return a.id - b.id;
 }
 
-function compareByMpn(a: ShoppingListConceptLine, b: ShoppingListConceptLine): number {
+function compareByMpn(a: ShoppingListLine, b: ShoppingListLine): number {
   const left = a.part.manufacturerCode ?? a.part.key;
   const right = b.part.manufacturerCode ?? b.part.key;
   const comparison = listCollator.compare(left, right);
@@ -422,7 +422,7 @@ function compareByMpn(a: ShoppingListConceptLine, b: ShoppingListConceptLine): n
   return a.id - b.id;
 }
 
-function compareByCreatedAt(a: ShoppingListConceptLine, b: ShoppingListConceptLine): number {
+function compareByCreatedAt(a: ShoppingListLine, b: ShoppingListLine): number {
   const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   if (diff !== 0) {
     return diff;
@@ -443,17 +443,17 @@ function pickComparator(sortKey: ShoppingListLineSortKey) {
 }
 
 export function sortShoppingListLines(
-  lines: ShoppingListConceptLine[],
+  lines: ShoppingListLine[],
   sortKey: ShoppingListLineSortKey
-): ShoppingListConceptLine[] {
+): ShoppingListLine[] {
   const comparator = pickComparator(sortKey);
   return [...lines].sort(comparator);
 }
 
 export function useSortedShoppingListLines(
-  lines: ShoppingListConceptLine[],
+  lines: ShoppingListLine[],
   sortKey: ShoppingListLineSortKey
-): ShoppingListConceptLine[] {
+): ShoppingListLine[] {
   return useMemo(() => sortShoppingListLines(lines, sortKey), [lines, sortKey]);
 }
 
@@ -482,7 +482,7 @@ export function sortSellerGroupsForReadyView(
     return listCollator.compare(a.groupKey, b.groupKey);
   };
 
-  const sortLinesByDescription = (lines: ShoppingListConceptLine[]) => {
+  const sortLinesByDescription = (lines: ShoppingListLine[]) => {
     return [...lines].sort((a, b) => compareByDescription(a, b));
   };
 
@@ -530,9 +530,9 @@ export function buildSellerGroupInstrumentation(
 
 export function flattenReceivableLines(
   groups: ShoppingListSellerGroup[]
-): ShoppingListConceptLine[] {
+): ShoppingListLine[] {
   const orderedGroups = sortSellerGroupsForReadyView(groups);
-  const orderedLines: ShoppingListConceptLine[] = [];
+  const orderedLines: ShoppingListLine[] = [];
   for (const group of orderedGroups) {
     for (const line of group.lines) {
       if (line.status === 'ordered') {
@@ -546,7 +546,7 @@ export function flattenReceivableLines(
 export function findNextReceivableLine(
   currentLineId: number,
   groups: ShoppingListSellerGroup[]
-): ShoppingListConceptLine | undefined {
+): ShoppingListLine | undefined {
   const orderedLines = flattenReceivableLines(groups);
   const currentIndex = orderedLines.findIndex(line => line.id === currentLineId);
   if (currentIndex < 0) {
@@ -705,7 +705,7 @@ export function useShoppingListDetail(listId: number | string | undefined) {
   );
 
   const shoppingList = useMemo<ShoppingListDetail | undefined>(() => selectShoppingListDetail(query.data), [query.data]);
-  const lines = useMemo<ShoppingListConceptLine[]>(() => shoppingList?.lines ?? [], [shoppingList]);
+  const lines = useMemo<ShoppingListLine[]>(() => shoppingList?.lines ?? [], [shoppingList]);
   const sellerGroups = useMemo<ShoppingListSellerGroup[]>(() => shoppingList?.sellerGroups ?? [], [shoppingList]);
   const isCompleted = shoppingList?.status === 'done';
   const hasNewLines = Boolean(shoppingList?.lineCounts.new);
@@ -1119,7 +1119,7 @@ export function useReceiveShoppingListLineMutation() {
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
           if (typeof resolvedListId === 'number' && response) {
-            const updatedLine = mapConceptLine(response);
+            const updatedLine = mapLine(response);
             mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
             invalidateShoppingListQueries(queryClient, resolvedListId);
           } else if (typeof resolvedListId === 'number') {
@@ -1148,7 +1148,7 @@ export function useReceiveShoppingListLineMutation() {
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
           if (typeof resolvedListId === 'number' && response) {
-            const updatedLine = mapConceptLine(response);
+            const updatedLine = mapLine(response);
             mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
             invalidateShoppingListQueries(queryClient, resolvedListId);
           } else if (typeof resolvedListId === 'number') {
@@ -1188,7 +1188,7 @@ export function useCompleteShoppingListLineMutation() {
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
           if (typeof resolvedListId === 'number' && response) {
-            const updatedLine = mapConceptLine(response);
+            const updatedLine = mapLine(response);
             mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
             invalidateShoppingListQueries(queryClient, resolvedListId);
           } else if (typeof resolvedListId === 'number') {
@@ -1217,7 +1217,7 @@ export function useCompleteShoppingListLineMutation() {
           const resolvedListId = response?.shopping_list_id ?? input.listId;
 
           if (typeof resolvedListId === 'number' && response) {
-            const updatedLine = mapConceptLine(response);
+            const updatedLine = mapLine(response);
             mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
             invalidateShoppingListQueries(queryClient, resolvedListId);
           } else if (typeof resolvedListId === 'number') {

@@ -14,7 +14,7 @@ import { useGetShoppingListsKitsByListId } from '@/lib/api/generated/hooks';
 import { mapShoppingListKitLinks } from '@/types/shopping-lists';
 import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
-import type { ConceptHeaderProps } from './concept-header';
+import type { DetailHeaderProps } from './detail-header';
 
 interface MetadataFormValues extends Record<string, unknown> {
   name: string;
@@ -60,7 +60,7 @@ export function useShoppingListDetailHeaderSlots({
   overviewSearchTerm = '',
   onUnlinkKit,
   unlinkingLinkId,
-}: ConceptHeaderProps): ShoppingListDetailHeaderRender {
+}: DetailHeaderProps): ShoppingListDetailHeaderRender {
   const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
 
@@ -195,7 +195,7 @@ export function useShoppingListDetailHeaderSlots({
 
   const slots: ShoppingListDetailHeaderSlots = {
     breadcrumbs: (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.breadcrumb">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="shopping-lists.detail.header.breadcrumb">
         <Link to={'/shopping-lists'} search={{ search: overviewSearchTerm }} className="hover:text-foreground">
           Shopping Lists
         </Link>
@@ -204,7 +204,7 @@ export function useShoppingListDetailHeaderSlots({
       </div>
     ),
     title: (
-      <span data-testid="shopping-lists.concept.header.name">
+      <span data-testid="shopping-lists.detail.header.name">
         {list.name}
       </span>
     ),
@@ -212,39 +212,39 @@ export function useShoppingListDetailHeaderSlots({
       <StatusBadge
         {...getShoppingListStatusBadgeProps(list.status)}
         size="large"
-        testId="shopping-lists.concept.header.status"
+        testId="shopping-lists.detail.header.status"
       />
     ),
     description: list.description ? (
-      <p className="max-w-2xl text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.description">
+      <p className="max-w-2xl text-sm text-muted-foreground" data-testid="shopping-lists.detail.header.description">
         {list.description}
       </p>
     ) : null,
     metadataRow: (
-      <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="shopping-lists.concept.header.badges">
+      <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="shopping-lists.detail.header.badges">
         <KeyValueBadge
           label="Total"
           value={list.totalLines}
           color="neutral"
-          testId="shopping-lists.concept.header.badge.total"
+          testId="shopping-lists.detail.header.badge.total"
         />
         <KeyValueBadge
           label="New"
           value={newCount}
           color="info"
-          testId="shopping-lists.concept.header.badge.new"
+          testId="shopping-lists.detail.header.badge.new"
         />
         <KeyValueBadge
           label="Ordered"
           value={orderedCount}
           color="warning"
-          testId="shopping-lists.concept.header.badge.ordered"
+          testId="shopping-lists.detail.header.badge.ordered"
         />
         <KeyValueBadge
           label="Completed"
           value={doneCount}
           color="success"
-          testId="shopping-lists.concept.header.badge.done"
+          testId="shopping-lists.detail.header.badge.done"
         />
       </div>
     ),
@@ -254,17 +254,17 @@ export function useShoppingListDetailHeaderSlots({
         <Skeleton variant="circular" width="w-28" height="h-6" />
       </div>
     ) : linkedKits.length > 0 ? (
-      <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.concept.body.kits">
+      <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.detail.body.kits">
         {linkedKits.map((kitLink) => (
           <KitLinkChip
             key={kitLink.linkId}
             kitId={kitLink.kitId}
             name={kitLink.kitName}
             status={kitLink.kitStatus}
-            testId={`shopping-lists.concept.body.kits.${kitLink.kitId}`}
+            testId={`shopping-lists.detail.body.kits.${kitLink.kitId}`}
             onUnlink={onUnlinkKit ? () => onUnlinkKit(kitLink) : undefined}
             unlinkLoading={unlinkingLinkId === kitLink.linkId}
-            unlinkTestId={`shopping-lists.concept.body.kits.${kitLink.kitId}.unlink`}
+            unlinkTestId={`shopping-lists.detail.body.kits.${kitLink.kitId}.unlink`}
           />
         ))}
       </div>
@@ -275,7 +275,7 @@ export function useShoppingListDetailHeaderSlots({
           variant="outline"
           onClick={() => setEditOpen(true)}
           disabled={isUpdating || isCompleted}
-          data-testid="shopping-lists.concept.header.edit"
+          data-testid="shopping-lists.detail.header.edit"
           title={isCompleted ? 'Completed lists are read-only' : undefined}
         >
           Edit List
@@ -287,7 +287,7 @@ export function useShoppingListDetailHeaderSlots({
             onClick={onDeleteList}
             loading={isDeletingList}
             disabled={isDeletingList}
-            data-testid="shopping-lists.concept.header.delete"
+            data-testid="shopping-lists.detail.header.delete"
           >
             Delete list
           </Button>
@@ -300,10 +300,10 @@ export function useShoppingListDetailHeaderSlots({
     <Dialog
       open={editOpen}
       onOpenChange={setEditOpen}
-      contentProps={{ 'data-testid': 'shopping-lists.concept.edit.dialog' } as DialogContentProps}
+      contentProps={{ 'data-testid': 'shopping-lists.detail.edit.dialog' } as DialogContentProps}
     >
       <DialogContent>
-        <Form onSubmit={form.handleSubmit} data-testid="shopping-lists.concept.edit.form">
+        <Form onSubmit={form.handleSubmit} data-testid="shopping-lists.detail.edit.form">
           <DialogHeader>
             <DialogTitle>Edit list details</DialogTitle>
           </DialogHeader>
@@ -313,7 +313,7 @@ export function useShoppingListDetailHeaderSlots({
               <FormLabel required>Name</FormLabel>
               <Input
                 maxLength={NAME_LIMIT}
-                placeholder="Concept list name"
+                placeholder="Shopping list name"
                 value={form.values.name}
                 onChange={(event) => form.setValue('name', event.target.value)}
                 onBlur={() => form.setFieldTouched('name')}
@@ -338,7 +338,7 @@ export function useShoppingListDetailHeaderSlots({
                 onChange={(event) => form.setValue('description', event.target.value)}
                 onBlur={() => form.setFieldTouched('description')}
                 aria-invalid={form.errors.description ? 'true' : undefined}
-                data-testid="shopping-lists.concept.edit.description"
+                data-testid="shopping-lists.detail.edit.description"
               />
               {form.errors.description && (
                 <p className="mt-1 text-sm text-destructive">{form.errors.description}</p>

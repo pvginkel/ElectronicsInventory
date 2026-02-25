@@ -511,11 +511,11 @@ test.describe('Kit detail workspace', () => {
     expect(availableBefore).toBeGreaterThan(0);
     expect(shortfallBefore).toBe(0);
 
-    const conceptLinkResponse = await apiClient.apiRequest(() =>
+    const listLinkResponse = await apiClient.apiRequest(() =>
       apiClient.POST('/api/kits/{kit_id}/shopping-lists', {
         params: { path: { kit_id: kit.id } },
         body: {
-          new_list_name: testData.shoppingLists.randomName('Concept Link'),
+          new_list_name: testData.shoppingLists.randomName('List Link'),
           new_list_description: null,
           shopping_list_id: null,
           units: 1,
@@ -524,7 +524,7 @@ test.describe('Kit detail workspace', () => {
         },
       })
     );
-    const conceptLink = conceptLinkResponse.link ?? null;
+    const listLink = listLinkResponse.link ?? null;
 
     const pickList = await apiClient.apiRequest(() =>
       apiClient.POST('/api/kits/{kit_id}/pick-lists', {
@@ -560,18 +560,18 @@ test.describe('Kit detail workspace', () => {
 
     expect(linksEvent.metadata).toMatchObject({
       kitId: kit.id,
-      hasLinkedWork: Boolean(conceptLink),
+      hasLinkedWork: Boolean(listLink),
       shoppingLists: {
-        count: conceptLink ? 1 : 0,
+        count: listLink ? 1 : 0,
         renderLocation: 'body',
       },
     });
     expect((linksEvent.metadata as Record<string, unknown> | undefined)?.pickLists).toBeUndefined();
-    if (conceptLink) {
+    if (listLink) {
       const shoppingMetadata = (linksEvent.metadata as Record<string, unknown> | undefined)
         ?.shoppingLists as { ids?: number[] } | undefined;
       expect(shoppingMetadata?.ids).toEqual(
-        expect.arrayContaining([conceptLink.shopping_list_id])
+        expect.arrayContaining([listLink.shopping_list_id])
       );
     }
 
@@ -582,7 +582,7 @@ test.describe('Kit detail workspace', () => {
       hasOpenWork: true,
     });
 
-    if (conceptLink) {
+    if (listLink) {
       await expect(kits.detailLinksSection).toBeVisible();
     }
     await expect(page.getByTestId('kits.detail.actions.create-pick-list')).toHaveCount(0);
@@ -590,17 +590,17 @@ test.describe('Kit detail workspace', () => {
 
     const kitDetailPath = `/kits/${kit.id}`;
 
-    if (conceptLink) {
-      const conceptChip = kits.shoppingLinkChip(conceptLink.shopping_list_id);
-      await expect(conceptChip).toBeVisible();
-      await expect(conceptChip).toContainText(conceptLink.shopping_list_name);
-      await expect(conceptChip).toContainText(/Active/i);
+    if (listLink) {
+      const listChip = kits.shoppingLinkChip(listLink.shopping_list_id);
+      await expect(listChip).toBeVisible();
+      await expect(listChip).toContainText(listLink.shopping_list_name);
+      await expect(listChip).toContainText(/Active/i);
 
-      const conceptNavigation = shoppingLists.playwrightPage.waitForURL(
-        new RegExp(`/shopping-lists/${conceptLink.shopping_list_id}`)
+      const listNavigation = shoppingLists.playwrightPage.waitForURL(
+        new RegExp(`/shopping-lists/${listLink.shopping_list_id}`)
       );
-      const conceptReady = shoppingLists.waitForConceptReady();
-      await Promise.all([conceptNavigation, conceptReady, conceptChip.click()]);
+      const detailReady = shoppingLists.waitForDetailReady();
+      await Promise.all([listNavigation, detailReady, listChip.click()]);
 
       const detailReload = waitForListLoading(page, 'kits.detail', 'ready');
       const contentsReload = waitForListLoading(page, 'kits.detail.contents', 'ready');
@@ -1374,7 +1374,7 @@ test.describe('Kit detail workspace', () => {
     expect(stillExists.name).toBe(kit.name);
   });
 
-  test('orders stock into a Concept list and supports unlinking from kit detail', async ({ kits, testData, toastHelper, page, apiClient }) => {
+  test('orders stock into a shopping list and supports unlinking from kit detail', async ({ kits, testData, toastHelper, page, apiClient }) => {
     const { part } = await testData.parts.create({ overrides: { description: 'Shopping Flow Part' } });
     const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
       apiClient.GET('/api/parts/{part_key}/kit-reservations', {
@@ -1394,8 +1394,8 @@ test.describe('Kit detail workspace', () => {
       ],
     });
 
-    const conceptList = await testData.shoppingLists.create({
-      name: testData.shoppingLists.randomName('Concept Link Target'),
+    const shoppingList = await testData.shoppingLists.create({
+      name: testData.shoppingLists.randomName('List Link Target'),
       description: null,
     });
 
@@ -1416,8 +1416,8 @@ test.describe('Kit detail workspace', () => {
 
     const requestedUnits = kit.build_target + 1;
     await kits.detailOrderUnitsField.fill(String(requestedUnits));
-    await kits.selectShoppingListInDialog(conceptList.name);
-    await expect(kits.detailOrderSelector.getByRole('combobox')).toHaveValue(conceptList.name);
+    await kits.selectShoppingListInDialog(shoppingList.name);
+    await expect(kits.detailOrderSelector.getByRole('combobox')).toHaveValue(shoppingList.name);
 
     const submitEventPromise = waitForUiState(page, 'kits.detail.shoppingListFlow', 'submit');
     const successEventPromise = waitForUiState(page, 'kits.detail.shoppingListFlow', 'success');
@@ -1429,7 +1429,7 @@ test.describe('Kit detail workspace', () => {
           return false;
         }
         const metadata = event.metadata as { shoppingLists?: { ids?: number[] } } | undefined;
-        return Array.isArray(metadata?.shoppingLists?.ids) && metadata!.shoppingLists!.ids!.includes(conceptList.id);
+        return Array.isArray(metadata?.shoppingLists?.ids) && metadata!.shoppingLists!.ids!.includes(shoppingList.id);
       }
     );
 
@@ -1444,13 +1444,13 @@ test.describe('Kit detail workspace', () => {
     expect(submitEvent.metadata).toMatchObject({
       kitId: kit.id,
       action: 'order',
-      targetListId: conceptList.id,
+      targetListId: shoppingList.id,
     });
 
     expect(successEvent.metadata).toMatchObject({
       kitId: kit.id,
       action: 'order',
-      targetListId: conceptList.id,
+      targetListId: shoppingList.id,
       requestedUnits,
       honorReserved: true,
       noop: false,
@@ -1460,16 +1460,16 @@ test.describe('Kit detail workspace', () => {
     expect(successMetadata?.totalNeededQuantity).toBe(contents[0].required_per_unit * requestedUnits);
 
     const linksMetadata = linksEvent.metadata as { shoppingLists?: { ids?: number[] } } | undefined;
-    expect(linksMetadata?.shoppingLists?.ids).toContain(conceptList.id);
+    expect(linksMetadata?.shoppingLists?.ids).toContain(shoppingList.id);
 
     await expect(kits.detailOrderDialog).not.toBeVisible();
     await toastHelper.expectSuccessToast(/Queued/i);
     await toastHelper.dismissToast({ all: true });
 
-    await expect(kits.shoppingLinkChip(conceptList.id)).toBeVisible();
+    await expect(kits.shoppingLinkChip(shoppingList.id)).toBeVisible();
 
     const unlinkOpen = waitForUiState(page, 'kits.detail.shoppingListFlow', 'open');
-    await kits.shoppingLinkUnlinkButton(conceptList.id).click();
+    await kits.shoppingLinkUnlinkButton(shoppingList.id).click();
     await unlinkOpen;
     await expect(kits.unlinkConfirmDialog).toBeVisible();
 
@@ -1484,7 +1484,7 @@ test.describe('Kit detail workspace', () => {
         }
         const metadata = event.metadata as { shoppingLists?: { ids?: number[] } } | undefined;
         const ids = metadata?.shoppingLists?.ids ?? [];
-        return Array.isArray(ids) && ids.every((id: number) => id !== conceptList.id);
+        return Array.isArray(ids) && ids.every((id: number) => id !== shoppingList.id);
       }
     );
 
@@ -1494,7 +1494,7 @@ test.describe('Kit detail workspace', () => {
     await toastHelper.expectSuccessToast(/Unlinked/i);
     await toastHelper.dismissToast({ all: true });
 
-    await expect(kits.shoppingLinkChip(conceptList.id)).toHaveCount(0);
+    await expect(kits.shoppingLinkChip(shoppingList.id)).toHaveCount(0);
   });
 });
 
