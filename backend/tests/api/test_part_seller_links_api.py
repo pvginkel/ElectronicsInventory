@@ -94,7 +94,7 @@ class TestPartSellerLinksAPI:
         assert response.status_code == 201
         data = response.get_json()
 
-        expected_fields = {"id", "seller_id", "seller_name", "seller_website", "link", "created_at"}
+        expected_fields = {"id", "seller_id", "seller_name", "seller_website", "link", "logo_url", "created_at"}
         actual_fields = set(data.keys())
         assert actual_fields == expected_fields
 
