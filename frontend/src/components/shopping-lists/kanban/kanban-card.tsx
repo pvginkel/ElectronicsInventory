@@ -13,6 +13,7 @@
  * line, part key below it in mono font.
  */
 import { useCallback } from 'react';
+import { Link } from '@tanstack/react-router';
 import { ExternalLink, Package, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
@@ -41,6 +42,8 @@ export interface KanbanCardProps {
   onReceive?: (lineId: number) => void;
   /** Optional highlight class applied after a successful mutation. */
   highlightClassName?: string;
+  /** Use accent background (for ordered/receiving columns). */
+  accentBg?: boolean;
 }
 
 export function KanbanCard({
@@ -54,6 +57,7 @@ export function KanbanCard({
   onDelete,
   onReceive,
   highlightClassName,
+  accentBg = false,
 }: KanbanCardProps) {
   const testIdBase = `shopping-lists.kanban.card.${line.id}`;
   const isReadOnly = isCompleted || isDragging || isPending;
@@ -86,20 +90,30 @@ export function KanbanCard({
   const orderedWarning = line.ordered > 0 && line.ordered < line.needed;
   const sellerLinkUrl = line.sellerLink;
   const instrumentationMeta = { lineId: line.id, listId };
-  // Note is editable in unassigned/ordering when not read-only
-  const noteEditable = (mode === 'unassigned' || mode === 'ordering') && !isReadOnly;
+  // Note is editable in all modes unless the card is read-only (completed, dragging, or pending)
+  const noteEditable = !isReadOnly;
+  // Placeholder always shows unless the list is completed
+  const notePlaceholder = !isCompleted ? 'Add a note...' : undefined;
+  // Receive button: active when line can be received, disabled visual cue for completed lines
+  const showReceiveDisabled = mode === 'receiving' && line.status === 'done';
 
   return (
     <div
       data-testid={testIdBase}
       className={cn(
-        'group/card rounded-md bg-slate-900/80 p-3',
+        'group/card rounded-md p-3',
+        accentBg ? 'bg-muted/80' : 'bg-slate-900/80',
         isPending && 'opacity-60 pointer-events-none',
         highlightClassName,
       )}
     >
-      {/* Top row: cover image + part info (description first, key below in mono) */}
-      <div className="flex gap-2 mb-2">
+      {/* Top row: cover image + part info -- links to part detail */}
+      <Link
+        to="/parts/$partId"
+        params={{ partId: line.part.key }}
+        className="flex gap-2 mb-2 cursor-pointer rounded -m-1 p-1 hover:bg-white/5"
+        onClick={(e) => e.stopPropagation()}
+      >
         {line.part.coverUrl && (
           <CoverImageDisplay
             partId={line.part.key}
@@ -120,7 +134,7 @@ export function KanbanCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid={`${testIdBase}.seller-link`}
-                className="text-blue-400 hover:text-slate-200 shrink-0"
+                className="text-blue-400 hover:text-slate-200 shrink-0 p-1 -m-1 rounded"
                 title="Open seller product page"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -132,7 +146,7 @@ export function KanbanCard({
             {line.part.key}
           </p>
         </div>
-      </div>
+      </Link>
 
       {/* Fields row: varies by mode */}
       <div className="space-y-1 pr-1">
@@ -229,10 +243,10 @@ export function KanbanCard({
               // 3-line clamp with expand on hover
               'line-clamp-3 group-hover/card:line-clamp-none',
             )}
-            placeholder={noteEditable ? 'Add a note...' : undefined}
+            placeholder={notePlaceholder}
           />
         </div>
-        {/* Trash icon sits next to the note */}
+        {/* Action icon sits next to the note: trash (unassigned/ordering) or receive (receiving) */}
         {canDelete && (
           <div className="flex flex-col justify-end">
             <button
@@ -241,10 +255,10 @@ export function KanbanCard({
               disabled={deleteDisabled}
               data-testid={`${testIdBase}.delete`}
               className={cn(
-                'shrink-0 rounded p-1.5 cursor-pointer mt-0.5 -mr-1 -mb-1',
+                'shrink-0 rounded p-1.5 cursor-pointer mt-0.5',
                 deleteDisabled
                   ? 'text-slate-600 cursor-default'
-                  : 'text-red-400 hover:bg-red-700/40',
+                  : 'text-red-400 bg-red-700/30 hover:bg-red-700/60',
               )}
               title="Delete line"
             >
@@ -252,25 +266,40 @@ export function KanbanCard({
             </button>
           </div>
         )}
+        {canReceive && (
+          <div className="flex flex-col justify-end pl-2">
+            <button
+              type="button"
+              onClick={handleReceive}
+              data-testid={`${testIdBase}.receive`}
+              className={cn(
+                'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium cursor-pointer',
+                'bg-primary text-primary-foreground hover:bg-primary/90',
+              )}
+            >
+              <Package className="h-3 w-3" />
+              Receive
+            </button>
+          </div>
+        )}
+        {showReceiveDisabled && (
+          <div className="flex flex-col justify-end pl-2">
+            <button
+              type="button"
+              disabled
+              data-testid={`${testIdBase}.receive`}
+              className={cn(
+                'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
+                'text-slate-600',
+              )}
+              title="Fully received"
+            >
+              <Package className="h-4 w-4" />
+              Receive
+            </button>
+          </div>
+        )}
       </div>
-
-      {/* Bottom actions row (receive button only) */}
-      {canReceive && (
-        <div className="flex items-center justify-end mt-2">
-          <button
-            type="button"
-            onClick={handleReceive}
-            data-testid={`${testIdBase}.receive`}
-            className={cn(
-              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium cursor-pointer',
-              'bg-primary text-primary-foreground hover:bg-primary/90',
-            )}
-          >
-            <Package className="h-3 w-3" />
-            Receive
-          </button>
-        </div>
-      )}
     </div>
   );
 }

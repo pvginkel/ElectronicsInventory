@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   NotebookPen,
   Plus,
+  ShoppingCart,
   Trash2,
   Undo2,
   ArrowDownToLine,
@@ -149,7 +150,7 @@ export function SellerColumnHeader({
     ? 'All lines must have an ordered quantity before placing the order.'
     : undefined;
   const reopenDisabledReason = !canReopen
-    ? 'Cannot reopen: some items have already been received.'
+    ? 'Cannot reopen: some items have been received or completed.'
     : undefined;
   const deleteDisabledReason = !canDelete
     ? 'Cannot remove an ordered seller group. Reopen it first.'
@@ -176,7 +177,7 @@ export function SellerColumnHeader({
           href={group.sellerWebsite}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 text-slate-300 hover:text-slate-50"
+          className="shrink-0 text-slate-300 hover:text-slate-50 p-1 -m-1 rounded"
           title={group.sellerWebsite}
         >
           <ExternalLink className="h-3.5 w-3.5" />
@@ -184,10 +185,15 @@ export function SellerColumnHeader({
       )}
       {isOrdered && (
         <Tooltip title="Order placed" enabled>
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+          <span className="shrink-0 inline-flex">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+          </span>
         </Tooltip>
       )}
-      <span className="shrink-0 rounded-full bg-slate-600 px-2 py-0.5 text-xs text-slate-200">
+      <span className={cn(
+        'shrink-0 rounded-full px-2 py-0.5 text-xs',
+        isOrdered ? 'bg-accent-foreground/15 text-accent-foreground' : 'bg-slate-600 text-slate-200',
+      )}>
         {lineCount}
       </span>
 
@@ -197,21 +203,24 @@ export function SellerColumnHeader({
       {/* Action buttons (hidden when list is done) */}
       {!isCompleted && (
         <>
-          {/* Add part button */}
-          <button
-            type="button"
-            onClick={onAddPart}
-            data-testid={`${testIdBase}.add-part`}
-            className="shrink-0 rounded p-1 cursor-pointer text-slate-300 hover:text-slate-50 hover:bg-slate-500/40"
-            title="Add part"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          {/* Add part button (ordering mode only -- hidden on ordered columns) */}
+          {mode === 'ordering' && (
+            <button
+              type="button"
+              onClick={onAddPart}
+              data-testid={`${testIdBase}.add-part`}
+              className="shrink-0 rounded p-1 cursor-pointer text-slate-300 hover:text-slate-50 hover:bg-slate-500/40"
+              title="Add part"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
 
           {/* Order note icon with tooltip */}
           <Tooltip
-            title={hasNote ? (group.orderNote ?? undefined) : undefined}
+            content={hasNote ? (group.orderNote ?? undefined) : undefined}
             enabled={hasNote}
+            placement="bottom"
           >
             <button
               type="button"
@@ -242,7 +251,7 @@ export function SellerColumnHeader({
                 onClick={handleComplete}
                 disabled={!canComplete}
                 data-testid={`${testIdBase}.complete`}
-                title={canComplete ? 'Mark as ordered' : undefined}
+                title={canComplete ? 'Place order' : undefined}
                 className={cn(
                   'shrink-0 rounded p-1',
                   canComplete
@@ -250,7 +259,7 @@ export function SellerColumnHeader({
                     : 'text-slate-500 cursor-not-allowed',
                 )}
               >
-                <CheckCircle2 className="h-4 w-4" />
+                <ShoppingCart className="h-4 w-4" />
               </button>
             </Tooltip>
           )}
@@ -258,7 +267,10 @@ export function SellerColumnHeader({
           {/* Overflow menu */}
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger
-              className="shrink-0 rounded p-1 cursor-pointer text-slate-300 hover:text-slate-50 hover:bg-slate-500/40"
+              className={cn(
+                'shrink-0 rounded p-1 cursor-pointer text-slate-300 hover:text-slate-50 hover:bg-slate-500/40',
+                menuOpen && 'text-slate-50 bg-slate-500/40',
+              )}
               data-testid={`${testIdBase}.menu`}
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -288,7 +300,10 @@ export function SellerColumnHeader({
                 </Tooltip>
               )}
 
-              <DropdownMenuSeparator />
+              {/* Separator only when there's content above it */}
+              {((mode === 'ordering' && hasUnassignedLines) || isOrdered) && (
+                <DropdownMenuSeparator />
+              )}
 
               {/* Remove seller */}
               <Tooltip

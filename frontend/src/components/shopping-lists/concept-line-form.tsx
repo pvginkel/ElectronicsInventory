@@ -7,7 +7,6 @@ import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Alert } from '@/components/primitives';
 import { PartSelector } from '@/components/parts/part-selector';
-import { SellerSelector } from '@/components/sellers/seller-selector';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
@@ -213,7 +212,10 @@ export function ConceptLineForm({
     if (!open) {
       return;
     }
+    // Reset form to pick up latest initialValues (e.g. new defaultSellerId)
+    form.reset();
     queryClient.invalidateQueries({ queryKey: ['getParts'] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on open transition only
   }, [open, queryClient]);
 
   const handleClose = () => {
@@ -281,7 +283,7 @@ export function ConceptLineForm({
 
         <Form onSubmit={form.handleSubmit} data-testid={`${formId}.form`}>
           <DialogHeader>
-            <DialogTitle>{mode === 'add' ? 'Add part to Concept list' : 'Edit line'}</DialogTitle>
+            <DialogTitle>{mode === 'add' ? 'Add Part' : 'Edit line'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -325,17 +327,6 @@ export function ConceptLineForm({
                 error={form.errors.needed}
                 data-testid={`${formId}.field.needed`}
               />
-            </FormField>
-
-            <FormField>
-              <FormLabel>Seller override</FormLabel>
-              <div data-testid={`${formId}.field.seller`}>
-                <SellerSelector
-                  value={form.values.sellerId}
-                  onChange={(value) => form.setValue('sellerId', value)}
-                  placeholder="Select seller (Optional override)"
-                />
-              </div>
             </FormField>
 
             <FormField>

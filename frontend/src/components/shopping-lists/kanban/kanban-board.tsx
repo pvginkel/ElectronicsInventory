@@ -62,18 +62,20 @@ export interface KanbanBoardProps {
 
 function DroppableColumn({
   groupKey,
+  disabled,
   children,
 }: {
   groupKey: string;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: groupKey });
+  const { setNodeRef, isOver } = useDroppable({ id: groupKey, disabled });
   return (
     <div
       ref={setNodeRef}
       className={cn(
         'rounded-lg',
-        isOver && 'ring-2 ring-primary/40',
+        isOver && !disabled && 'ring-2 ring-primary/40',
       )}
     >
       {children}
@@ -196,7 +198,9 @@ export function KanbanBoard({
   // inside the board (column backgrounds, header text, empty states, gaps,
   // padding). Cards and buttons are excluded so DnD and actions keep working.
   const isDraggingRef = useRef(false);
-  isDraggingRef.current = dnd.isDragging;
+  useEffect(() => {
+    isDraggingRef.current = dnd.isDragging;
+  }, [dnd.isDragging]);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -212,9 +216,10 @@ export function KanbanBoard({
       if (!(target instanceof HTMLElement)) return;
       if (!board.contains(target) && target !== board) return;
 
-      // Skip interactive elements and draggable card wrappers (role="button"
-      // is added by @dnd-kit's useDraggable attributes on every card wrapper)
+      // Skip interactive elements, draggable card wrappers (role="button"
+      // is added by @dnd-kit), and column card-list internals (overflow-y-auto)
       if (target.closest('button, input, textarea, a, select, [role="button"]')) return;
+      if (target.closest('.overflow-y-auto')) return;
 
       scrollState = { startX: event.clientX, scrollStart: board.scrollLeft };
       board.style.cursor = 'grabbing';
@@ -260,9 +265,27 @@ export function KanbanBoard({
   }
 
   // -- Column ordering: unassigned first, then seller groups in order --
+  // Always include an unassigned column, even when the backend omits the empty bucket.
   const orderedGroups = useMemo(() => {
     const unassigned = groups.filter((g) => g.sellerId === null);
     const sellers = groups.filter((g) => g.sellerId !== null);
+    if (unassigned.length === 0) {
+      unassigned.push({
+        groupKey: 'unassigned',
+        sellerId: null,
+        sellerName: null,
+        sellerWebsite: null,
+        sellerLogoUrl: null,
+        status: null,
+        completed: false,
+        orderNote: null,
+        totals: { needed: 0, ordered: 0, received: 0 },
+        lines: [],
+        hasOrderedLines: false,
+        hasNewLines: false,
+        hasDoneLines: false,
+      });
+    }
     return [...unassigned, ...sellers];
   }, [groups]);
 
@@ -270,11 +293,13 @@ export function KanbanBoard({
   const createWrapCard = useCallback(
     (group: ShoppingListSellerGroup) => {
       return (cardElement: React.ReactElement, line: ShoppingListConceptLine) => {
-        // Cards cannot be dragged when: list is done, card is pending, or line is ordered
+        // Cards cannot be dragged when: list is done, card is pending,
+        // line is ordered, or the entire group is ordered (receiving mode)
         const dragDisabled =
           isCompleted ||
           pendingLineIds.has(line.id) ||
-          line.status === 'ordered';
+          line.status === 'ordered' ||
+          group.status === 'ordered';
 
         // Determine if drag is over this column, a different column, or nowhere
         const overKey = dnd.overGroupKey;
@@ -317,35 +342,40 @@ export function KanbanBoard({
           ref={boardRef}
           data-testid="shopping-lists.kanban.board"
           className={cn(
-            'flex gap-4 overflow-x-auto py-4 px-6',
+            'flex gap-6 overflow-x-auto overflow-y-hidden py-4 px-6',
             'flex-1 min-h-0',
           )}
         >
-          {orderedGroups.map((group) => (
-            <DroppableColumn key={group.groupKey} groupKey={group.groupKey}>
-              <KanbanColumn
-                group={group}
-                listId={listId}
-                isCompleted={isCompleted}
-                pendingLineIds={pendingLineIds}
-                highlightedLineId={highlightedLineId}
-                hasUnassignedLines={hasUnassignedLines}
-                isDragging={dnd.isDragging}
-                activeDragLine={dnd.activeLine}
-                isDropTarget={dnd.overGroupKey === group.groupKey}
-                wrapCard={createWrapCard(group)}
-                onFieldSave={onFieldSave}
-                onDeleteLine={onDeleteLine}
-                onReceiveLine={onReceiveLine}
-                onAddPart={onAddPart}
-                onCompleteGroup={onCompleteGroup}
-                onReopenGroup={onReopenGroup}
-                onDeleteGroup={onDeleteGroup}
-                onAssignRemaining={onAssignRemaining}
-                onEditNote={onEditNote}
-              />
-            </DroppableColumn>
-          ))}
+          {orderedGroups.map((group) => {
+            // Ordered columns cannot accept drops
+            const dropDisabled = group.status === 'ordered';
+            return (
+              <DroppableColumn key={group.groupKey} groupKey={group.groupKey} disabled={dropDisabled}>
+                <KanbanColumn
+                  group={group}
+                  listId={listId}
+                  isCompleted={isCompleted}
+                  pendingLineIds={pendingLineIds}
+                  highlightedLineId={highlightedLineId}
+                  hasUnassignedLines={hasUnassignedLines}
+                  isDragging={dnd.isDragging}
+                  activeDragLine={dnd.activeLine}
+                  isDropTarget={dnd.overGroupKey === group.groupKey}
+                  wrapCard={createWrapCard(group)}
+                  onFieldSave={onFieldSave}
+                  onDeleteLine={onDeleteLine}
+                  onReceiveLine={onReceiveLine}
+                  onAddPart={onAddPart}
+                  onCompleteGroup={onCompleteGroup}
+                  onReopenGroup={onReopenGroup}
+                  onDeleteGroup={onDeleteGroup}
+                  onAssignRemaining={onAssignRemaining}
+                  onEditNote={onEditNote}
+                  className={cn(dropDisabled && dnd.isDragging && 'opacity-50 pointer-events-none')}
+                />
+              </DroppableColumn>
+            );
+          })}
 
           {/* Skeleton column for adding new sellers (hidden when list is done) */}
           {!isCompleted && (

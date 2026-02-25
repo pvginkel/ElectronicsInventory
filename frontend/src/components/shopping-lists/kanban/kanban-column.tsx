@@ -136,8 +136,8 @@ export function KanbanColumn({
 
   const canReopen = useMemo(() => {
     if (mode !== 'receiving') return false;
-    // No line may have received > 0
-    return group.lines.every(line => line.received === 0);
+    // No line may have received > 0 or have status 'done'
+    return group.lines.every(line => line.received === 0 && line.status !== 'done');
   }, [mode, group.lines]);
 
   const canDeleteGroup = useMemo(() => {
@@ -149,7 +149,8 @@ export function KanbanColumn({
     <div
       data-testid={testIdBase}
       className={cn(
-        'flex flex-col w-80 shrink-0 rounded-lg bg-slate-700',
+        'flex flex-col w-80 shrink-0 rounded-lg',
+        mode === 'receiving' ? 'bg-accent' : 'bg-slate-700',
         'max-h-full',
         className,
       )}
@@ -183,7 +184,7 @@ export function KanbanColumn({
       )}
 
       {/* Scrollable card list -- clip horizontal overflow from DnD transforms */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-3 min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pl-3 pr-1.5 mr-1.5 mt-3 mb-3 space-y-3 min-h-0">
         {sortedLines.length === 0 ? (
           <EmptyColumnMessage isUnassigned={isUnassigned} />
         ) : (
@@ -204,9 +205,10 @@ export function KanbanColumn({
                 onReceive={onReceiveLine}
                 highlightClassName={
                   highlightedLineId === line.id
-                    ? 'ring-2 ring-primary/50'
+                    ? 'shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.5)]'
                     : undefined
                 }
+                accentBg={mode === 'receiving'}
               />
             );
 
@@ -245,7 +247,7 @@ function EmptyColumnMessage({ isUnassigned }: { isUnassigned: boolean }) {
     <div className="flex items-center justify-center px-3 py-6 text-center">
       <p className="text-xs text-slate-300">
         {isUnassigned
-          ? 'No items yet -- use the + button to add parts.'
+          ? 'No items yet. Use the + button to add parts.'
           : 'No items. Drag cards here or use "Assign remaining."'}
       </p>
     </div>
