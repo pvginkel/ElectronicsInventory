@@ -421,6 +421,56 @@ export class PartsPage extends BasePage {
   get detailKitBadges(): Locator {
     return this.linkBadgeContainer.getByTestId('parts.detail.kit.badge');
   }
+
+  // Seller link section helpers
+  get sellerLinksSection(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links');
+  }
+
+  get sellerLinksEmpty(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.empty');
+  }
+
+  get sellerLinksAddButton(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.add-button');
+  }
+
+  get sellerLinksForm(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.form');
+  }
+
+  get sellerLinksFormSellerWrapper(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.form.seller');
+  }
+
+  get sellerLinksFormLinkInput(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.form.link');
+  }
+
+  get sellerLinksFormSubmit(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.form.submit');
+  }
+
+  get sellerLinksFormCancel(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.form.cancel');
+  }
+
+  get sellerLinkRows(): Locator {
+    return this.page.getByTestId('parts.detail.seller-links.row');
+  }
+
+  sellerLinkRowByName(name: string | RegExp): Locator {
+    return this.sellerLinkRows.filter({ hasText: name });
+  }
+
+  sellerLinkRemoveButton(row: Locator): Locator {
+    return row.getByTestId('parts.detail.seller-links.row.remove');
+  }
+
+  createSellerLinkSelectorHarness(): SellerSelectorHarness {
+    return new SellerSelectorHarness(this.page, this.sellerLinksFormSellerWrapper);
+  }
+
   // Form helpers (create/edit)
   get formRoot(): Locator {
     return this.page.getByTestId('parts.form.form');

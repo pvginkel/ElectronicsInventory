@@ -24,6 +24,7 @@ import { SparkleIcon } from '@/components/icons/SparkleIcon';
 import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
 import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import { AIPartCleanupDialog } from './ai-part-cleanup-dialog';
+import { SellerLinkSection } from './seller-link-section';
 import {
   useGetPartsByPartKey,
   useDeletePartsByPartKey,
@@ -517,20 +518,10 @@ export function PartDetails({ partId }: PartDetailsProps) {
                         </div>
                       )}
 
-                      {(part.seller_links ?? []).length > 0 && (
-                        <div>
-                          <SectionHeading>Seller Links</SectionHeading>
-                          <DescriptionList spacing="default">
-                            {(part.seller_links ?? []).map((sl) => (
-                              <DescriptionItem key={sl.id} label={sl.seller_name} variant="compact">
-                                <ExternalLink href={sl.link} className="break-all">
-                                  {sl.link}
-                                </ExternalLink>
-                              </DescriptionItem>
-                            ))}
-                          </DescriptionList>
-                        </div>
-                      )}
+                      <SellerLinkSection
+                        partId={partId}
+                        sellerLinks={part.seller_links ?? []}
+                      />
 
                       {displayManufacturerCode ? (
                         <DescriptionItem
