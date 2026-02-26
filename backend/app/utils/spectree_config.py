@@ -131,11 +131,21 @@ def annotate_openapi_security(app: Any) -> None:
             # Store the role map on the app for tests and frontend consumption
             app.openapi_role_map = role_map
 
+            # Build the role configuration summary for the spec root
+            auth_roles: dict[str, str | None] = {
+                "read": auth_service.read_role,
+                "write": auth_service.write_role,
+                "admin": auth_service.admin_role,
+            }
+            app.openapi_auth_roles = auth_roles
+
             # Now inject into the Spectree spec if it's available.  The
             # spec may not be fully populated when multiple create_app()
             # calls occur (test fixtures), so this is best-effort.
             try:
                 spec = api.spec
+                spec["x-auth-roles"] = auth_roles
+
                 for path, methods in role_map.items():
                     path_item = spec.get("paths", {}).get(path)
                     if path_item is None:
