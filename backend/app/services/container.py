@@ -202,6 +202,9 @@ class ServiceContainer(containers.DeclarativeContainer):
     auth_service = providers.Singleton(
         AuthService,
         config=config,
+        read_role="reader",
+        write_role="editor",
+        admin_role="admin",
     )
     oidc_client_service = providers.Singleton(
         OidcClientService,

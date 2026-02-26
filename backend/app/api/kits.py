@@ -39,6 +39,7 @@ from app.services.container import ServiceContainer
 from app.services.kit_pick_list_service import KitPickListService
 from app.services.kit_service import KitService
 from app.services.kit_shopping_list_service import KitShoppingListService
+from app.utils.auth import safe_query
 from app.utils.spectree_config import api
 
 kits_bp = Blueprint("kits", __name__, url_prefix="/kits")
@@ -263,6 +264,7 @@ def delete_kit_content(
         HTTP_404=ErrorResponseSchema,
     ),
 )
+@safe_query
 @inject
 def query_shopping_list_memberships_for_kits(
     kit_service: KitService = Provide[ServiceContainer.kit_service],
@@ -311,6 +313,7 @@ def query_shopping_list_memberships_for_kits(
         HTTP_404=ErrorResponseSchema,
     ),
 )
+@safe_query
 @inject
 def query_pick_list_memberships_for_kits(
     kit_service: KitService = Provide[ServiceContainer.kit_service],
