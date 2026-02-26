@@ -36,6 +36,7 @@ from app.services.kit_reservation_service import KitReservationService
 from app.services.part_service import PartService
 from app.services.shopping_list_line_service import ShoppingListLineService
 from app.services.shopping_list_service import ShoppingListService
+from app.utils.auth import safe_query
 from app.utils.spectree_config import api
 
 # Part kit usage request metric
@@ -351,6 +352,7 @@ def delete_part(part_key: str, part_service: PartService = Provide[ServiceContai
         HTTP_404=ErrorResponseSchema,
     ),
 )
+@safe_query
 @inject
 def query_part_shopping_list_memberships(
     part_service: PartService = Provide[ServiceContainer.part_service],

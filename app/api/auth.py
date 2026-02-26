@@ -76,11 +76,12 @@ def get_current_user(
         if token and token.startswith("test-session-"):
             test_session = testing_service.get_session(token)
             if test_session:
+                expanded_roles = auth_service.expand_roles(set(test_session.roles))
                 user_info = UserInfoResponseSchema(
                     subject=test_session.subject,
                     email=test_session.email,
                     name=test_session.name,
-                    roles=sorted(test_session.roles),
+                    roles=sorted(expanded_roles),
                 )
                 logger.info(
                     "Returned test session user info for subject=%s",
@@ -92,12 +93,15 @@ def get_current_user(
         # so existing tests without explicit sessions still get local-user.
 
     # When OIDC is disabled, return a default "local" user
+    # Expand roles through hierarchy so the frontend sees the same shape
+    # as it would with OIDC enabled (e.g. admin -> [admin, editor, reader]).
     if not config.oidc_enabled:
+        local_roles = auth_service.expand_roles({"admin"})
         return UserInfoResponseSchema(
             subject="local-user",
             email="admin@local",
             name="Local Admin",
-            roles=["admin"],
+            roles=sorted(local_roles),
         ).model_dump(), 200
 
     # OIDC enabled: try auth_context (set by before_request hook).
