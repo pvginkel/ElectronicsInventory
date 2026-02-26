@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import testingNoRouteMocksRule from './scripts/eslint-rules/testing/no-route-mocks.js'
+import roleImportEnforcementRule from './scripts/eslint-rules/role-import-enforcement.js'
 
 export default tseslint.config([
   { ignores: ['dist', 'node_modules', '.pnpm-store', '*.gen.ts', 'src/lib/api/generated/**'] },
@@ -34,6 +35,22 @@ export default tseslint.config([
             'Date.now() is reserved for real timestamps. Use makeUnique() or other approved helpers for ID generation, or add a documented disable comment.',
         },
       ],
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: {
+      'role-gating': {
+        rules: {
+          'role-import-enforcement': roleImportEnforcementRule,
+        },
+      },
+    },
+    rules: {
+      // Warn (not error) during soft-launch: existing files import mutation
+      // hooks without role constants. Promote to 'error' once Gate is wired
+      // into all UI pages and every mutation hook import is paired.
+      'role-gating/role-import-enforcement': 'warn',
     },
   },
   {

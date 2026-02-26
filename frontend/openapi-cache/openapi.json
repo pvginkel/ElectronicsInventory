@@ -10339,6 +10339,13 @@
         "title": "ValidationErrorElement",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -10375,8 +10382,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Start AI analysis task for part creation.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/ai-parts/cleanup": {
@@ -10416,8 +10429,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Start AI cleanup task for an existing part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/ai-parts/create": {
@@ -10457,8 +10476,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a new part from AI analysis suggestions.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/attachment-sets/{set_id}": {
@@ -10509,8 +10534,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get attachment set details with all attachments.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/attachment-sets/{set_id}/attachments": {
@@ -10561,8 +10592,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List all attachments for an attachment set.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -10580,8 +10617,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a new attachment (file upload or URL) for an attachment set.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/attachment-sets/{set_id}/attachments/{attachment_id}": {
@@ -10635,8 +10678,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete an attachment and reassign cover if necessary.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -10695,8 +10744,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get a specific attachment and verify it belongs to the set.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -10765,8 +10820,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update attachment metadata.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/attachment-sets/{set_id}/cover": {
@@ -10817,8 +10878,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Clear cover attachment for an attachment set.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -10867,8 +10934,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get cover attachment details for an attachment set.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -10927,8 +11000,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Set cover attachment for an attachment set.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/auth/callback": {
@@ -11019,8 +11098,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List all boxes with usage statistics.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -11058,8 +11143,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create new box with specified capacity.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/boxes/{box_no}": {
@@ -11103,8 +11194,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete empty box.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -11153,8 +11250,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get box details.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -11213,8 +11316,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update box (capacity changes require validation).",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/boxes/{box_no}/locations": {
@@ -11265,8 +11374,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get all locations in box.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/boxes/{box_no}/usage": {
@@ -11317,8 +11432,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get usage statistics for a specific box.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/cas/{hash_value}": {
@@ -11337,8 +11458,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Serve content from CAS storage with immutable caching.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/dashboard/category-distribution": {
@@ -11378,8 +11505,14 @@
             "description": "Internal Server Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get part count distribution by category/type.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/dashboard/low-stock": {
@@ -11419,8 +11552,14 @@
             "description": "Internal Server Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get parts with low stock quantities.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/dashboard/parts-without-documents": {
@@ -11460,8 +11599,14 @@
             "description": "Internal Server Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get count and sample of parts without attached documents.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/dashboard/recent-activity": {
@@ -11501,8 +11646,14 @@
             "description": "Internal Server Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get recent stock changes and activity.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/dashboard/stats": {
@@ -11542,8 +11693,14 @@
             "description": "Internal Server Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get aggregated dashboard statistics.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/dashboard/storage-summary": {
@@ -11583,8 +11740,14 @@
             "description": "Internal Server Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get storage box utilization summary.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/icons/pdf": {
@@ -11593,8 +11756,14 @@
         "operationId": "get__api_icons_pdf",
         "parameters": [],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Serve PDF icon with immutable caching.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/inventory/parts/{part_key}/move": {
@@ -11647,8 +11816,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Move stock between locations.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/inventory/parts/{part_key}/stock": {
@@ -11701,8 +11876,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Remove stock from a location.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "post": {
         "description": "",
@@ -11760,8 +11941,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Add stock to a location.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/inventory/suggestions/{type_id}": {
@@ -11812,8 +11999,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get location suggestions for part type.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/kit-shopping-list-links/{link_id}": {
@@ -11857,8 +12050,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Remove a kit shopping list link without modifying list contents.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits": {
@@ -11944,8 +12143,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List kits filtered by status and optional text query.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -11993,8 +12198,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a new kit definition.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/pick-list-memberships/query": {
@@ -12044,8 +12255,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return pick list memberships for the requested kits.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/kits/shopping-list-memberships/query": {
@@ -12095,8 +12312,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return shopping list memberships for the requested kits.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/kits/{kit_id}": {
@@ -12140,8 +12363,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Permanently delete a kit and all child records.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -12190,8 +12419,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return the kit detail workspace payload.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "patch": {
         "description": "",
@@ -12260,8 +12495,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update the metadata for an active kit.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/{kit_id}/archive": {
@@ -12312,8 +12553,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Archive a kit.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/{kit_id}/contents": {
@@ -12384,8 +12631,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a new kit content entry.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/{kit_id}/contents/{content_id}": {
@@ -12449,8 +12702,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Remove a kit content entry.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "patch": {
         "description": "",
@@ -12529,8 +12788,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update an existing kit content row.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/{kit_id}/pick-lists": {
@@ -12581,8 +12846,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return pick list summaries for a kit.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -12651,8 +12922,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a pick list for the specified kit.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/{kit_id}/pick-lists/preview": {
@@ -12713,8 +12990,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Preview parts with shortfall for the specified requested units.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/{kit_id}/shopping-lists": {
@@ -12765,8 +13048,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return shopping list chips linked to the specified kit.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -12845,8 +13134,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create or append a shopping list from kit contents.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/kits/{kit_id}/unarchive": {
@@ -12897,8 +13192,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Restore a kit to active status.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/locations/{box_no}/{loc_no}": {
@@ -12959,8 +13260,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get specific location details.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts": {
@@ -12990,8 +13297,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List parts with pagination, total quantities, and optional related data.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -13029,8 +13342,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create new part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/parts/attachment-preview": {
@@ -13070,8 +13389,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get URL preview metadata (title and backend image endpoint URL).",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/parts/attachment-preview/image": {
@@ -13080,8 +13405,14 @@
         "operationId": "get__api_parts_attachment-preview_image",
         "parameters": [],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get preview image for URL.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts/attachment-proxy/content": {
@@ -13090,8 +13421,14 @@
         "operationId": "get__api_parts_attachment-proxy_content",
         "parameters": [],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Proxy external URL content to avoid CORS issues when displaying PDFs and images in iframes.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts/copy-attachment": {
@@ -13141,8 +13478,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Copy an individual attachment from one part to another.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/parts/shopping-list-memberships/query": {
@@ -13192,8 +13535,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Bulk lookup of shopping list memberships for multiple parts.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts/{part_key}": {
@@ -13246,8 +13595,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete part if total quantity is zero.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -13295,8 +13650,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get single part with full details.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -13354,8 +13715,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update part details.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/parts/{part_key}/history": {
@@ -13405,8 +13772,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get quantity change history for a part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts/{part_key}/kit-reservations": {
@@ -13456,8 +13829,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return active kit reservations for the specified part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts/{part_key}/kits": {
@@ -13507,8 +13886,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List active kits consuming the specified part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts/{part_key}/locations": {
@@ -13558,8 +13943,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get all locations for a part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/parts/{part_key}/seller-links": {
@@ -13629,8 +14020,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Add a seller link to a part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/parts/{part_key}/seller-links/{seller_link_id}": {
@@ -13683,8 +14080,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Remove a seller link from a part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/parts/{part_key}/shopping-list-memberships": {
@@ -13734,8 +14137,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List active shopping list memberships for a part.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -13793,8 +14202,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Add a part to an Active shopping list and return the new membership.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/pick-lists/{pick_list_id}": {
@@ -13838,8 +14253,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete a pick list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -13888,8 +14309,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return a detailed pick list payload with line allocations.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/pick-lists/{pick_list_id}/lines/{line_id}": {
@@ -13970,8 +14397,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update the quantity_to_pick for a pick list line.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/pick-lists/{pick_list_id}/lines/{line_id}/pick": {
@@ -14042,8 +14475,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Mark a pick list line as picked and return updated detail payload.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/pick-lists/{pick_list_id}/lines/{line_id}/undo": {
@@ -14114,8 +14553,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Undo a pick list line and return the refreshed detail payload.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/pick-lists/{pick_list_id}/pdf": {
@@ -14135,8 +14580,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Generate and return a PDF report for the pick list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/sellers": {
@@ -14166,8 +14617,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List all sellers.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -14215,8 +14672,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create new seller.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/sellers/{seller_id}": {
@@ -14270,8 +14733,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete seller.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -14320,8 +14789,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get seller details.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -14390,8 +14865,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update seller.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/sellers/{seller_id}/logo": {
@@ -14442,8 +14923,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Remove a seller's logo.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "put": {
         "description": "Accepts multipart/form-data with a 'file' field containing the image. The image is validated and stored via CAS (content-addressable storage).",
@@ -14461,8 +14948,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Upload or replace a seller's logo image.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-list-lines/{line_id}": {
@@ -14506,8 +14999,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete a shopping list line.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "put": {
         "description": "",
@@ -14576,8 +15075,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update an existing shopping list line.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-list-lines/{line_id}/complete": {
@@ -14648,8 +15153,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Mark an ordered shopping list line as completed.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-list-lines/{line_id}/receive": {
@@ -14720,8 +15231,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Receive stock for an ordered shopping list line.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-lists": {
@@ -14793,8 +15310,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List shopping lists, optionally including completed ones.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -14842,8 +15365,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a new shopping list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-lists/{list_id}": {
@@ -14887,8 +15416,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete a shopping list and its line items.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -14937,8 +15472,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Fetch a shopping list and its line items.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -15007,8 +15548,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update the metadata for a shopping list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-lists/{list_id}/kits": {
@@ -15059,8 +15606,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return kits linked to a shopping list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/shopping-lists/{list_id}/lines": {
@@ -15111,8 +15664,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List line items for a shopping list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -15181,8 +15740,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a shopping list line item.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-lists/{list_id}/seller-groups": {
@@ -15253,8 +15818,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create a new seller group on a shopping list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-lists/{list_id}/seller-groups/{seller_id}": {
@@ -15318,8 +15889,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete a seller group, resetting non-DONE lines to ungrouped.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -15378,8 +15955,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Fetch a seller group with its lines and totals.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -15458,8 +16041,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update a seller group's note and/or status.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/shopping-lists/{list_id}/status": {
@@ -15530,8 +16119,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update the workflow status for a shopping list.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/sse/callback": {
@@ -15540,8 +16135,14 @@
         "operationId": "post__api_sse_callback",
         "parameters": [],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Handle SSE Gateway connect/disconnect callbacks.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/tasks/{task_id}": {
@@ -15560,8 +16161,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Remove a completed task from registry.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/tasks/{task_id}/cancel": {
@@ -15580,8 +16187,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Cancel a running task.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/tasks/{task_id}/status": {
@@ -15600,8 +16213,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get current status of a task.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/testing/auth/clear": {
@@ -15698,8 +16317,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return deterministic HTML content without deployment banner.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/testing/content/html-with-banner": {
@@ -15723,8 +16348,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return deterministic HTML content that includes a deployment banner wrapper.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/testing/content/image": {
@@ -15748,8 +16379,14 @@
           }
         ],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return a deterministic PNG image for Playwright fixtures.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/testing/content/pdf": {
@@ -15758,8 +16395,14 @@
         "operationId": "get__api_testing_content_pdf",
         "parameters": [],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Return the bundled deterministic PDF asset.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/testing/deployments/version": {
@@ -15799,8 +16442,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Trigger a version event for integration testing.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/testing/logs/stream": {
@@ -15809,8 +16458,14 @@
         "operationId": "get__api_testing_logs_stream",
         "parameters": [],
         "responses": {},
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "SSE endpoint for streaming backend application logs in real-time.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       }
     },
     "/api/testing/sse/task-event": {
@@ -15850,8 +16505,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Send a fake task event to a specific SSE connection for testing.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/testing/tasks/start": {
@@ -15891,8 +16552,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Start a demo or failing task for integration testing.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/types": {
@@ -15922,8 +16589,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "List all part types with optional statistics.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "post": {
         "description": "",
@@ -15961,8 +16634,14 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Create new part type.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/api/types/{type_id}": {
@@ -16016,8 +16695,14 @@
             "description": "Conflict"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Delete type if not in use.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       },
       "get": {
         "description": "",
@@ -16066,8 +16751,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Get single type details.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "reader"
       },
       "put": {
         "description": "",
@@ -16126,8 +16817,14 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Update type name.",
-        "tags": []
+        "tags": [],
+        "x-required-role": "editor"
       }
     },
     "/health/drain": {
@@ -16255,5 +16952,10 @@
     }
   },
   "security": [],
-  "tags": []
+  "tags": [],
+  "x-auth-roles": {
+    "admin": "admin",
+    "read": "reader",
+    "write": "editor"
+  }
 }
