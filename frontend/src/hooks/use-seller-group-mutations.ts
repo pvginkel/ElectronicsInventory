@@ -22,6 +22,15 @@ import type {
   SellerGroupDeleteInput,
 } from '@/types/shopping-lists';
 
+// Role constants for mutation gating
+import {
+  postShoppingListsSellerGroupsByListIdRole,
+  putShoppingListsSellerGroupsByListIdAndSellerIdRole,
+  deleteShoppingListsSellerGroupsByListIdAndSellerIdRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export { postShoppingListsSellerGroupsByListIdRole, putShoppingListsSellerGroupsByListIdAndSellerIdRole, deleteShoppingListsSellerGroupsByListIdAndSellerIdRole };
+
 const SHOPPING_LISTS_KEY = ['getShoppingLists'] as const;
 
 function detailKey(listId: number) {

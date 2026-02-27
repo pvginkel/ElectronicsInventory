@@ -6,6 +6,11 @@ import {
   type KitResponseSchema_b98797e,
 } from '@/lib/api/generated/hooks';
 
+// Role constants for mutation gating
+import { postKitsRole } from '@/lib/api/generated/roles';
+/** @public */
+export { postKitsRole };
+
 interface KitCreateInput {
   name: string;
   description: string | null;

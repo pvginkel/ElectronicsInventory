@@ -2,6 +2,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useGetPartsByPartKey, useDeleteAttachmentSetsAttachmentsBySetIdAndAttachmentId } from '@/lib/api/generated/hooks';
 import { useAttachmentSetDocuments } from './use-attachment-set-documents';
 
+// Role constants for mutation gating
+import { deleteAttachmentSetsAttachmentsBySetIdAndAttachmentIdRole } from '@/lib/api/generated/roles';
+/** @public */
+export { deleteAttachmentSetsAttachmentsBySetIdAndAttachmentIdRole };
+
 /**
  * Hook to fetch documents for a part using the attachment-set abstraction.
  * The part's attachment_set_id is obtained from the part entity.

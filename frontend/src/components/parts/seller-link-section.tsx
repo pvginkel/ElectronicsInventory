@@ -9,6 +9,11 @@ import {
   usePostPartsSellerLinksByPartKey,
   useDeletePartsSellerLinksByPartKeyAndSellerLinkId,
 } from '@/lib/api/generated/hooks';
+import {
+  postPartsSellerLinksByPartKeyRole,
+  deletePartsSellerLinksByPartKeyAndSellerLinkIdRole,
+} from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
 import type { components } from '@/lib/api/generated/types';
@@ -124,17 +129,33 @@ export function SellerLinkSection({ partId, sellerLinks }: SellerLinkSectionProp
               <ExternalLink href={sl.link} className="text-sm break-all min-w-0">
                 {sl.link}
               </ExternalLink>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto flex-shrink-0 h-7 w-7 p-0"
-                onClick={() => handleRemove(sl)}
-                disabled={removeMutation.isPending}
-                data-testid="parts.detail.seller-links.row.remove"
-                title={`Remove link to ${sl.seller_name}`}
+              <Gate
+                requires={deletePartsSellerLinksByPartKeyAndSellerLinkIdRole}
+                fallback={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto flex-shrink-0 h-7 w-7 p-0"
+                    disabled
+                    title="Editor role required"
+                    data-testid="parts.detail.seller-links.row.remove"
+                  >
+                    <Trash2 className="h-4 w-4 opacity-50" />
+                  </Button>
+                }
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto flex-shrink-0 h-7 w-7 p-0"
+                  onClick={() => handleRemove(sl)}
+                  disabled={removeMutation.isPending}
+                  data-testid="parts.detail.seller-links.row.remove"
+                  title={`Remove link to ${sl.seller_name}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </Gate>
             </div>
           ))}
         </div>
@@ -149,14 +170,16 @@ export function SellerLinkSection({ partId, sellerLinks }: SellerLinkSectionProp
 
       {/* Add form toggle / inline form */}
       {!isAddFormOpen ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsAddFormOpen(true)}
-          data-testid="parts.detail.seller-links.add-button"
-        >
-          Add Seller Link
-        </Button>
+        <Gate requires={postPartsSellerLinksByPartKeyRole}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAddFormOpen(true)}
+            data-testid="parts.detail.seller-links.add-button"
+          >
+            Add Seller Link
+          </Button>
+        </Gate>
       ) : (
         <div
           className="space-y-3 rounded-md border p-3"

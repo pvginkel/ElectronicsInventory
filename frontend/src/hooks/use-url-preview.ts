@@ -2,6 +2,11 @@ import { useState, useCallback } from 'react';
 import { isValidUrl, normalizeUrl } from '@/lib/utils/url-metadata';
 import { usePostPartsAttachmentPreview } from '@/lib/api/generated/hooks';
 
+// Role constants for mutation gating
+import { postPartsAttachmentPreviewRole } from '@/lib/api/generated/roles';
+/** @public */
+export { postPartsAttachmentPreviewRole };
+
 interface UrlPreviewState {
   url: string;
   title: string;

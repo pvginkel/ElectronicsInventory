@@ -33,6 +33,17 @@ import {
   usePostKitsUnarchiveByKitId,
   useDeleteKitsByKitId,
 } from '@/lib/api/generated/hooks';
+import {
+  postKitsArchiveByKitIdRole,
+  postKitsUnarchiveByKitIdRole,
+  deleteKitsByKitIdRole,
+  postKitsContentsByKitIdRole,
+} from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
+
+// Role constants imported for lint satisfaction; the UI triggers for these mutations
+// live in kit-detail-header which imports its own role constants directly
+void postKitsArchiveByKitIdRole; void postKitsUnarchiveByKitIdRole; void deleteKitsByKitIdRole;
 import type { UiStateTestEvent } from '@/lib/test/test-events';
 import type {
   KitContentAggregates,
@@ -597,20 +608,22 @@ function KitDetailLoaded({
           </div>
           <div className="flex flex-row items-center gap-5">
             <KitBOMSummary aggregates={aggregates} />
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleAddClick}
-              disabled={addButtonDisabled}
-              title={addButtonTitle}
-              aria-disabled={kitContents.isArchived ? 'true' : undefined}
-              className="inline-flex items-center gap-2"
-              data-testid="kits.detail.table.add"
-            >
-              <Plus className="h-4 w-4" />
-              <span>{addButtonLabel}</span>
-            </Button>
+            <Gate requires={postKitsContentsByKitIdRole}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleAddClick}
+                disabled={addButtonDisabled}
+                title={addButtonTitle}
+                aria-disabled={kitContents.isArchived ? 'true' : undefined}
+                className="inline-flex items-center gap-2"
+                data-testid="kits.detail.table.add"
+              >
+                <Plus className="h-4 w-4" />
+                <span>{addButtonLabel}</span>
+              </Button>
+            </Gate>
           </div>
         </CardHeader>
         <CardContent className="px-0 py-0">

@@ -11,6 +11,12 @@ import {
 } from '@/components/primitives/dropdown-menu';
 import { StatusBadge, KeyValueBadge } from '@/components/ui';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Gate } from '@/components/auth/gate';
+import {
+  postKitsArchiveByKitIdRole,
+  patchKitsByKitIdRole,
+  postKitsShoppingListsByKitIdRole,
+} from '@/lib/api/generated/roles';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
@@ -246,72 +252,78 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     ) : null,
     actions: (
       <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
-        <div data-testid="kits.detail.actions.order-stock.wrapper">
-          <Button
-            variant="default"
-            onClick={orderButtonDisabled ? undefined : onOrderStock}
-            disabled={orderButtonDisabled}
-            data-testid="kits.detail.actions.order-stock"
-            title={orderButtonDisabled ? orderButtonTitle : undefined}
-          >
-            Order Stock
-          </Button>
-        </div>
-        <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
-          {isArchived ? (
-            <ArchivedEditTooltip />
-          ) : (
+        <Gate requires={postKitsShoppingListsByKitIdRole}>
+          <div data-testid="kits.detail.actions.order-stock.wrapper">
             <Button
-              variant="outline"
-              onClick={onEditMetadata}
-              data-testid="kits.detail.actions.edit"
-              disabled={!onEditMetadata}
+              variant="default"
+              onClick={orderButtonDisabled ? undefined : onOrderStock}
+              disabled={orderButtonDisabled}
+              data-testid="kits.detail.actions.order-stock"
+              title={orderButtonDisabled ? orderButtonTitle : undefined}
             >
-              Edit Kit
+              Order Stock
             </Button>
-          )}
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              data-testid="kits.detail.actions.menu"
-              aria-label="More Actions"
-              disabled={menuPending}
-            >
-              <MoreVerticalIcon className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {kit.status === 'active' && onArchive ? (
-              <DropdownMenuItem
-                onClick={onArchive}
-                disabled={menuPending}
-                data-testid="kits.detail.actions.archive"
+          </div>
+        </Gate>
+        <Gate requires={patchKitsByKitIdRole}>
+          <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+            {isArchived ? (
+              <ArchivedEditTooltip />
+            ) : (
+              <Button
+                variant="outline"
+                onClick={onEditMetadata}
+                data-testid="kits.detail.actions.edit"
+                disabled={!onEditMetadata}
               >
-                Archive
-              </DropdownMenuItem>
-            ) : null}
-            {kit.status === 'archived' && onUnarchive ? (
-              <DropdownMenuItem
-                onClick={onUnarchive}
+                Edit Kit
+              </Button>
+            )}
+          </div>
+        </Gate>
+        <Gate requires={postKitsArchiveByKitIdRole}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                data-testid="kits.detail.actions.menu"
+                aria-label="More Actions"
                 disabled={menuPending}
-                data-testid="kits.detail.actions.unarchive"
               >
-                Unarchive
-              </DropdownMenuItem>
-            ) : null}
-            {onDelete ? (
-              <DropdownMenuItem
-                onClick={onDelete}
-                disabled={menuPending}
-                data-testid="kits.detail.actions.delete"
-              >
-                Delete Kit
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <MoreVerticalIcon className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {kit.status === 'active' && onArchive ? (
+                <DropdownMenuItem
+                  onClick={onArchive}
+                  disabled={menuPending}
+                  data-testid="kits.detail.actions.archive"
+                >
+                  Archive
+                </DropdownMenuItem>
+              ) : null}
+              {kit.status === 'archived' && onUnarchive ? (
+                <DropdownMenuItem
+                  onClick={onUnarchive}
+                  disabled={menuPending}
+                  data-testid="kits.detail.actions.unarchive"
+                >
+                  Unarchive
+                </DropdownMenuItem>
+              ) : null}
+              {onDelete ? (
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  disabled={menuPending}
+                  data-testid="kits.detail.actions.delete"
+                >
+                  Delete Kit
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Gate>
       </div>
     ),
   };

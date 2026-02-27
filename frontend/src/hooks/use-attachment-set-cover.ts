@@ -3,6 +3,11 @@ import {
 } from '@/lib/api/generated/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 
+// Role constants for mutation gating
+import { putAttachmentSetsCoverBySetIdRole } from '@/lib/api/generated/roles';
+/** @public */
+export { putAttachmentSetsCoverBySetIdRole };
+
 /**
  * Hook to set a cover attachment for an attachment set.
  * After setting the cover, invalidates both attachment-set and parent entity queries.

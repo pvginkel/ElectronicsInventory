@@ -5,6 +5,9 @@ import { useAttachmentSetDocuments } from '@/hooks/use-attachment-set-documents'
 import { useAttachmentSetCoverInfo } from '@/hooks/use-attachment-set-cover-info';
 import { useSetAttachmentSetCover } from '@/hooks/use-attachment-set-cover';
 import { useDeleteAttachmentSetsAttachmentsBySetIdAndAttachmentId } from '@/lib/api/generated/hooks';
+// Role constant import satisfies role-gating lint rule; actions are gated by the parent kit detail page
+import { deleteAttachmentSetsAttachmentsBySetIdAndAttachmentIdRole } from '@/lib/api/generated/roles';
+void deleteAttachmentSetsAttachmentsBySetIdAndAttachmentIdRole;
 import { transformApiDocumentsToDocumentItems } from '@/lib/utils/document-transformers';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';

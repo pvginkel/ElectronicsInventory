@@ -23,6 +23,8 @@ import { KeyValueBadge, CapacityBar } from '@/components/ui';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { TestEventKind } from '@/lib/test/test-events';
 import { isTestMode } from '@/lib/config/test-mode';
+import { Gate } from '@/components/auth/gate';
+import { putBoxesByBoxNoRole, deleteBoxesByBoxNoRole } from '@/lib/api/generated/roles';
 import type { LocationDisplayData } from '@/types/locations';
 
 interface BoxDetailsProps {
@@ -243,17 +245,21 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   const actions = ready ? (
     <>
-      <Button variant='outline' onClick={() => setEditFormOpen(true)} data-testid="boxes.detail.actions.edit">
-        Edit Box
-      </Button>
-      <Button
-        variant='outline'
-        onClick={handleDeleteBox}
-        disabled={deleteMutation.isPending}
-        data-testid="boxes.detail.actions.delete"
-      >
-        Delete Box
-      </Button>
+      <Gate requires={putBoxesByBoxNoRole}>
+        <Button variant='outline' onClick={() => setEditFormOpen(true)} data-testid="boxes.detail.actions.edit">
+          Edit Box
+        </Button>
+      </Gate>
+      <Gate requires={deleteBoxesByBoxNoRole}>
+        <Button
+          variant='outline'
+          onClick={handleDeleteBox}
+          disabled={deleteMutation.isPending}
+          data-testid="boxes.detail.actions.delete"
+        >
+          Delete Box
+        </Button>
+      </Gate>
     </>
   ) : null;
 

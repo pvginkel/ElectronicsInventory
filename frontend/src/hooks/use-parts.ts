@@ -7,6 +7,14 @@ import {
 } from '@/lib/api/generated/hooks';
 import { calculateTotalQuantity } from '@/lib/utils/locations';
 
+// Role constants for mutation gating
+import {
+  postInventoryPartsStockByPartKeyRole,
+  deleteInventoryPartsStockByPartKeyRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export { postInventoryPartsStockByPartKeyRole, deleteInventoryPartsStockByPartKeyRole };
+
 export function usePartLocations(partId: string) {
   const query = useGetPartsLocationsByPartKey(
     { path: { part_key: partId } },

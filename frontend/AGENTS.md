@@ -40,6 +40,15 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 5. Treat instrumentation as part of the UI contract. Add or update `useListLoadingInstrumentation` and `trackForm*` hooks alongside any new loading or mutation flow.
 6. For tooltips, use the shared `Tooltip` component or plain `title` attribute — never create bespoke tooltip implementations. See `docs/contribute/ui/tooltip_guidelines.md` for the decision tree and usage patterns.
 
+## Role Gating
+
+- **`Gate` component** (`src/components/auth/gate.tsx`): Declarative role gate. Accepts `requires` (a `RequiredRole` or array) and optional `fallback`. When the user lacks the role and no fallback is provided, nothing renders. When a fallback is given (e.g., a disabled button), it renders in place of the children.
+- **`usePermissions` hook** (`src/hooks/use-permissions.ts`): Wraps `useAuthContext()` and exposes `hasRole(role)` for imperative checks. `Gate` uses this internally.
+- **Generated role constants** (`src/lib/api/generated/roles.ts`): Every mutation endpoint produces a role constant that resolves to `"editor"`. Import the constant next to the mutation hook and pass it to `Gate requires={...}`.
+- **ESLint rule** (`role-gating/role-import-enforcement`): Enforces that mutation hook imports are paired with their role constant imports. Violations are compile errors.
+- **Backend enforcement**: The frontend Gate is a UX convenience -- the backend enforces `x-required-role` on every endpoint regardless of frontend gating.
+- **Playwright coverage**: `tests/e2e/auth/role-gating.spec.ts` verifies reader-role and editor-role visibility across boxes, parts, kits, and pick-lists. See `docs/features/role_gating_playwright/plan.md` for the full test plan.
+
 ## UI & Playwright Coupling
 
 - Ship instrumentation changes and matching Playwright coverage in the same slice; a UI feature is incomplete without automated verification.

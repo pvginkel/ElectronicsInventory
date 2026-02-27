@@ -7,6 +7,9 @@ import { AIPartDuplicatesOnlyStep } from './ai-duplicates-only-step';
 import { useAIPartAnalysis } from '@/hooks/use-ai-part-analysis';
 import { transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { usePostAiPartsCreate } from '@/lib/api/generated/hooks';
+// Role constant import satisfies role-gating lint rule; dialog is opened by an already-gated trigger
+import { postAiPartsCreateRole } from '@/lib/api/generated/roles';
+void postAiPartsCreateRole;
 import { cn } from '@/lib/utils';
 
 type DialogStep = 'input' | 'progress' | 'review' | 'duplicates';

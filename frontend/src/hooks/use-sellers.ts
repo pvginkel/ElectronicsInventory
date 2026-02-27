@@ -6,6 +6,15 @@ import {
   useDeleteSellersBySellerId,
 } from '@/lib/api/generated/hooks';
 
+// Role constants for mutation gating
+import {
+  postSellersRole,
+  putSellersBySellerIdRole,
+  deleteSellersBySellerIdRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export { postSellersRole, putSellersBySellerIdRole, deleteSellersBySellerIdRole };
+
 export function useSellers(searchTerm?: string) {
   const query = useGetSellers();
 

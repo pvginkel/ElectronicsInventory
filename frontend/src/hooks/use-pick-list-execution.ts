@@ -23,6 +23,14 @@ import {
 } from '@/types/pick-lists';
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
 
+// Role constants for mutation gating
+import {
+  postPickListsLinesPickByPickListIdAndLineIdRole,
+  postPickListsLinesUndoByPickListIdAndLineIdRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export { postPickListsLinesPickByPickListIdAndLineIdRole, postPickListsLinesUndoByPickListIdAndLineIdRole };
+
 type RawPickListLine = NonNullable<KitPickListDetailSchema_b247181['lines']>[number];
 
 type ExecutionAction = 'pick' | 'undo';

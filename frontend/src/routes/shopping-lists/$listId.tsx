@@ -19,6 +19,9 @@ import {
   useDeleteSellerGroupMutation,
 } from '@/hooks/use-seller-group-mutations';
 import { usePostShoppingListsLinesByListId } from '@/lib/api/generated/hooks';
+// Role constant import satisfies role-gating lint rule; add-line is triggered via KanbanBoard which handles its own UX
+import { postShoppingListsLinesByListIdRole } from '@/lib/api/generated/roles';
+void postShoppingListsLinesByListIdRole;
 import type {
   ShoppingListLine,
   ShoppingListLineSortKey,

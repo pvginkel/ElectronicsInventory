@@ -13,6 +13,8 @@ import {
   type BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema,
 } from '@/lib/api/generated/hooks';
 import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
+import { Gate } from '@/components/auth/gate';
+import { postBoxesRole } from '@/lib/api/generated/roles';
 import { BoxCard } from './box-card';
 import { BoxForm } from './box-form';
 
@@ -130,13 +132,15 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
   );
 
   const renderAddButton = (disabled = false) => (
-    <Button
-      onClick={() => setCreateFormOpen(true)}
-      disabled={disabled}
-      data-testid="boxes.list.add"
-    >
-      Add Box
-    </Button>
+    <Gate requires={postBoxesRole}>
+      <Button
+        onClick={() => setCreateFormOpen(true)}
+        disabled={disabled}
+        data-testid="boxes.list.add"
+      >
+        Add Box
+      </Button>
+    </Gate>
   );
 
   const renderSearchField = () => (
@@ -234,16 +238,27 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       <>
         {renderLayout({
           content: (
-            <EmptyState
-              testId="boxes.list.empty"
-              title="No storage boxes yet"
-              description="Add your first storage box to start organizing your electronics parts."
-              action={{
-                label: 'Create your first box',
-                onClick: () => setCreateFormOpen(true),
-                testId: 'boxes.list.empty.cta',
-              }}
-            />
+            <Gate
+              requires={postBoxesRole}
+              fallback={
+                <EmptyState
+                  testId="boxes.list.empty"
+                  title="No storage boxes yet"
+                  description="Add your first storage box to start organizing your electronics parts."
+                />
+              }
+            >
+              <EmptyState
+                testId="boxes.list.empty"
+                title="No storage boxes yet"
+                description="Add your first storage box to start organizing your electronics parts."
+                action={{
+                  label: 'Create your first box',
+                  onClick: () => setCreateFormOpen(true),
+                  testId: 'boxes.list.empty.cta',
+                }}
+              />
+            </Gate>
           ),
           showSearch: false,
           counts: undefined,

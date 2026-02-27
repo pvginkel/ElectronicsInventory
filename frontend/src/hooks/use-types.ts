@@ -8,6 +8,15 @@ import {
 } from '@/lib/api/generated/hooks';
 import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 
+// Role constants for mutation gating
+import {
+  postTypesRole,
+  putTypesByTypeIdRole,
+  deleteTypesByTypeIdRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export { postTypesRole, putTypesByTypeIdRole, deleteTypesByTypeIdRole };
+
 export function useGetTypesWithStats() {
   // Use the generated API hook with query parameters for stats
   return useGetTypes({

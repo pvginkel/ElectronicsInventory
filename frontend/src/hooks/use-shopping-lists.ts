@@ -60,6 +60,31 @@ import {
 } from '@/types/shopping-lists';
 import { invalidatePartMemberships } from '@/hooks/use-part-shopping-list-memberships';
 
+// Role constants for mutation gating
+import {
+  postShoppingListsRole,
+  putShoppingListsByListIdRole,
+  deleteShoppingListsByListIdRole,
+  postPartsShoppingListMembershipsByPartKeyRole,
+  putShoppingListLinesByLineIdRole,
+  deleteShoppingListLinesByLineIdRole,
+  putShoppingListsStatusByListIdRole,
+  postShoppingListLinesReceiveByLineIdRole,
+  postShoppingListLinesCompleteByLineIdRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export {
+  postShoppingListsRole,
+  putShoppingListsByListIdRole,
+  deleteShoppingListsByListIdRole,
+  postPartsShoppingListMembershipsByPartKeyRole,
+  putShoppingListLinesByLineIdRole,
+  deleteShoppingListLinesByLineIdRole,
+  putShoppingListsStatusByListIdRole,
+  postShoppingListLinesReceiveByLineIdRole,
+  postShoppingListLinesCompleteByLineIdRole,
+};
+
 const SHOPPING_LISTS_KEY = ['getShoppingLists'] as const;
 type ShoppingListMembershipVariables = {
   path: PostPartsShoppingListMembershipsByPartKeyParameters['path'];

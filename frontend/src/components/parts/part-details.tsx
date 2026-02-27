@@ -29,6 +29,8 @@ import {
   useGetPartsByPartKey,
   useDeletePartsByPartKey,
 } from '@/lib/api/generated/hooks';
+import { deletePartsByPartKeyRole } from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useClipboardPaste } from '@/hooks/use-clipboard-paste';
@@ -287,7 +289,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
   ) : null;
 
   const actions = part ? (
-    <>
+    <Gate requires={deletePartsByPartKeyRole}>
       <Button variant="outline" onClick={handleEditPart} data-testid="parts.detail.actions.edit">
         Edit Part
       </Button>
@@ -322,7 +324,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
           <DropdownMenuItem onClick={handleDuplicatePart}>Duplicate Part</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </>
+    </Gate>
   ) : null;
 
   const showLinkBadgeSkeleton = showMembershipSkeleton || showKitMembershipSkeleton;

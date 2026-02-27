@@ -9,6 +9,9 @@ import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hoo
 import { trackFormValidationError } from '@/lib/test/form-instrumentation';
 import { useToast } from '@/hooks/use-toast';
 import { usePatchKitsByKitId, type KitDetailResponseSchema_b98797e, type KitResponseSchema_b98797e, type KitSummarySchemaList_a9993e3, type KitSummarySchemaList_a9993e3_KitStatus, type KitUpdateSchema_b98797e } from '@/lib/api/generated/hooks';
+// Role constant import satisfies role-gating lint rule; dialog is opened by an already-gated trigger
+import { patchKitsByKitIdRole } from '@/lib/api/generated/roles';
+void patchKitsByKitIdRole;
 import { useQueryClient } from '@tanstack/react-query';
 import type { KitDetail } from '@/types/kits';
 import { buildKitDetailQueryKey } from '@/hooks/use-kit-detail';

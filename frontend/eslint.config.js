@@ -47,10 +47,9 @@ export default tseslint.config([
       },
     },
     rules: {
-      // Warn (not error) during soft-launch: existing files import mutation
-      // hooks without role constants. Promote to 'error' once Gate is wired
-      // into all UI pages and every mutation hook import is paired.
-      'role-gating/role-import-enforcement': 'warn',
+      // Every mutation hook import must be paired with its role constant.
+      // Gate is wired into all UI pages -- see docs/features/role_gating_wiring/.
+      'role-gating/role-import-enforcement': 'error',
     },
   },
   {

@@ -15,6 +15,11 @@ import {
 import { applyPickListLineQuantityPatch, mapPickListDetail, type PickListStatus } from '@/types/pick-lists';
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
 
+// Role constants for mutation gating
+import { patchPickListsLinesByPickListIdAndLineIdRole } from '@/lib/api/generated/roles';
+/** @public */
+export { patchPickListsLinesByPickListIdAndLineIdRole };
+
 interface QuantityUpdateMetadata extends Record<string, unknown> {
   pickListId: number;
   kitId?: number;

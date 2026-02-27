@@ -9,6 +9,14 @@ import { buildKitDetailQueryKey } from '@/hooks/use-kit-detail';
 import { mapKitShoppingListLink, type KitShoppingListLink } from '@/types/kits';
 import type { ShoppingListStatus } from '@/types/shopping-lists';
 
+// Role constants for mutation gating
+import {
+  postKitsShoppingListsByKitIdRole,
+  deleteKitShoppingListLinksByLinkIdRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export { postKitsShoppingListsByKitIdRole, deleteKitShoppingListLinksByLinkIdRole };
+
 const SHOPPING_MEMBERSHIP_QUERY_KEY = ['kits.shoppingListMemberships'] as const;
 
 function shoppingListDetailQueryKey(listId: number) {

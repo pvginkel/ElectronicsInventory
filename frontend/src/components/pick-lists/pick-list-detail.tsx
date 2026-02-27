@@ -16,6 +16,8 @@ import { usePickListExecution } from '@/hooks/use-pick-list-execution';
 import { usePickListLineQuantityUpdate } from '@/hooks/use-pick-list-line-quantity-update';
 import { usePickListAvailability } from '@/hooks/use-pick-list-availability';
 import { useGetKitsByKitId, useDeletePickListsByPickListId } from '@/lib/api/generated/hooks';
+import { deletePickListsByPickListIdRole } from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useUiStateInstrumentation, beginUiState, endUiState } from '@/lib/test/ui-state';
 import { useConfirm } from '@/hooks/use-confirm';
@@ -321,14 +323,16 @@ export function PickListDetail({
       >
         <Printer className="h-4 w-4" />
       </Button>
-      <Button
-        variant="outline"
-        onClick={handleDeletePickList}
-        disabled={deletePickListMutation.isPending}
-        data-testid="pick-lists.detail.actions.delete"
-      >
-        Delete Pick List
-      </Button>
+      <Gate requires={deletePickListsByPickListIdRole}>
+        <Button
+          variant="outline"
+          onClick={handleDeletePickList}
+          disabled={deletePickListMutation.isPending}
+          data-testid="pick-lists.detail.actions.delete"
+        >
+          Delete Pick List
+        </Button>
+      </Gate>
     </div>
   ) : null;
 

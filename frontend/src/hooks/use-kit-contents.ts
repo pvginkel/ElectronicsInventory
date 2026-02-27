@@ -16,6 +16,15 @@ import type { UseKitDetailResult } from '@/hooks/use-kit-detail';
 import type { PartSelectorSummary } from '@/hooks/use-parts-selector';
 import type { KitContentRow, KitDetail } from '@/types/kits';
 
+// Role constants for mutation gating
+import {
+  postKitsContentsByKitIdRole,
+  patchKitsContentsByKitIdAndContentIdRole,
+  deleteKitsContentsByKitIdAndContentIdRole,
+} from '@/lib/api/generated/roles';
+/** @public */
+export { postKitsContentsByKitIdRole, patchKitsContentsByKitIdAndContentIdRole, deleteKitsContentsByKitIdAndContentIdRole };
+
 type KitDetailQuery = UseKitDetailResult['query'];
 
 interface KitContentFormMetadata extends Record<string, unknown> {
