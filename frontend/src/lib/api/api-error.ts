@@ -71,3 +71,19 @@ export function isUnauthorizedError(error: unknown): boolean {
   }
   return false;
 }
+
+/**
+ * Type-safe predicate for detecting 403 Forbidden errors.
+ * Used by useAuth to distinguish "authenticated but not authorized to use the app"
+ * from other failures. The backend returns 403 from /api/auth/self when the user
+ * has no app roles assigned.
+ */
+export function isForbiddenError(error: unknown): boolean {
+  if (error instanceof ApiError && error.status === 403) {
+    return true;
+  }
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    return (error as { status: unknown }).status === 403;
+  }
+  return false;
+}
