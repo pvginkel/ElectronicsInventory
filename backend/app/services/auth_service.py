@@ -125,11 +125,14 @@ class AuthService:
         self.write_role = write_role
         self.admin_role = admin_role
 
-        # Build the set of all configured (recognized) role names
-        self._configured_roles: set[str] = set()
+        # Build the set of hierarchical role names (read/write/admin only)
+        self._hierarchy_roles: set[str] = set()
         for role in (read_role, write_role, admin_role):
             if role is not None:
-                self._configured_roles.add(role)
+                self._hierarchy_roles.add(role)
+
+        # Build the set of all configured (recognized) role names
+        self._configured_roles: set[str] = set(self._hierarchy_roles)
         if additional_roles:
             self._configured_roles.update(additional_roles)
 
@@ -189,6 +192,11 @@ class AuthService:
     def configured_roles(self) -> set[str]:
         """Return the full set of valid role names for @allow_roles validation."""
         return self._configured_roles
+
+    @property
+    def hierarchy_roles(self) -> set[str]:
+        """Return only the hierarchical role names (read/write/admin), excluding additional_roles."""
+        return self._hierarchy_roles
 
     def expand_roles(self, raw_roles: set[str]) -> set[str]:
         """Expand raw roles using the hierarchy map.
