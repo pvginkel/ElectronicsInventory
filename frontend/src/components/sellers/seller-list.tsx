@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { Gate } from '@/components/auth/gate';
+import { postSellersRole } from '@/lib/api/generated/roles';
 import { SellerCard } from './seller-card';
 import { SellerForm } from './seller-form';
 import {
@@ -180,13 +182,15 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
   };
 
   const renderAddButton = (disabled = false) => (
-    <Button
-      onClick={() => setCreateFormOpen(true)}
-      disabled={disabled}
-      data-testid="sellers.list.add"
-    >
-      Add Seller
-    </Button>
+    <Gate requires={postSellersRole}>
+      <Button
+        onClick={() => setCreateFormOpen(true)}
+        disabled={disabled}
+        data-testid="sellers.list.add"
+      >
+        Add Seller
+      </Button>
+    </Gate>
   );
 
   const renderSearchField = () => (

@@ -12,6 +12,8 @@ import { KitCard } from '@/components/kits/kit-card';
 import { useKitsOverview } from '@/hooks/use-kits';
 import { useKitPickListMemberships, useKitShoppingListMemberships } from '@/hooks/use-kit-memberships';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { Gate } from '@/components/auth/gate';
+import { postKitsRole } from '@/lib/api/generated/roles';
 import { fuzzyMatch } from '@/lib/utils/fuzzy-search';
 import type { KitStatus } from '@/types/kits';
 
@@ -271,9 +273,11 @@ export function KitOverviewList({
       breadcrumbs={breadcrumbsNode}
       title={<span data-testid="kits.overview.title">Kits</span>}
       actions={
-        <Button onClick={onCreateKit} data-testid="kits.overview.new">
-          Add Kit
-        </Button>
+        <Gate requires={postKitsRole}>
+          <Button onClick={onCreateKit} data-testid="kits.overview.new">
+            Add Kit
+          </Button>
+        </Gate>
       }
       search={searchNode}
       segmentedTabs={segmentedTabs}

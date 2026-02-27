@@ -7,7 +7,7 @@ import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { DuplicateDocumentGrid } from './duplicate-document-grid';
 import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey, usePostPartsCopyAttachment } from '@/lib/api/generated/hooks';
-// Role constant imports satisfy role-gating lint rule; form is rendered in a gated context
+// eslint-disable-next-line role-gating/gate-usage-enforcement -- form is rendered inside a gated dialog (add/edit part); the Gate lives in the caller (part-list / part-details)
 import { postPartsRole, putPartsByPartKeyRole, postPartsCopyAttachmentRole } from '@/lib/api/generated/roles';
 void postPartsRole; void putPartsByPartKeyRole; void postPartsCopyAttachmentRole;
 import { useDuplicatePart } from '@/hooks/use-duplicate-part';

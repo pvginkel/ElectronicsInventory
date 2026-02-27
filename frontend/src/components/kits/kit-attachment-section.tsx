@@ -5,7 +5,7 @@ import { useAttachmentSetDocuments } from '@/hooks/use-attachment-set-documents'
 import { useAttachmentSetCoverInfo } from '@/hooks/use-attachment-set-cover-info';
 import { useSetAttachmentSetCover } from '@/hooks/use-attachment-set-cover';
 import { useDeleteAttachmentSetsAttachmentsBySetIdAndAttachmentId } from '@/lib/api/generated/hooks';
-// Role constant import satisfies role-gating lint rule; actions are gated by the parent kit detail page
+// eslint-disable-next-line role-gating/gate-usage-enforcement -- delete-attachment Gate lives in the parent kit-detail context (DocumentGridBase actions are gated by the containing page)
 import { deleteAttachmentSetsAttachmentsBySetIdAndAttachmentIdRole } from '@/lib/api/generated/roles';
 void deleteAttachmentSetsAttachmentsBySetIdAndAttachmentIdRole;
 import { transformApiDocumentsToDocumentItems } from '@/lib/utils/document-transformers';

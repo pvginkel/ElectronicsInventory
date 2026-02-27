@@ -44,10 +44,28 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 
 - **`Gate` component** (`src/components/auth/gate.tsx`): Declarative role gate. Accepts `requires` (a `RequiredRole` or array) and optional `fallback`. When the user lacks the role and no fallback is provided, nothing renders. When a fallback is given (e.g., a disabled button), it renders in place of the children.
 - **`usePermissions` hook** (`src/hooks/use-permissions.ts`): Wraps `useAuthContext()` and exposes `hasRole(role)` for imperative checks. `Gate` uses this internally.
-- **Generated role constants** (`src/lib/api/generated/roles.ts`): Every mutation endpoint produces a role constant that resolves to `"editor"`. Import the constant next to the mutation hook and pass it to `Gate requires={...}`.
+- **Generated role constants** (`src/lib/api/generated/roles.ts`): Every protected endpoint produces a role constant. Import the constant next to the hook that triggers that endpoint and pass it to `Gate requires={...}`.
 - **ESLint rule** (`role-gating/role-import-enforcement`): Enforces that mutation hook imports are paired with their role constant imports. Violations are compile errors.
 - **Backend enforcement**: The frontend Gate is a UX convenience -- the backend enforces `x-required-role` on every endpoint regardless of frontend gating.
 - **Playwright coverage**: `tests/e2e/auth/role-gating.spec.ts` verifies reader-role and editor-role visibility across boxes, parts, kits, and pick-lists. See `docs/features/role_gating_playwright/plan.md` for the full test plan.
+
+### Gate enforcement checklist
+
+Apply this checklist to every UI element you add or modify.
+
+**What must be gated**: Any interactive element (button, icon button, form, drag handle) that directly or indirectly triggers an endpoint for which a role constant exists in `src/lib/api/generated/roles.ts`. This includes flows that eventually lead to a mutation — for example, an "AI Analysis" button triggers `postAiPartsAnalyzeRole` (even though the write happens at the end of the workflow) and must be gated.
+
+**Skeleton parity**: When the loaded state wraps an action in `<Gate>`, the skeleton placeholder for that same slot must be wrapped in the identical `<Gate>`. A reader must not see a skeleton button that silently vanishes when data loads. Wrap the skeleton button in the same gate, keeping it `disabled`.
+
+**Fallback vs. silent hide**:
+- Use a `fallback` (disabled button, optionally with a `title` tooltip) for prominent, top-level actions where a reader should understand that the action exists but is unavailable to them.
+- Omit the `fallback` (silent hide) for secondary, destructive, or contextual actions where showing a disabled affordance adds no value.
+
+**Non-button interactions**: For drag-and-drop or other non-button interactive surfaces, use `usePermissions().hasRole(...)` to derive a boolean and pass it to the component to disable the interaction (e.g., set `draggable={false}` or omit drag event handlers).
+
+**Choosing the role constant**: Use the role constant that corresponds to the first protected endpoint in the flow. If a single button can trigger several endpoints, gate on the most permissive one (in practice all resolve to `"editor"`, so any constant from the relevant domain works).
+
+**Import discipline**: Always import the role constant in the same file as the hook or callback it guards. The ESLint rule enforces pairing for mutation hooks; apply the same discipline manually for non-mutation hooks.
 
 ## UI & Playwright Coupling
 

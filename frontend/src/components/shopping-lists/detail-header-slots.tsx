@@ -11,6 +11,8 @@ import { useFormState } from '@/hooks/use-form-state';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useGetShoppingListsKitsByListId } from '@/lib/api/generated/hooks';
+import { Gate } from '@/components/auth/gate';
+import { putShoppingListsByListIdRole, deleteShoppingListsByListIdRole } from '@/lib/api/generated/roles';
 import { mapShoppingListKitLinks } from '@/types/shopping-lists';
 import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
@@ -271,26 +273,30 @@ export function useShoppingListDetailHeaderSlots({
     ) : null,
     actions: (
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          onClick={() => setEditOpen(true)}
-          disabled={isUpdating || isCompleted}
-          data-testid="shopping-lists.detail.header.edit"
-          title={isCompleted ? 'Completed lists are read-only' : undefined}
-        >
-          Edit List
-        </Button>
-        {onDeleteList && (
+        <Gate requires={putShoppingListsByListIdRole}>
           <Button
             variant="outline"
-            className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={onDeleteList}
-            loading={isDeletingList}
-            disabled={isDeletingList}
-            data-testid="shopping-lists.detail.header.delete"
+            onClick={() => setEditOpen(true)}
+            disabled={isUpdating || isCompleted}
+            data-testid="shopping-lists.detail.header.edit"
+            title={isCompleted ? 'Completed lists are read-only' : undefined}
           >
-            Delete list
+            Edit List
           </Button>
+        </Gate>
+        {onDeleteList && (
+          <Gate requires={deleteShoppingListsByListIdRole}>
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={onDeleteList}
+              loading={isDeletingList}
+              disabled={isDeletingList}
+              data-testid="shopping-lists.detail.header.delete"
+            >
+              Delete List
+            </Button>
+          </Gate>
         )}
       </div>
     ),

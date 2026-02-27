@@ -31,6 +31,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
+import { Gate } from '@/components/auth/gate';
+import {
+  postShoppingListsLinesByListIdRole,
+  putShoppingListsSellerGroupsByListIdAndSellerIdRole,
+} from '@/lib/api/generated/roles';
 import type { KanbanCardMode } from './kanban-utils';
 import type { ShoppingListSellerGroup } from '@/types/shopping-lists';
 
@@ -62,18 +67,20 @@ export function UnassignedColumnHeader({
       </span>
       <div className="flex-1" />
       {!isCompleted && (
-        <button
-          type="button"
-          onClick={onAddPart}
-          data-testid={`${testIdBase}.add-part`}
-          className={cn(
-            'shrink-0 rounded p-1 cursor-pointer',
-            'text-slate-300 hover:text-slate-50 hover:bg-slate-500/40',
-          )}
-          title="Add part"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
+        <Gate requires={postShoppingListsLinesByListIdRole}>
+          <button
+            type="button"
+            onClick={onAddPart}
+            data-testid={`${testIdBase}.add-part`}
+            className={cn(
+              'shrink-0 rounded p-1 cursor-pointer',
+              'text-slate-300 hover:text-slate-50 hover:bg-slate-500/40',
+            )}
+            title="Add part"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </Gate>
       )}
     </div>
   );
@@ -200,9 +207,10 @@ export function SellerColumnHeader({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Action buttons (hidden when list is done) */}
+      {/* Action buttons (hidden when list is done; gated to editors only) */}
       {!isCompleted && (
-        <>
+        <Gate requires={putShoppingListsSellerGroupsByListIdAndSellerIdRole}>
+          <>
           {/* Add part button (ordering mode only -- hidden on ordered columns) */}
           {mode === 'ordering' && (
             <button
@@ -321,7 +329,8 @@ export function SellerColumnHeader({
               </Tooltip>
             </DropdownMenuContent>
           </DropdownMenu>
-        </>
+          </>
+        </Gate>
       )}
     </div>
   );

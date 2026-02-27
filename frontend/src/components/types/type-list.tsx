@@ -11,6 +11,8 @@ import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { Gate } from '@/components/auth/gate';
+import { postTypesRole } from '@/lib/api/generated/roles';
 import { cn } from '@/lib/utils';
 import {
   useCreateType,
@@ -201,13 +203,15 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
   };
 
   const renderAddButton = (disabled = false) => (
-    <Button
-      onClick={() => setCreateFormOpen(true)}
-      disabled={disabled}
-      data-testid="types.create.button"
-    >
-      Add Type
-    </Button>
+    <Gate requires={postTypesRole}>
+      <Button
+        onClick={() => setCreateFormOpen(true)}
+        disabled={disabled}
+        data-testid="types.create.button"
+      >
+        Add Type
+      </Button>
+    </Gate>
   );
 
   const renderSearchField = (disabled = false) => (

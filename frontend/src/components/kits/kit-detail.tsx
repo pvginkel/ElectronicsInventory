@@ -33,17 +33,11 @@ import {
   usePostKitsUnarchiveByKitId,
   useDeleteKitsByKitId,
 } from '@/lib/api/generated/hooks';
-import {
-  postKitsArchiveByKitIdRole,
-  postKitsUnarchiveByKitIdRole,
-  deleteKitsByKitIdRole,
-  postKitsContentsByKitIdRole,
-} from '@/lib/api/generated/roles';
-import { Gate } from '@/components/auth/gate';
-
-// Role constants imported for lint satisfaction; the UI triggers for these mutations
-// live in kit-detail-header which imports its own role constants directly
+// eslint-disable-next-line role-gating/gate-usage-enforcement -- archive/unarchive/delete Gates live in kit-detail-header, which imports its own role constants
+import { postKitsArchiveByKitIdRole, postKitsUnarchiveByKitIdRole, deleteKitsByKitIdRole } from '@/lib/api/generated/roles';
 void postKitsArchiveByKitIdRole; void postKitsUnarchiveByKitIdRole; void deleteKitsByKitIdRole;
+import { postKitsContentsByKitIdRole, postAttachmentSetsAttachmentsBySetIdRole } from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
 import type { UiStateTestEvent } from '@/lib/test/test-events';
 import type {
   KitContentAggregates,
@@ -636,16 +630,18 @@ function KitDetailLoaded({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Documents</CardTitle>
-            <Button
-              onClick={() => setShowAddDocument(true)}
-              size="sm"
-              disabled={detail.status === 'archived'}
-              title={detail.status === 'archived' ? 'Archived kits cannot be edited' : undefined}
-              aria-disabled={detail.status === 'archived' ? 'true' : undefined}
-              data-testid="kits.detail.documents.add"
-            >
-              Add Document
-            </Button>
+            <Gate requires={postAttachmentSetsAttachmentsBySetIdRole}>
+              <Button
+                onClick={() => setShowAddDocument(true)}
+                size="sm"
+                disabled={detail.status === 'archived'}
+                title={detail.status === 'archived' ? 'Archived kits cannot be edited' : undefined}
+                aria-disabled={detail.status === 'archived' ? 'true' : undefined}
+                data-testid="kits.detail.documents.add"
+              >
+                Add Document
+              </Button>
+            </Gate>
           </div>
         </CardHeader>
         <CardContent>

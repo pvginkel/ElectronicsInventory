@@ -8,6 +8,9 @@ import { Input } from '@/components/primitives/input';
 import { Alert, InlineNotification } from '@/components/primitives';
 import { EmptyState, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
+import { Gate } from '@/components/auth/gate';
+import { patchPickListsLinesByPickListIdAndLineIdRole, postPickListsLinesPickByPickListIdAndLineIdRole } from '@/lib/api/generated/roles';
+import { usePermissions } from '@/hooks/use-permissions';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
 import { formatLocation } from '@/lib/utils/locations';
 import type {
@@ -76,6 +79,10 @@ export function PickListLines({
   quantityUpdatePending,
   quantityUpdatePendingLineId,
 }: PickListLinesProps) {
+  const { hasRole } = usePermissions();
+  // Role checks: only editors can mutate pick list lines
+  const canPatchLines = hasRole(patchPickListsLinesByPickListIdAndLineIdRole);
+
   // Track which line is being edited
   const [editingLineId, setEditingLineId] = useState<number | null>(null);
   const [editQuantity, setEditQuantity] = useState<string>('');
@@ -203,7 +210,7 @@ export function PickListLines({
                       const disableUndo = !isCompleted || isLineExecuting;
                       const isEditingThisLine = editingLineId === lineId;
                       const isQuantityUpdatePending = quantityUpdatePendingLineId === lineId && quantityUpdatePending;
-                      const canEditQuantity = !isCompleted && !isLineExecuting && !quantityUpdatePending;
+                      const canEditQuantity = !isCompleted && !isLineExecuting && !quantityUpdatePending && canPatchLines;
                       const parsedEditQuantity = parseInt(editQuantity, 10);
                       const isValidQuantity = !isNaN(parsedEditQuantity) && parsedEditQuantity >= 0;
                       const hasQuantityChanged = isValidQuantity && parsedEditQuantity !== line.quantityToPick;
@@ -321,38 +328,40 @@ export function PickListLines({
                               className="flex justify-end"
                               data-testid={`pick-lists.detail.line.${lineId}.actions`}
                             >
-                              {isCompleted ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    void onUndoLine(lineId);
-                                  }}
-                                  disabled={disableUndo}
-                                  data-testid={`pick-lists.detail.line.${lineId}.action.undo`}
-                                >
-                                  {isUndoPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                                  ) : (
-                                    'Undo'
-                                  )}
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    void onPickLine(lineId);
-                                  }}
-                                  disabled={disablePick}
-                                  data-testid={`pick-lists.detail.line.${lineId}.action.pick`}
-                                >
-                                  {isPickPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                                  ) : (
-                                    'Pick'
-                                  )}
-                                </Button>
-                              )}
+                              <Gate requires={postPickListsLinesPickByPickListIdAndLineIdRole}>
+                                {isCompleted ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      void onUndoLine(lineId);
+                                    }}
+                                    disabled={disableUndo}
+                                    data-testid={`pick-lists.detail.line.${lineId}.action.undo`}
+                                  >
+                                    {isUndoPending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                    ) : (
+                                      'Undo'
+                                    )}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      void onPickLine(lineId);
+                                    }}
+                                    disabled={disablePick}
+                                    data-testid={`pick-lists.detail.line.${lineId}.action.pick`}
+                                  >
+                                    {isPickPending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                    ) : (
+                                      'Pick'
+                                    )}
+                                  </Button>
+                                )}
+                              </Gate>
                             </div>
                           </td>
                         </tr>

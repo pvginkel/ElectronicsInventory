@@ -111,25 +111,29 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
       ),
       actions: (
         <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
-          <div data-testid="kits.detail.actions.order-stock.wrapper">
-            <Button
-              variant="default"
-              disabled
-              data-testid="kits.detail.actions.order-stock"
-            >
-              Order Stock
-            </Button>
-          </div>
-          <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
-            <Button
-              variant="outline"
-              disabled
-              data-testid="kits.detail.actions.edit"
-              aria-disabled="true"
-            >
-              Edit Kit
-            </Button>
-          </div>
+          <Gate requires={postKitsShoppingListsByKitIdRole}>
+            <div data-testid="kits.detail.actions.order-stock.wrapper">
+              <Button
+                variant="default"
+                disabled
+                data-testid="kits.detail.actions.order-stock"
+              >
+                Order Stock
+              </Button>
+            </div>
+          </Gate>
+          <Gate requires={patchKitsByKitIdRole}>
+            <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+              <Button
+                variant="outline"
+                disabled
+                data-testid="kits.detail.actions.edit"
+                aria-disabled="true"
+              >
+                Edit Kit
+              </Button>
+            </div>
+          </Gate>
         </div>
       ),
     };

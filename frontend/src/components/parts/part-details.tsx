@@ -29,7 +29,7 @@ import {
   useGetPartsByPartKey,
   useDeletePartsByPartKey,
 } from '@/lib/api/generated/hooks';
-import { deletePartsByPartKeyRole } from '@/lib/api/generated/roles';
+import { deletePartsByPartKeyRole, postAttachmentSetsAttachmentsBySetIdRole } from '@/lib/api/generated/roles';
 import { Gate } from '@/components/auth/gate';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useConfirm } from '@/hooks/use-confirm';
@@ -704,13 +704,15 @@ export function PartDetails({ partId }: PartDetailsProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Documents</CardTitle>
-              <Button
-                onClick={() => setShowAddDocument(true)}
-                size="sm"
-                data-testid="parts.detail.documents.add"
-              >
-                Add Document
-              </Button>
+              <Gate requires={postAttachmentSetsAttachmentsBySetIdRole}>
+                <Button
+                  onClick={() => setShowAddDocument(true)}
+                  size="sm"
+                  data-testid="parts.detail.documents.add"
+                >
+                  Add Document
+                </Button>
+              </Gate>
             </div>
           </CardHeader>
           <CardContent>

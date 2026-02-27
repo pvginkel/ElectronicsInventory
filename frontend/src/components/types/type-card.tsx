@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card'
 import { Button } from '@/components/primitives/button'
+import { Gate } from '@/components/auth/gate'
+import { putTypesByTypeIdRole, deleteTypesByTypeIdRole } from '@/lib/api/generated/roles'
 
 interface TypeCardProps {
   type: {
@@ -31,12 +33,16 @@ export function TypeCard({ type, partCount, onEdit, onDelete }: TypeCardProps) {
       <CardContent>
         <div className="flex justify-end items-center">
           <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete}>
-              Delete
-            </Button>
+            <Gate requires={putTypesByTypeIdRole}>
+              <Button variant="ghost" size="sm" onClick={onEdit}>
+                Edit
+              </Button>
+            </Gate>
+            <Gate requires={deleteTypesByTypeIdRole}>
+              <Button variant="ghost" size="sm" onClick={onDelete}>
+                Delete
+              </Button>
+            </Gate>
           </div>
         </div>
       </CardContent>

@@ -10,6 +10,8 @@ import { DebouncedSearchInput } from '@/components/primitives/debounced-search-i
 import { Skeleton } from '@/components/ui/skeleton';
 import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { Gate } from '@/components/auth/gate';
+import { postShoppingListsRole } from '@/lib/api/generated/roles';
 import { ShoppingListOverviewCard } from './overview-card';
 import { ListCreateDialog } from './list-create-dialog';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
@@ -248,7 +250,9 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       <div data-testid="shopping-lists.overview.loading">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Shopping Lists</h1>
-          <Button disabled>Add Shopping List</Button>
+          <Gate requires={postShoppingListsRole}>
+            <Button disabled>Add Shopping List</Button>
+          </Gate>
         </div>
 
         <div className="relative mb-6">
@@ -382,9 +386,11 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
         className="flex-1"
         title={<span data-testid="shopping-lists.overview.heading">Shopping Lists</span>}
         actions={
-          <Button onClick={() => setCreateDialogOpen(true)} data-testid="shopping-lists.overview.create">
-            Add Shopping List
-          </Button>
+          <Gate requires={postShoppingListsRole}>
+            <Button onClick={() => setCreateDialogOpen(true)} data-testid="shopping-lists.overview.create">
+              Add Shopping List
+            </Button>
+          </Gate>
         }
         search={searchNode}
         segmentedTabs={segmentedTabsNode}

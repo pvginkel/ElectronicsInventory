@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/primitives/tooltip';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { KitBOMRowEditor } from '@/components/kits/kit-bom-row-editor';
+import { Gate } from '@/components/auth/gate';
+import { patchKitsContentsByKitIdAndContentIdRole, deleteKitsContentsByKitIdAndContentIdRole } from '@/lib/api/generated/roles';
 import type { KitContentRow } from '@/types/kits';
 import type {
   PendingCreateRow,
@@ -321,32 +323,36 @@ function KitBOMDisplayRow({
               Saving…
             </Badge>
           ) : null}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={handleEdit}
-            disabled={disableRowActions}
-            aria-disabled={readOnly ? 'true' : undefined}
-            title={readOnlyTooltip}
-            data-testid={`kits.detail.table.row.${row.id}.edit`}
-          >
-            <Pencil className="h-4 w-4" />
-            <span className="sr-only">Edit</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={handleDelete}
-            disabled={disableRowActions}
-            aria-disabled={readOnly ? 'true' : undefined}
-            title={readOnlyTooltip}
-            data-testid={`kits.detail.table.row.${row.id}.delete`}
-          >
-            <Trash className="h-4 w-4" />
-            <span className="sr-only">Delete</span>
-          </Button>
+          <Gate requires={patchKitsContentsByKitIdAndContentIdRole}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={handleEdit}
+              disabled={disableRowActions}
+              aria-disabled={readOnly ? 'true' : undefined}
+              title={readOnlyTooltip}
+              data-testid={`kits.detail.table.row.${row.id}.edit`}
+            >
+              <Pencil className="h-4 w-4" />
+              <span className="sr-only">Edit</span>
+            </Button>
+          </Gate>
+          <Gate requires={deleteKitsContentsByKitIdAndContentIdRole}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={handleDelete}
+              disabled={disableRowActions}
+              aria-disabled={readOnly ? 'true' : undefined}
+              title={readOnlyTooltip}
+              data-testid={`kits.detail.table.row.${row.id}.delete`}
+            >
+              <Trash className="h-4 w-4" />
+              <span className="sr-only">Delete</span>
+            </Button>
+          </Gate>
         </div>
       </td>
     </tr>

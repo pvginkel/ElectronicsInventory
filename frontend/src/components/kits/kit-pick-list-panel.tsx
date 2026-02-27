@@ -10,6 +10,8 @@ import type { KitDetail, KitPickListSummary, KitStatus } from '@/types/kits';
 import type { UiStateTestEvent } from '@/lib/test/test-events';
 import { ClipboardList, ChevronDown, ChevronRight, CheckCircle2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Gate } from '@/components/auth/gate';
+import { postKitsPickListsByKitIdRole } from '@/lib/api/generated/roles';
 import { buildKitPickListPanelMetadata } from '@/components/kits/kit-pick-list-panel-metadata';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
@@ -129,20 +131,22 @@ export function KitPickListPanel({
         description="Track open work and review completed picks without leaving the kit detail."
         noBorder={openPickLists.length === 0}
         actions={
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={canCreatePickList ? onCreatePickList : undefined}
-            disabled={!canCreatePickList}
-            title={creationTitle}
-            aria-disabled={canCreatePickList ? undefined : 'true'}
-            className="inline-flex items-center gap-2"
-            data-testid="kits.detail.pick-lists.add"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Pick List</span>
-          </Button>
+          <Gate requires={postKitsPickListsByKitIdRole}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={canCreatePickList ? onCreatePickList : undefined}
+              disabled={!canCreatePickList}
+              title={creationTitle}
+              aria-disabled={canCreatePickList ? undefined : 'true'}
+              className="inline-flex items-center gap-2"
+              data-testid="kits.detail.pick-lists.add"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Pick List</span>
+            </Button>
+          </Gate>
         }
       />
       {openPickLists.length > 0 || completedPickLists.length > 0 ? (

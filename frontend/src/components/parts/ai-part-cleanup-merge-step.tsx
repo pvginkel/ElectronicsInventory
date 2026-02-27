@@ -9,7 +9,7 @@ import { useCreateType } from '@/hooks/use-types';
 import type { CleanedPartData, CleanupFieldChange } from '@/types/ai-parts';
 import type { components } from '@/lib/api/generated/types';
 import { usePutPartsByPartKey } from '@/lib/api/generated/hooks';
-// Role constant import satisfies role-gating lint rule; step is inside an already-gated dialog flow
+// eslint-disable-next-line role-gating/gate-usage-enforcement -- step is inside an already-gated AI dialog flow (ai-part-dialog is opened from a gated trigger)
 import { putPartsByPartKeyRole } from '@/lib/api/generated/roles';
 void putPartsByPartKeyRole;
 import { normalizeFieldValue } from '@/lib/utils/ai-parts';

@@ -9,6 +9,8 @@ import { CollectionGrid, EmptyState } from '@/components/ui';
 import { DebouncedSearchInput } from '@/components/primitives/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGetTypes, type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
+import { postPartsRole, postAiPartsCreateRole } from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
 import { useAllParts } from '@/hooks/use-all-parts';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { fuzzyMatch, type FuzzySearchTerm } from '@/lib/utils/fuzzy-search';
@@ -341,14 +343,18 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
   const actionsNode = (onCreatePart || onCreateWithAI) ? (
     <div className="flex flex-wrap gap-2">
       {onCreateWithAI && (
-        <Button onClick={onCreateWithAI} variant="ai_assisted" data-testid="parts.list.add-with-ai">
-          Add Part with AI
-        </Button>
+        <Gate requires={postAiPartsCreateRole}>
+          <Button onClick={onCreateWithAI} variant="ai_assisted" data-testid="parts.list.add-with-ai">
+            Add Part with AI
+          </Button>
+        </Gate>
       )}
       {onCreatePart && (
-        <Button onClick={onCreatePart} data-testid="parts.list.add">
-          Add Part
-        </Button>
+        <Gate requires={postPartsRole}>
+          <Button onClick={onCreatePart} data-testid="parts.list.add">
+            Add Part
+          </Button>
+        </Gate>
       )}
     </div>
   ) : undefined;

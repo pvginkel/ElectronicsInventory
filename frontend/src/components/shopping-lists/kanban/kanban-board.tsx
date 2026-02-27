@@ -17,6 +17,9 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, type DialogContentProps } from '@/components/primitives/dialog';
+import { usePermissions } from '@/hooks/use-permissions';
+import { putShoppingListLinesByLineIdRole, postShoppingListsSellerGroupsByListIdRole } from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
 import { KanbanColumn } from './kanban-column';
 import { KanbanSkeletonColumn } from './kanban-skeleton-column';
 import { KanbanCard } from './kanban-card';
@@ -167,6 +170,10 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
 
+  // -- Permission check: readers cannot drag cards --
+  const { hasRole } = usePermissions();
+  const canDrag = hasRole(putShoppingListLinesByLineIdRole);
+
   // -- DnD hook --
   const dnd = useKanbanDnd({ groups, isCompleted, onMoveLine });
 
@@ -293,9 +300,10 @@ export function KanbanBoard({
   const createWrapCard = useCallback(
     (group: ShoppingListSellerGroup) => {
       return (cardElement: React.ReactElement, line: ShoppingListLine) => {
-        // Cards cannot be dragged when: list is done, card is pending,
-        // line is ordered, or the entire group is ordered (receiving mode)
+        // Cards cannot be dragged when: user is not an editor, list is done,
+        // card is pending, line is ordered, or the group is ordered (receiving mode)
         const dragDisabled =
+          !canDrag ||
           isCompleted ||
           pendingLineIds.has(line.id) ||
           line.status === 'ordered' ||
@@ -318,7 +326,7 @@ export function KanbanBoard({
         );
       };
     },
-    [isCompleted, pendingLineIds, dnd.overGroupKey],
+    [canDrag, isCompleted, pendingLineIds, dnd.overGroupKey],
   );
 
   // -- Render the confirmation dialog for ordered-amount moves --
@@ -377,13 +385,15 @@ export function KanbanBoard({
             );
           })}
 
-          {/* Skeleton column for adding new sellers (hidden when list is done) */}
+          {/* Skeleton column for adding new sellers (hidden when list is done, and for readers) */}
           {!isCompleted && (
-            <KanbanSkeletonColumn
-              existingSellerIds={existingSellerIds}
-              isCreating={isCreatingGroup}
-              onCreateGroup={onCreateGroup}
-            />
+            <Gate requires={postShoppingListsSellerGroupsByListIdRole}>
+              <KanbanSkeletonColumn
+                existingSellerIds={existingSellerIds}
+                isCreating={isCreatingGroup}
+                onCreateGroup={onCreateGroup}
+              />
+            </Gate>
           )}
         </div>
 

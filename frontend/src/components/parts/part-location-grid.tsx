@@ -6,6 +6,8 @@ import { ConfirmDialog, type DialogContentProps } from '@/components/primitives/
 import { usePartLocations, useAddStock, useRemoveStock } from '@/hooks/use-parts';
 import { useLocationSuggestions } from '@/hooks/use-types';
 import { useGetBoxes } from '@/lib/api/generated/hooks';
+import { postInventoryPartsStockByPartKeyRole, deleteInventoryPartsStockByPartKeyRole } from '@/lib/api/generated/roles';
+import { Gate } from '@/components/auth/gate';
 import { useToast } from '@/hooks/use-toast';
 import { BoxSelector } from './box-selector';
 import { AdjustStockDialog } from './adjust-stock-dialog';
@@ -104,15 +106,17 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
       </div>
 
       {!showAddRow ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAddRow(true)}
-          className="mt-2"
-          data-testid="parts.locations.add-location"
-        >
-          Add Location
-        </Button>
+        <Gate requires={postInventoryPartsStockByPartKeyRole}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAddRow(true)}
+            className="mt-2"
+            data-testid="parts.locations.add-location"
+          >
+            Add Location
+          </Button>
+        </Gate>
       ) : (
         <AddLocationRow
           partId={partId}
@@ -484,37 +488,43 @@ function LocationRow({
         </div>
 
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setAdjustDialogOpen(true)}
-            disabled={isMutating}
-            data-testid="parts.locations.adjust-stock"
-          >
-            Adjust Stock
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleStartEdit}
-            disabled={isMutating}
-            className="h-8 w-8 p-0"
-            aria-label="Edit location"
-            data-testid="parts.locations.edit"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleRemove}
-            disabled={isMutating}
-            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-            aria-label="Remove location"
-            data-testid="parts.locations.remove"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <Gate requires={postInventoryPartsStockByPartKeyRole}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setAdjustDialogOpen(true)}
+              disabled={isMutating}
+              data-testid="parts.locations.adjust-stock"
+            >
+              Adjust Stock
+            </Button>
+          </Gate>
+          <Gate requires={postInventoryPartsStockByPartKeyRole}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleStartEdit}
+              disabled={isMutating}
+              className="h-8 w-8 p-0"
+              aria-label="Edit location"
+              data-testid="parts.locations.edit"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </Gate>
+          <Gate requires={deleteInventoryPartsStockByPartKeyRole}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleRemove}
+              disabled={isMutating}
+              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+              aria-label="Remove location"
+              data-testid="parts.locations.remove"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </Gate>
         </div>
       </div>
 
@@ -664,9 +674,11 @@ function EmptyLocationsState({ onAddStock }: EmptyLocationsStateProps) {
       <div className="text-sm text-muted-foreground mb-4">
         No stock locations assigned
       </div>
-      <Button onClick={onAddStock} size="sm">
-        Add Stock
-      </Button>
+      <Gate requires={postInventoryPartsStockByPartKeyRole}>
+        <Button onClick={onAddStock} size="sm">
+          Add Stock
+        </Button>
+      </Gate>
     </div>
   );
 }

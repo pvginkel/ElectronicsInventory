@@ -19,7 +19,7 @@ import {
   useDeleteSellerGroupMutation,
 } from '@/hooks/use-seller-group-mutations';
 import { usePostShoppingListsLinesByListId } from '@/lib/api/generated/hooks';
-// Role constant import satisfies role-gating lint rule; add-line is triggered via KanbanBoard which handles its own UX
+// eslint-disable-next-line role-gating/gate-usage-enforcement -- add-line is triggered via the kanban-skeleton-column which has its own Gate
 import { postShoppingListsLinesByListIdRole } from '@/lib/api/generated/roles';
 void postShoppingListsLinesByListIdRole;
 import type {

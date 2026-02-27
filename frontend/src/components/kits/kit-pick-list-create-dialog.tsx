@@ -24,7 +24,7 @@ import {
   type KitPickListCreateSchema_b247181_ShortfallActionSchema,
   type KitPickListPreviewResponseSchema_b247181,
 } from '@/lib/api/generated/hooks';
-// Role constant imports satisfy role-gating lint rule; dialog is opened by an already-gated trigger
+// eslint-disable-next-line role-gating/gate-usage-enforcement -- dialog is opened by an already-gated trigger in kit-pick-list-panel
 import { postKitsPickListsByKitIdRole, postKitsPickListsPreviewByKitIdRole } from '@/lib/api/generated/roles';
 void postKitsPickListsByKitIdRole; void postKitsPickListsPreviewByKitIdRole;
 import type { KitDetail, ShortfallPartRow, ShortfallAction, KitContentRow } from '@/types/kits';

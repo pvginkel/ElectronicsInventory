@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { KanbanCardField } from './kanban-card-field';
 import { Tooltip } from '@/components/primitives/tooltip';
+import { usePermissions } from '@/hooks/use-permissions';
+import { deleteShoppingListLinesByLineIdRole, postShoppingListLinesReceiveByLineIdRole, putShoppingListLinesByLineIdRole } from '@/lib/api/generated/roles';
 import type { ShoppingListLine } from '@/types/shopping-lists';
 import type { KanbanCardMode } from './kanban-utils';
 
@@ -62,6 +64,12 @@ export function KanbanCard({
   const testIdBase = `shopping-lists.kanban.card.${line.id}`;
   const isReadOnly = isCompleted || isDragging || isPending;
 
+  const { hasRole } = usePermissions();
+  // Role checks: only editors can mutate shopping list lines
+  const canEdit = hasRole(putShoppingListLinesByLineIdRole);
+  const canDeleteLine = hasRole(deleteShoppingListLinesByLineIdRole);
+  const canReceiveLine = hasRole(postShoppingListLinesReceiveByLineIdRole);
+
   // -- Field save handlers --
   const handleNeededSave = useCallback(async (value: string | number) => {
     await onFieldSave(line.id, 'needed', value);
@@ -84,14 +92,14 @@ export function KanbanCard({
   }, [line.id, onReceive]);
 
   // -- Derived display values --
-  const canDelete = !isCompleted && mode !== 'receiving' && line.status === 'new';
+  const canDelete = !isCompleted && mode !== 'receiving' && line.status === 'new' && canDeleteLine;
   const deleteDisabled = isReadOnly;
-  const canReceive = mode === 'receiving' && line.canReceive && line.status !== 'done';
+  const canReceive = mode === 'receiving' && line.canReceive && line.status !== 'done' && canReceiveLine;
   const orderedWarning = line.ordered > 0 && line.ordered < line.needed;
   const sellerLinkUrl = line.sellerLink;
   const instrumentationMeta = { lineId: line.id, listId };
-  // Note is editable in all modes unless the card is read-only (completed, dragging, or pending)
-  const noteEditable = !isReadOnly;
+  // Note is editable in all modes unless the card is read-only (completed, dragging, or pending), or user lacks editor role
+  const noteEditable = !isReadOnly && canEdit;
   // Placeholder always shows unless the list is completed
   const notePlaceholder = !isCompleted ? 'Add a note...' : undefined;
   // Receive button: active when line can be received, disabled visual cue for completed lines
@@ -161,7 +169,7 @@ export function KanbanCard({
               type="number"
               min={1}
               testId={`${testIdBase}.field.needed`}
-              readOnly={isReadOnly}
+              readOnly={isReadOnly || !canEdit}
               metadata={instrumentationMeta}
               className="text-right"
               displayClassName="text-slate-50"
@@ -184,7 +192,7 @@ export function KanbanCard({
                 type="number"
                 min={0}
                 testId={`${testIdBase}.field.ordered`}
-                readOnly={isReadOnly || line.status !== 'new'}
+                readOnly={isReadOnly || !canEdit || line.status !== 'new'}
                 showDashForZero
                 metadata={instrumentationMeta}
                 className="text-right"

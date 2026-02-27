@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card'
 import { Button } from '@/components/primitives/button'
 import { ExternalLink } from '@/components/primitives'
+import { Gate } from '@/components/auth/gate'
+import { putSellersBySellerIdRole, deleteSellersBySellerIdRole } from '@/lib/api/generated/roles'
 
 interface SellerCardProps {
   seller: {
@@ -39,12 +41,16 @@ export function SellerCard({ seller, onEdit, onDelete }: SellerCardProps) {
       <CardContent>
         <div className="flex justify-end items-center">
           <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete}>
-              Delete
-            </Button>
+            <Gate requires={putSellersBySellerIdRole}>
+              <Button variant="ghost" size="sm" onClick={onEdit}>
+                Edit
+              </Button>
+            </Gate>
+            <Gate requires={deleteSellersBySellerIdRole}>
+              <Button variant="ghost" size="sm" onClick={onDelete}>
+                Delete
+              </Button>
+            </Gate>
           </div>
         </div>
       </CardContent>
