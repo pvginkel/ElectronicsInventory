@@ -1,5 +1,5 @@
 # Multi-stage build for VitePress documentation site
-FROM node:lts-alpine AS build
+FROM node:lts-slim AS build
 
 # Enable pnpm via corepack
 RUN corepack enable && corepack prepare pnpm@latest --activate
