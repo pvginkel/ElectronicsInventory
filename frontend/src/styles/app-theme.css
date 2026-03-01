@@ -54,12 +54,12 @@
       --secondary-foreground: 210 40% 96%; /* ≈ slate-100 */
       --muted: 165 15% 13%;
       --muted-foreground: 165 10% 52%;
-      --accent: 165 74% 18%;
+      --accent: 165 74% 25%;
       --accent-foreground: 165 73% 90%;
       --destructive: 0 59% 60%;
       --destructive-foreground: 0 55% 7%;
-      --border: 165 15% 17%;
-      --input: 165 15% 17%;
+      --border: 165 15% 25%;
+      --input: 165 15% 25%;
       --ring: 165 82% 46%;
       --link: 165 74% 57%;
       --link-hover: 165 82% 46%;

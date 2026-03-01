@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, X } from 'lucide-react';
 import { Badge } from './badge';
 import { cn } from '@/lib/utils';
 
@@ -39,18 +39,29 @@ export interface KeyValueBadgeProps {
 export const KeyValueBadge = React.forwardRef<HTMLSpanElement, KeyValueBadgeProps>(
   ({ label, value, color = 'neutral', testId, copyValue }, ref) => {
     const colorClasses = COLOR_CLASSES[color];
-    const [copied, setCopied] = React.useState(false);
+    const [copyState, setCopyState] = React.useState<'idle' | 'success' | 'error'>('idle');
 
     const handleCopy = React.useCallback(
-      (event: React.MouseEvent<HTMLButtonElement>) => {
+      (event: React.MouseEvent<HTMLSpanElement>) => {
         event.stopPropagation();
         if (!copyValue) {
           return;
         }
-        void navigator.clipboard.writeText(copyValue).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
+        try {
+          void navigator.clipboard.writeText(copyValue).then(
+            () => {
+              setCopyState('success');
+              setTimeout(() => setCopyState('idle'), 1500);
+            },
+            () => {
+              setCopyState('error');
+              setTimeout(() => setCopyState('idle'), 1500);
+            },
+          );
+        } catch {
+          setCopyState('error');
+          setTimeout(() => setCopyState('idle'), 1500);
+        }
       },
       [copyValue],
     );
@@ -72,33 +83,42 @@ export const KeyValueBadge = React.forwardRef<HTMLSpanElement, KeyValueBadgeProp
     // to accommodate the copy button, matching the LinkChip unlink pattern.
     return (
       <span
+        role="button"
+        tabIndex={0}
+        onClick={handleCopy}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCopy(e as unknown as React.MouseEvent<HTMLSpanElement>);
+          }
+        }}
         className={cn(
           'group relative inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
           'hover:pr-8',
           colorClasses,
         )}
+        aria-label={`Copy ${label}`}
         data-testid={testId}
       >
         <span ref={ref}>
           {label}: {value}
         </span>
-        <button
-          type="button"
-          onClick={handleCopy}
+        <span
           className={cn(
-            'absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full cursor-pointer',
-            'text-current opacity-0 transition-opacity duration-200 group-hover:opacity-70 hover:!opacity-100',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:opacity-100',
+            'absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full',
+            'text-current opacity-0 transition-opacity duration-200 group-hover:opacity-70',
           )}
-          aria-label={`Copy ${label}`}
+          aria-hidden="true"
           data-testid={`${testId}.copy`}
         >
-          {copied ? (
-            <Check className="h-3 w-3" aria-hidden="true" />
+          {copyState === 'success' ? (
+            <Check className="h-3 w-3" />
+          ) : copyState === 'error' ? (
+            <X className="h-3 w-3 text-red-600" />
           ) : (
-            <Copy className="h-3 w-3" aria-hidden="true" />
+            <Copy className="h-3 w-3" />
           )}
-        </button>
+        </span>
       </span>
     );
   },
