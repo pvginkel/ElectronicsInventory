@@ -30,6 +30,7 @@ export interface FuzzySearchTerm {
  */
 export function normalize(str: string): string {
   return str
+    .replace(/µ/g, 'u')            // µ (U+00B5) → u
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();

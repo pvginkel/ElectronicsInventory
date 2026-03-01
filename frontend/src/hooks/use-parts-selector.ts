@@ -15,6 +15,7 @@ export interface PartSelectorOption extends Record<string, unknown> {
   displayManufacturerCode?: string;
   typeName?: string;
   manufacturer?: string;
+  coverUrl: string | null;
 }
 
 export interface PartSelectorSummary {
@@ -99,7 +100,8 @@ export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSel
         displayDescription,
         displayManufacturerCode,
         typeName,
-        manufacturer: displayManufacturer
+        manufacturer: displayManufacturer,
+        coverUrl: part.cover_url ?? null,
       };
 
       const summary: PartSelectorSummary = {

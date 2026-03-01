@@ -44,6 +44,10 @@ describe('normalize', () => {
   it('passes through non-Latin characters unchanged', () => {
     expect(normalize('\u5065\u5eb7')).toBe('\u5065\u5eb7'); // Chinese characters
   });
+
+  it('maps micro sign µ (U+00B5) to u', () => {
+    expect(normalize('µF')).toBe('uf');
+  });
 });
 
 // ---------------------------------------------------------------------------

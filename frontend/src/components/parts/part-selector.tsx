@@ -56,18 +56,31 @@ export function PartSelector({
     ].filter(Boolean);
 
     return (
-      <div className="flex flex-col">
-        <span className="font-medium">
-          {option.displayDescription} ({option.id})
-        </span>
-        {metaItems.length > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {metaItems.join(' • ')}
-          </span>
+      <div className="flex flex-row items-center gap-2">
+        {/* Thumbnail — 32×32 fixed slot so text columns stay aligned */}
+        {option.coverUrl ? (
+          <img
+            src={option.coverUrl}
+            alt=""
+            aria-hidden="true"
+            className="h-12 w-12 flex-shrink-0 rounded object-cover"
+          />
+        ) : (
+          <div className="h-12 w-12 flex-shrink-0 rounded bg-muted" aria-hidden="true" />
         )}
-        <span className="text-xs text-muted-foreground">
-          {option.displayId}
-        </span>
+        <div className="flex flex-col min-w-0">
+          <span className="font-medium">
+            {option.displayDescription} ({option.id})
+          </span>
+          {metaItems.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {metaItems.join(' • ')}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {option.displayId}
+          </span>
+        </div>
       </div>
     );
   }, []);

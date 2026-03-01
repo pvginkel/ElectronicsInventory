@@ -8,6 +8,8 @@ import pdfIconSvg from '@/assets/pdf-icon.svg';
 import { LinkIcon } from '@/components/icons/LinkIcon';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
 import { Card } from '@/components/primitives/card';
+import { cardGridTileInteractiveClasses } from '@/styles/card';
+import { cn } from '@/lib/utils';
 
 interface DocumentTileProps {
   document: DocumentItem;
@@ -28,10 +30,10 @@ export function DocumentTile({
   const { confirm, confirmProps } = useConfirm();
   const { showError, showException } = useToast();
 
+  const isWebsite = document.type === 'website';
+
   const handleTileClick = () => {
-    if (document.type === 'website') {
-      window.open(document.assetUrl, '_blank', 'noopener,noreferrer');
-    } else {
+    if (!isWebsite) {
       onShowMedia(document);
     }
   };
@@ -110,8 +112,8 @@ export function DocumentTile({
   return (
     <Card
       variant={isDeleting ? "grid-tile-disabled" : "grid-tile"}
-      onClick={handleTileClick}
-      className="p-0"
+      onClick={isWebsite ? undefined : handleTileClick}
+      className={cn('p-0', isWebsite && 'relative', isWebsite && cardGridTileInteractiveClasses)}
       data-document-tile
       data-document-id={document.id}>
       <div className="relative aspect-square">
@@ -133,8 +135,8 @@ export function DocumentTile({
           )}
         </div>
 
-        {/* Action buttons positioned at top-right */}
-        <div className="absolute top-2 right-2 flex space-x-1">
+        {/* Action buttons at z-20 — above the anchor overlay (z-10) placed after content */}
+        <div className="absolute top-2 right-2 flex space-x-1 z-20">
           {showCoverToggle && (
             <IconButton
               onClick={handleToggleCover}
@@ -170,8 +172,21 @@ export function DocumentTile({
         </div>
       </div>
 
+      {/* Anchor LAST so it stacks above the image/text content at z-10;
+          action buttons at z-20 remain clickable above it */}
+      {isWebsite && (
+        <a
+          href={document.assetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute inset-0 z-10"
+          aria-label={document.title}
+          tabIndex={-1}
+        />
+      )}
+
       {isDeleting && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/80">
           <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
         </div>
       )}

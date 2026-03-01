@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
 import { Alert, ExternalLink, DescriptionList, DescriptionItem } from '@/components/primitives';
@@ -22,6 +23,7 @@ import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import { SparkleIcon } from '@/components/icons/SparkleIcon';
 import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
+import { AddToKitDialog } from '@/components/kits/part/add-to-kit-dialog';
 import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import { AIPartCleanupDialog } from './ai-part-cleanup-dialog';
 import { SellerLinkSection } from './seller-link-section';
@@ -58,6 +60,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const [documentKey, setDocumentKey] = useState(0);
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+  const [showAddToKitDialog, setShowAddToKitDialog] = useState(false);
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
 
   const membershipQuery = usePartShoppingListMemberships(partId);
@@ -272,18 +275,21 @@ export function PartDetails({ partId }: PartDetailsProps) {
         value={part.key}
         color="neutral"
         testId="parts.detail.metadata.key"
+        copyValue={part.key}
       />
       <KeyValueBadge
         label="Type"
         value={part.type?.name ?? 'Unassigned'}
         color="neutral"
         testId="parts.detail.metadata.type"
+        copyValue={part.type?.name ?? 'Unassigned'}
       />
       <KeyValueBadge
         label="Created"
         value={new Date(part.created_at).toLocaleDateString()}
         color="neutral"
         testId="parts.detail.metadata.created"
+        copyValue={new Date(part.created_at).toLocaleDateString()}
       />
     </>
   ) : null;
@@ -315,13 +321,22 @@ export function PartDetails({ partId }: PartDetailsProps) {
             <span className="flex-1">Cleanup Part</span>
             <SparkleIcon className="h-4 w-4 ml-2" />
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDuplicatePart} data-testid="parts.detail.actions.duplicate">
+            Duplicate Part
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => setShowAddToListDialog(true)}
             data-testid="parts.detail.actions.add-to-shopping-list"
           >
             Order Stock
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDuplicatePart}>Duplicate Part</DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setShowAddToKitDialog(true)}
+            data-testid="parts.detail.actions.add-to-kit"
+          >
+            Add to Kit
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </Gate>
@@ -756,6 +771,14 @@ export function PartDetails({ partId }: PartDetailsProps) {
           onClose={() => setShowAddToListDialog(false)}
           part={partSummary}
           defaultNeeded={1}
+        />
+      ) : null}
+
+      {partSummary ? (
+        <AddToKitDialog
+          open={showAddToKitDialog}
+          onClose={() => setShowAddToKitDialog(false)}
+          part={partSummary}
         />
       ) : null}
 
