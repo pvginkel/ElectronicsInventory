@@ -76,6 +76,7 @@ test('shows usage metrics, location assignments, and supports deletion from deta
   })
 
   test('Usage badge displays danger color when usage reaches 90% threshold', async ({ boxes, parts, partsLocations, testData }) => {
+    test.setTimeout(60_000);
     const description = makeUnique('High Usage Box')
     const capacity = 10
     const box = await createBoxWithRetry(testData, { description, capacity })

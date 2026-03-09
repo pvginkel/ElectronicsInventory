@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, waitForFormValidationError, waitForListLoading, waitForUiState, waitTestEvent } from '../../support/helpers';
-import type { UiStateTestEvent, FormTestEvent } from '@/lib/test/test-events';
+import type { UiStateTestEvent, FormTestEvent, ListLoadingTestEvent } from '@/lib/test/test-events';
 import type { KitContentDetailSchema_b98797e } from '@/lib/api/generated/hooks';
 import type {
   KitDetailResponseSchema_b98797e,
@@ -828,7 +828,14 @@ test.describe('Kit detail workspace', () => {
       'form',
       event => event.formId === 'KitPickList:create' && event.phase === 'success',
     );
-    const loadingReady = waitForListLoading(page, 'kits.detail.pickLists.create', 'ready');
+    const loadingReady = waitTestEvent<ListLoadingTestEvent>(
+      page,
+      'list_loading',
+      event =>
+        event.scope === 'kits.detail.pickLists.create' &&
+        event.phase === 'ready' &&
+        event.metadata?.pickListId != null,
+    );
     const linksReload = waitTestEvent<UiStateTestEvent>(
       page,
       'ui_state',

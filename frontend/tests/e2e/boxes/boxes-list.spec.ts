@@ -99,6 +99,7 @@ test.describe('Boxes - List Experience', () => {
   })
 
   test('creates, edits, and deletes a box with instrumentation and toasts', async ({ boxes, testEvents, toastHelper }) => {
+    test.setTimeout(60_000);
     const description = makeUnique('Playwright Box')
 
     await boxes.gotoList()

@@ -3,14 +3,16 @@ import { Form, FormField, FormLabel } from '@/components/primitives/form';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { TypeSelector } from '@/components/types/type-selector';
+import { SellerSelector } from '@/components/sellers/seller-selector';
 import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { DuplicateDocumentGrid } from './duplicate-document-grid';
-import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey, usePostPartsCopyAttachment } from '@/lib/api/generated/hooks';
+import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey, usePostPartsCopyAttachment, usePostPartsSellerLinksByPartKey } from '@/lib/api/generated/hooks';
 // eslint-disable-next-line role-gating/gate-usage-enforcement -- form is rendered inside a gated dialog (add/edit part); the Gate lives in the caller (part-list / part-details)
-import { postPartsRole, putPartsByPartKeyRole, postPartsCopyAttachmentRole } from '@/lib/api/generated/roles';
-void postPartsRole; void putPartsByPartKeyRole; void postPartsCopyAttachmentRole;
+import { postPartsRole, putPartsByPartKeyRole, postPartsCopyAttachmentRole, postPartsSellerLinksByPartKeyRole } from '@/lib/api/generated/roles';
+void postPartsRole; void putPartsByPartKeyRole; void postPartsCopyAttachmentRole; void postPartsSellerLinksByPartKeyRole;
 import { useDuplicatePart } from '@/hooks/use-duplicate-part';
+import { useSellers } from '@/hooks/use-sellers';
 import { validatePartData } from '@/lib/utils/parts';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiDocument } from '@/lib/utils/document-transformers';
@@ -68,6 +70,7 @@ export function PartForm({
     inputVoltage: '',
     outputVoltage: '',
   });
+  const [sellerId, setSellerId] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateDocuments, setDuplicateDocuments] = useState<ApiDocument[]>([]);
   const [coverDocumentId, setCoverDocumentId] = useState<number | null>(null);
@@ -87,6 +90,8 @@ export function PartForm({
   const createPartMutation = usePostParts();
   const updatePartMutation = usePutPartsByPartKey();
   const copyAttachmentMutation = usePostPartsCopyAttachment();
+  const sellerLinkMutation = usePostPartsSellerLinksByPartKey();
+  const { data: allSellers = [] } = useSellers();
 
   // Fetch duplicate part data if duplicating
   const { formData: duplicateFormData, documents: duplicateSourceDocuments, coverDocumentId: duplicateCoverDocumentId, isLoading: isDuplicateLoading } = useDuplicatePart(duplicateFromPartId);
@@ -118,6 +123,11 @@ export function PartForm({
         inputVoltage: existingPart.input_voltage || '',
         outputVoltage: existingPart.output_voltage || '',
       });
+      // Pre-populate seller from existing seller links
+      const firstLink = existingPart.seller_links?.[0];
+      if (firstLink) {
+        setSellerId(firstLink.seller_id);
+      }
     }
   }, [existingPart, isEditing]);
 
@@ -235,6 +245,21 @@ export function PartForm({
             output_voltage: formData.outputVoltage || null,
           }
         });
+
+        // Create seller link if a seller was selected
+        if (sellerId != null) {
+          const selectedSeller = allSellers.find(s => s.id === sellerId);
+          if (selectedSeller) {
+            try {
+              await sellerLinkMutation.mutateAsync({
+                path: { part_key: result.key },
+                body: { seller_id: sellerId, link: selectedSeller.website },
+              });
+            } catch {
+              // Seller link creation is best-effort; the part was created successfully
+            }
+          }
+        }
 
         if (isDuplicating && duplicateDocuments.length > 0) {
           setIsCopying(true);
@@ -571,11 +596,14 @@ export function PartForm({
           </FormField>
         </div>
 
-        {isEditing && (
-          <p className="text-sm text-muted-foreground">
-            Seller links can be managed from the part detail screen after saving.
-          </p>
-        )}
+        <FormField>
+          <FormLabel>Seller</FormLabel>
+          <SellerSelector
+            value={sellerId}
+            onChange={setSellerId}
+            placeholder="Search or select seller..."
+          />
+        </FormField>
       </div>
 
       {/* Documents Section - only shown in duplication mode */}

@@ -165,13 +165,20 @@ test.describe('Toast Display', () => {
     const toastHelper = createToastHelper(page);
     const toast = await toastHelper.waitForToast();
 
+    // Capture the archive toast text to identify it after undo
+    const archiveToastText = await toast.textContent();
+
     const undoButton = toast.locator(`[data-testid*="undo"]`);
     await expect(undoButton).toBeVisible();
 
     // Click undo button
     await undoButton.click();
 
-    // Original toast should be removed immediately
-    await expect(toast).not.toBeVisible({ timeout: 1000 });
+    // Original archive toast should be removed immediately.
+    // Use a text-filtered locator so we don't match the new "Restored" toast.
+    const archiveToast = page
+      .locator('[data-testid="app-shell.toast.item"]')
+      .filter({ hasText: archiveToastText ?? 'Archived' });
+    await expect(archiveToast).not.toBeVisible({ timeout: 5000 });
   });
 });

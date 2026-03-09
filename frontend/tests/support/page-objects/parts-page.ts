@@ -509,9 +509,9 @@ export class PartsPage extends BasePage {
   }
 
   async submitForm(): Promise<void> {
-    await Promise.all([
-      this.page.waitForLoadState('networkidle'),
-      this.formSubmit.click(),
-    ]);
+    await this.formSubmit.click();
+    // Wait for navigation to detail view or for the form to disappear,
+    // rather than networkidle (which never resolves with SSE connections).
+    await expect(this.formRoot).not.toBeVisible({ timeout: 15000 });
   }
 }

@@ -304,7 +304,7 @@ test.describe('Role gating — reader role', () => {
 
     // Kanban board and unassigned column visible, but editor-only add-part hidden
     await expect(page.getByTestId('shopping-lists.kanban.board')).toBeVisible();
-    await expect(page.getByTestId('shopping-lists.kanban.column.unassigned.add-part')).not.toBeVisible();
+    await expect(page.getByTestId('shopping-lists.kanban.column.ungrouped.add-part')).not.toBeVisible();
 
     // Skeleton column (Add Seller) hidden for readers
     await expect(shoppingLists.kanbanSkeletonColumn).not.toBeVisible();
@@ -487,11 +487,11 @@ test.describe('Role gating — editor role', () => {
 
     // -- Shopping list detail: Edit and Delete buttons visible --------------
     await shoppingLists.goto(`/shopping-lists/${seed.shoppingList.id}`);
-    await waitForListLoading(page, 'shoppingLists.detail.kits', 'ready');
+    await waitForListLoading(page, 'shoppingLists.kanban', 'ready');
     await expect(page.getByTestId('shopping-lists.detail.header.edit')).toBeVisible();
     await expect(page.getByTestId('shopping-lists.detail.header.delete')).toBeVisible();
     await expect(page.getByTestId('shopping-lists.kanban.board')).toBeVisible();
-    await expect(page.getByTestId('shopping-lists.kanban.column.unassigned.add-part')).toBeVisible();
+    await expect(page.getByTestId('shopping-lists.kanban.column.ungrouped.add-part')).toBeVisible();
 
     // Skeleton column (Add Seller) visible for editors
     await expect(shoppingLists.kanbanSkeletonColumn).toBeVisible();
