@@ -16,7 +16,6 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
         def frontendMeta
         def jobName = "electronics-inventory-validation-${BUILD_NUMBER}"
         def k8sNamespace = kubectl.currentNamespace()
-        def secretName = "electronics-inventory-validation-env-${BUILD_NUMBER}"
 
         stage('Clone repo') {
             git branch: 'main',
@@ -77,9 +76,11 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
 
         stage('Run validation') {
             container('k8s') {
-                withCredentials([file(credentialsId: 'ei-test-env', variable: 'TEST_ENV_FILE')]) {
-                    sh "kubectl create secret generic ${secretName} --namespace=${k8sNamespace} --from-env-file=${TEST_ENV_FILE}"
-
+                withCredentials([
+                    string(credentialsId: 'S3_ENDPOINT_URL', variable: 'S3_ENDPOINT_URL'),
+                    string(credentialsId: 'S3_ACCESS_KEY_ID', variable: 'S3_ACCESS_KEY_ID'),
+                    string(credentialsId: 'S3_SECRET_ACCESS_KEY', variable: 'S3_SECRET_ACCESS_KEY'),
+                ]) {
                     try {
                         kubectl.startJob("""
                             apiVersion: batch/v1
@@ -102,9 +103,15 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
                                     - name: validation
                                       image: registry:5000/electronics-inventory-validation:${currentBuild.number}
                                       imagePullPolicy: Always
-                                      envFrom:
-                                        - secretRef:
-                                            name: ${secretName}
+                                      env:
+                                        - name: S3_ENDPOINT_URL
+                                          value: "${S3_ENDPOINT_URL}"
+                                        - name: S3_ACCESS_KEY_ID
+                                          value: "${S3_ACCESS_KEY_ID}"
+                                        - name: S3_SECRET_ACCESS_KEY
+                                          value: "${S3_SECRET_ACCESS_KEY}"
+                                        - name: S3_BUCKET_NAME
+                                          value: "electronics-inventory-validation"
                         """.stripIndent())
 
                         kubectl.waitForJob(jobName, k8sNamespace)
@@ -153,7 +160,6 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
                         }
                     } finally {
                         kubectl.deleteJob(jobName, k8sNamespace)
-                        sh "kubectl delete secret ${secretName} --namespace=${k8sNamespace} --ignore-not-found"
                     }
                 }
             }

@@ -18,6 +18,5 @@ sse_gateway_port: 3002
 use_app_shell: true
 use_oidc: true
 use_sse: true
-validation_credential_id: ei-test-env
 validation_image_name: registry:5000/electronics-inventory-validation
 validation_jenkins_job: ElectronicsInventoryValidation
