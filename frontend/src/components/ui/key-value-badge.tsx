@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Copy, Check, X } from 'lucide-react';
 import { Badge } from './badge';
 import { cn } from '@/lib/utils';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 
 // Subtle color palette for metric and attribute badges
 const COLOR_CLASSES = {
@@ -30,7 +31,7 @@ export interface KeyValueBadgeProps {
  *
  * Renders badges in `<key>: <value>` format with consistent semantic colors.
  * When `copyValue` is provided, hovering reveals a copy icon and clicking
- * copies the value to the clipboard (following the same pattern as LinkChip).
+ * copies the value to the clipboard.
  *
  * @example
  * <KeyValueBadge label="Total lines" value={42} color="neutral" testId="pick-lists.detail.badge.total-lines" />
@@ -39,31 +40,16 @@ export interface KeyValueBadgeProps {
 export const KeyValueBadge = React.forwardRef<HTMLSpanElement, KeyValueBadgeProps>(
   ({ label, value, color = 'neutral', testId, copyValue }, ref) => {
     const colorClasses = COLOR_CLASSES[color];
-    const [copyState, setCopyState] = React.useState<'idle' | 'success' | 'error'>('idle');
+    const { copyState, copy } = useCopyToClipboard();
 
     const handleCopy = React.useCallback(
       (event: React.MouseEvent<HTMLSpanElement>) => {
         event.stopPropagation();
-        if (!copyValue) {
-          return;
-        }
-        try {
-          void navigator.clipboard.writeText(copyValue).then(
-            () => {
-              setCopyState('success');
-              setTimeout(() => setCopyState('idle'), 1500);
-            },
-            () => {
-              setCopyState('error');
-              setTimeout(() => setCopyState('idle'), 1500);
-            },
-          );
-        } catch {
-          setCopyState('error');
-          setTimeout(() => setCopyState('idle'), 1500);
+        if (copyValue) {
+          copy(copyValue);
         }
       },
-      [copyValue],
+      [copyValue, copy],
     );
 
     if (!copyValue) {
@@ -79,8 +65,6 @@ export const KeyValueBadge = React.forwardRef<HTMLSpanElement, KeyValueBadgeProp
       );
     }
 
-    // Guidepost: Copyable variant — group container expands right padding on hover
-    // to accommodate the copy button, matching the LinkChip unlink pattern.
     return (
       <span
         role="button"
