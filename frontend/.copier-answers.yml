@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v0.18.0
+_commit: v0.18.1
 _src_path: ../../ModernAppTemplate/frontend
 author_email: pvginkel@gmail.com
 author_name: Pieter van Ginkel
@@ -9,6 +9,7 @@ backend_port: 3001
 backend_repo_url: https://github.com/pvginkel/ElectronicsInventory.git
 frontend_jenkins_job: ElectronicsInventoryUI
 frontend_port: 3000
+generate_validation_pipeline: true
 image_name: registry:5000/electronics-inventory-ui
 project_description: Electronics Inventory
 project_name: electronics-inventory
