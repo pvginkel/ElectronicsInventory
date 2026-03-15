@@ -123,7 +123,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
                                           value: "electronics-inventory-validation"
                         """.stripIndent())
 
-                        kubectl.waitForJob(jobName, k8sNamespace)
+                        kubectl.waitForJobContainer(jobName, 'validation', k8sNamespace)
 
                         def podName = kubectl.getJobPodName(jobName, k8sNamespace)
                         kubectl.savePodLogs(podName, 'validation', k8sNamespace, 'validation-raw.log')
