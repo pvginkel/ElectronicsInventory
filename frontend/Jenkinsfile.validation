@@ -18,14 +18,12 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
         def k8sNamespace = kubectl.currentNamespace()
 
         stage('Clone repo') {
-            git branch: 'main',
-                credentialsId: '5f6fbd66-b41c-405f-b107-85ba6fd97f10',
-                url: 'https://github.com/pvginkel/ElectronicsInventoryUI.git'
+            checkout scm
         }
 
         stage('Resolve image pair') {
             copyArtifacts(
-                projectName: 'ElectronicsInventory',
+                projectName: 'ElectronicsInventory/ElectronicsInventory',
                 selector: params.BACKEND_BUILD ? specific(params.BACKEND_BUILD) : lastSuccessful(),
                 filter: 'backend-build.json',
                 target: 'backend-meta',
@@ -33,7 +31,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
             )
 
             copyArtifacts(
-                projectName: 'ElectronicsInventoryUI',
+                projectName: 'ElectronicsInventory/ElectronicsInventoryUI',
                 selector: params.FRONTEND_BUILD ? specific(params.FRONTEND_BUILD) : lastSuccessful(),
                 filter: 'frontend-build.json',
                 target: 'frontend-meta',

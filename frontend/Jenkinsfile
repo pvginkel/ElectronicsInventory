@@ -5,9 +5,7 @@ library('JenkinsPipelineUtils') _
 podTemplate(inheritFrom: 'jenkins-agent kaniko') {
     node(POD_LABEL) {
         stage('Cloning repo') {
-            git branch: 'main',
-                credentialsId: '5f6fbd66-b41c-405f-b107-85ba6fd97f10',
-                url: 'https://github.com/pvginkel/ElectronicsInventoryUI.git'
+            checkout scm
         }
 
         stage("Building electronics-inventory") {
@@ -39,7 +37,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko') {
         }
 
         stage('Start validation') {
-            build job: 'ElectronicsInventoryValidation',
+            build job: 'ElectronicsInventory/Validation',
                 wait: false,
                 parameters: [
                     string(name: 'FRONTEND_BUILD', value: "${currentBuild.number}"),
