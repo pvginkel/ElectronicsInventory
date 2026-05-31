@@ -37,7 +37,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko') {
         }
 
         stage('Start validation') {
-            build job: 'ElectronicsInventory/Validation',
+            build job: 'Validation',
                 wait: false,
                 parameters: [
                     string(name: 'FRONTEND_BUILD', value: "${currentBuild.number}"),
