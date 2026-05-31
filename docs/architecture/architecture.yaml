@@ -1,0 +1,111 @@
+schemaVersion: "0.1"
+producer: electronics-inventory
+
+# ─────────────────────────────────────────────────────────────────────
+# Electronics Inventory — Flask BFF backend for the hobby electronics
+# parts inventory. This is the backend producer only; the SPA frontend
+# is a separate producer and is intentionally not modelled here.
+# ─────────────────────────────────────────────────────────────────────
+
+applicationComponents:
+  - id: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    label: Electronics Inventory
+    summary: Flask BFF backend for the hobby electronics parts inventory.
+    introduced: 2025-08-22
+    lifecycle: active
+    stereotype: SoftwareProduct
+    sourceRepository: "git:pvginkel/ElectronicsInventory"
+    stats:
+      image: "registry:5000/electronics-inventory"
+
+applicationServices:
+  - id: svc:electronics-inventory-api,2f8b6c1e-4d3a-4b9c-8a7f-6e5d4c3b2a19
+    label: Electronics Inventory API
+    summary: Internal HTTP API consumed by the Electronics Inventory SPA frontend.
+    introduced: 2025-08-22
+    lifecycle: active
+
+  # ── External SaaS / in-house services this backend consumes ──────────
+  # OpenAI is a shared external service: declared once in the `architecture`
+  # base set (svc:openai-api,b4e2a983-…) and referenced by UUID below.
+  - id: svc:mouser-api,5e8a1c4f-2d7b-4a9e-8c6f-3b1d9e7a5c2f
+    label: Mouser API
+    summary: External Mouser Search API used for electronics part lookup.
+    introduced: 2025-08-22
+    lifecycle: active
+    stats:
+      homepage: "https://www.mouser.com"
+
+  - id: svc:google-favicon,50f8a3d1-7c2e-4b6a-9e1f-8d3c5a2b4f7e
+    label: Google Favicon Service
+    summary: External Google favicon service queried server-side to fetch seller/site favicons for URL thumbnails.
+    introduced: 2025-08-22
+    lifecycle: active
+    stats:
+      homepage: "https://www.google.com/s2/favicons"
+
+applicationInterfaces:
+  - id: if:electronics-inventory-api-http,7c4e9a2b-1f6d-4e8a-9b3c-5a2d8f1e7b4c
+    label: Electronics Inventory API (HTTP)
+    summary: HTTP surface of the Electronics Inventory API for the SPA consumer.
+    introduced: 2025-08-22
+    lifecycle: active
+
+relations:
+  # The product realises its exposed API service.
+  - id: rel:ei-realizes-api
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: svc:electronics-inventory-api,2f8b6c1e-4d3a-4b9c-8a7f-6e5d4c3b2a19
+    type: Realization
+  # The SPA HTTP interface is assigned to the API service.
+  - id: rel:ei-http-if-assignment
+    source: if:electronics-inventory-api-http,7c4e9a2b-1f6d-4e8a-9b3c-5a2d8f1e7b4c
+    target: svc:electronics-inventory-api,2f8b6c1e-4d3a-4b9c-8a7f-6e5d4c3b2a19
+    type: Assignment
+
+  # ── Consumption edges: substitutable capabilities (boundBy REQUIRED) ──
+  # Relational database (PostgreSQL).
+  - id: rel:ei-consumes-relational-database
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: cap:relational-database
+    type: Association
+    boundBy: "env:DATABASE_URL"
+  # Object storage (S3 / Ceph RGW).
+  - id: rel:ei-consumes-object-storage
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: cap:object-storage
+    type: Association
+    boundBy: "env:S3_ENDPOINT_URL"
+  # IAM (OIDC issuer).
+  - id: rel:ei-consumes-iam
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: cap:iam
+    type: Association
+    boundBy: "env:OIDC_ISSUER_URL"
+
+  # ── Consumption edges: specific external services ────────────────────
+  # OpenAI API — endpoint is the SDK default (OpenAI(api_key=...) with no
+  # base_url override and no OPENAI_BASE_URL env var), so no boundBy recipe.
+  - id: rel:ei-consumes-openai
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: svc:openai-api,b4e2a983-5c32-4ed1-94a1-6231a2112ccb
+    type: Association
+  # Mouser API — base URL is hardcoded in mouser_service.py (no env var
+  # carries the endpoint), so no boundBy recipe.
+  - id: rel:ei-consumes-mouser
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: svc:mouser-api,5e8a1c4f-2d7b-4a9e-8c6f-3b1d9e7a5c2f
+    type: Association
+  # Google Favicon Service — URL hardcoded in url_thumbnail_service.py;
+  # fetched server-side via requests.get, so a real dependency but no env recipe.
+  - id: rel:ei-consumes-google-favicon
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: svc:google-favicon,50f8a3d1-7c2e-4b6a-9e1f-8d3c5a2b4f7e
+    type: Association
+  # SSE Gateway — in-house external service; the backend posts events to it
+  # and polls its /readyz. Endpoint carried by SSE_GATEWAY_URL, so boundBy set.
+  - id: rel:ei-consumes-sse-gateway
+    source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
+    target: svc:ssegateway,59a7d043-bb0c-4e44-a8b8-3e943338f807
+    type: Association
+    boundBy: "env:SSE_GATEWAY_URL"
