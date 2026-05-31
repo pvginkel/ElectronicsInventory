@@ -70,12 +70,14 @@ relations:
     target: cap:relational-database
     type: Association
     boundBy: "env:DATABASE_URL"
+    boundByDefaultValue: "postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory"
   # Object storage (S3 / Ceph RGW).
   - id: rel:ei-consumes-object-storage
     source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
     target: cap:object-storage
     type: Association
     boundBy: "env:S3_ENDPOINT_URL"
+    boundByDefaultValue: "http://localhost:9000"
   # IAM (OIDC issuer).
   - id: rel:ei-consumes-iam
     source: app:electronics-inventory,9a37e1d4-5b2c-4f6a-8e3d-1c0b9a8f7e6d
@@ -109,3 +111,4 @@ relations:
     target: svc:ssegateway,59a7d043-bb0c-4e44-a8b8-3e943338f807
     type: Association
     boundBy: "env:SSE_GATEWAY_URL"
+    boundByDefaultValue: "http://localhost:3002"
