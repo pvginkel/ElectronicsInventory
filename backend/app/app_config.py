@@ -75,7 +75,7 @@ class AppEnvironment(BaseSettings):
         description="OpenAI API key for AI features",
     )
     OPENAI_MODEL: str = Field(
-        default="gpt-5.5",
+        default="gpt-5.4-mini",
         description="OpenAI model to use for AI analysis",
     )
     OPENAI_REASONING_EFFORT: str = Field(
