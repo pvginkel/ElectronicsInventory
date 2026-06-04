@@ -57,6 +57,6 @@ The part being analyzed is: {{ analysis_query }}
 # Important Notes
 
 - **Validation is critical**: Always verify the datasheet matches before extracting specs
-- **Use exact normalization**: Follow all formatting rules (voltage with V, dimensions with ×, etc.)
+- **Use exact normalization**: Follow all formatting rules below — `product_name` is a dense technical spec line (per the per-category templates), `package_type` is a footprint code or null (never `Module`/`Through-Hole`), `series` is a family token only, and voltage/dimension formatting is mandatory
 - **Null for unknowns**: Never guess or infer - use null when information is missing
 - **Complete extraction**: Include all fields you can find (package, pins, voltages, dimensions, etc.)
