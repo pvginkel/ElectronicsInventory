@@ -59,6 +59,13 @@ def pytest_configure(config: pytest.Config) -> None:
         )
     try:
         urllib.request.urlopen(endpoint, timeout=3)
+    except urllib.error.HTTPError:
+        # Any HTTP status proves the endpoint is up and speaking HTTP, which is
+        # all this check is for. An unauthenticated GET / is not meant to
+        # succeed: MinIO answers 403 where Ceph RGW happens to answer 200.
+        # HTTPError subclasses both URLError and OSError, so it must be caught
+        # before them or a healthy MinIO reads as unreachable.
+        pass
     except (urllib.error.URLError, OSError, TimeoutError):
         pytest.exit(
             f"S3 storage is not reachable at {endpoint}. "
