@@ -1,0 +1,138 @@
+/**
+ * App-specific theme overrides for Electronics Inventory.
+ * Contains EI brand colors, component category colors, and domain-specific utilities.
+ * App-owned — not overwritten by template updates.
+ */
+
+@layer base {
+  :root {
+    /* EI brand palette (teal, hue 165) — overrides neutral template defaults */
+    --foreground: 170 41% 10%;
+    --card: 160 33% 97%;
+    --card-foreground: 170 41% 10%;
+    --popover-foreground: 170 41% 10%;
+    --primary: 165 68% 46%;
+    --primary-foreground: 170 59% 11%;
+    --secondary: 214 32% 91%;          /* ≈ slate-200 */
+    --secondary-foreground: 215 25% 27%; /* ≈ slate-700 */
+    --muted: 165 24% 94%;
+    --muted-foreground: 165 14% 54%;
+    --accent: 165 56% 91%;
+    --accent-foreground: 170 59% 11%;
+    --destructive: 0 52% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 165 22% 87%;
+    --input: 165 22% 87%;
+    --ring: 165 68% 46%;
+    --link: 165 68% 46%;
+    --link-hover: 165 71% 41%;
+    --success: 165 72% 43%;
+    --success-foreground: 170 59% 11%;
+    --info: 190 61% 47%;
+    --info-foreground: 190 69% 10%;
+
+    /* Component category colors */
+    --electronics-resistor: 45 93% 47%;
+    --electronics-capacitor: 262 83% 58%;
+    --electronics-ic: 217 91% 60%;
+    --electronics-mechanical: 142 71% 45%;
+    --electronics-connector: 24 70% 50%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* EI dark mode teal overrides */
+      --background: 165 16% 8%;
+      --foreground: 165 39% 92%;
+      --card: 165 19% 7%;
+      --card-foreground: 165 39% 92%;
+      --popover: 165 16% 10%;
+      --popover-foreground: 165 39% 92%;
+      --primary: 165 82% 46%;
+      --primary-foreground: 165 73% 8%;
+      --secondary: 215 25% 27%;          /* ≈ slate-700 */
+      --secondary-foreground: 210 40% 96%; /* ≈ slate-100 */
+      --muted: 165 15% 13%;
+      --muted-foreground: 165 10% 52%;
+      --accent: 165 74% 25%;
+      --accent-foreground: 165 73% 90%;
+      --destructive: 0 59% 60%;
+      --destructive-foreground: 0 55% 7%;
+      --border: 165 15% 25%;
+      --input: 165 15% 25%;
+      --ring: 165 82% 46%;
+      --link: 165 74% 57%;
+      --link-hover: 165 82% 46%;
+      --success: 165 69% 52%;
+      --success-foreground: 165 73% 8%;
+      --warning: 49 82% 47%;
+      --warning-foreground: 49 72% 8%;
+      --info: 191 64% 53%;
+      --info-foreground: 191 74% 9%;
+
+      /* Electronics category colors for dark mode */
+      --electronics-resistor: 45 60% 50%;
+      --electronics-capacitor: 262 55% 55%;
+      --electronics-ic: 217 55% 55%;
+      --electronics-mechanical: 142 50% 46%;
+      --electronics-connector: 24 55% 52%;
+    }
+  }
+}
+
+/* EI-specific category border utilities */
+@utility category-resistor {
+  border-left: 3px solid hsl(var(--electronics-resistor));
+}
+
+@utility category-capacitor {
+  border-left: 3px solid hsl(var(--electronics-capacitor));
+}
+
+@utility category-ic {
+  border-left: 3px solid hsl(var(--electronics-ic));
+}
+
+@utility category-mechanical {
+  border-left: 3px solid hsl(var(--electronics-mechanical));
+}
+
+@utility category-connector {
+  border-left: 3px solid hsl(var(--electronics-connector));
+}
+
+/* AI-assisted button glare effect */
+@utility ai-glare {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
+    width: 50%;
+    transform: translateX(-200%) skewX(-10deg);
+    z-index: 1;
+  }
+
+  &:hover::before {
+    transform: translateX(400%) skewX(-10deg);
+    transition: transform 1s ease-out;
+  }
+}
+
+@layer components {
+  /* AI Assisted Button Glare Animation keyframes */
+  @keyframes glare-sweep {
+    0% {
+      transform: translateX(-100%) skewX(-15deg);
+    }
+    100% {
+      transform: translateX(200%) skewX(-15deg);
+    }
+  }
+}

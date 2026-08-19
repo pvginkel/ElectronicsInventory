@@ -1,0 +1,36 @@
+import { useMemo } from 'react';
+import { useGetAttachmentSetsAttachmentsBySetId } from '@/lib/api/generated/hooks';
+
+export function useAttachmentSetDocuments(attachmentSetId: number | undefined) {
+  const query = useGetAttachmentSetsAttachmentsBySetId(
+    { path: { set_id: attachmentSetId ?? 0 } },
+    { enabled: !!attachmentSetId }
+  );
+
+  const documents = useMemo(() => {
+    if (!query.data) return [];
+
+    return query.data.map(attachment => ({
+      id: attachment.id.toString(), // Convert number to string for consistency
+      name: attachment.title,
+      // Map attachment_type to our type format
+      // The lightweight schema uses 'url', 'image', or 'pdf'
+      // We normalize 'image' and 'pdf' to 'file' type
+      type: attachment.attachment_type === 'url' ? 'url' as const : 'file' as const,
+      attachmentType: attachment.attachment_type, // Preserve original type for accurate display
+      url: attachment.url || null,
+      filename: null, // Not available in lightweight list schema
+      fileSize: null, // Not available in lightweight list schema
+      mimeType: null, // Not available in lightweight list schema
+      createdAt: '', // Not available in lightweight list schema
+      previewUrl: attachment.preview_url || null,
+      attachmentUrl: attachment.attachment_url || null,
+      has_image: attachment.preview_url !== null,
+    }));
+  }, [query.data]);
+
+  return {
+    ...query,
+    documents,
+  };
+}

@@ -1,0 +1,39 @@
+import {
+  usePutAttachmentSetsCoverBySetId,
+} from '@/lib/api/generated/hooks';
+import { useQueryClient } from '@tanstack/react-query';
+
+// Role constants for mutation gating
+import { putAttachmentSetsCoverBySetIdRole } from '@/lib/api/generated/roles';
+/** @public */
+export { putAttachmentSetsCoverBySetIdRole };
+
+/**
+ * Hook to set a cover attachment for an attachment set.
+ * After setting the cover, invalidates both attachment-set and parent entity queries.
+ */
+export function useSetAttachmentSetCover() {
+  const queryClient = useQueryClient();
+  const mutation = usePutAttachmentSetsCoverBySetId();
+
+  return {
+    ...mutation,
+    mutateAsync: async (variables: { attachmentSetId: number; attachmentId: number }) => {
+      const result = await mutation.mutateAsync({
+        path: { set_id: variables.attachmentSetId },
+        body: { attachment_id: variables.attachmentId }
+      });
+
+      // Invalidate attachment-set queries
+      await queryClient.invalidateQueries({
+        queryKey: ['getAttachmentSetsAttachmentsBySetId', { path: { set_id: variables.attachmentSetId } }]
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['getAttachmentSetsCoverBySetId', { path: { set_id: variables.attachmentSetId } }]
+      });
+
+      return result;
+    }
+  };
+}
+

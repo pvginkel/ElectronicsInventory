@@ -1,0 +1,40 @@
+import { test, expect } from '../../support/fixtures';
+import type { TestEvent, ListLoadingTestEvent } from '@/lib/test/test-events';
+
+function hasListEvent(events: TestEvent[], scope: string, phase: ListLoadingTestEvent['phase']): boolean {
+  return events.some(event => {
+    if (event.kind !== 'list_loading') {
+      return false;
+    }
+    return event.scope === scope && event.phase === phase;
+  });
+}
+
+test.describe.parallel('Seed dataset bootstrap', () => {
+test('boxes list shows seeded inventory', async ({ boxes, testEvents }) => {
+  await testEvents.clearEvents();
+  await boxes.gotoList();
+
+  const events = await testEvents.getEvents();
+  expect(hasListEvent(events, 'boxes.list', 'loading')).toBeTruthy();
+  expect(hasListEvent(events, 'boxes.list', 'ready')).toBeTruthy();
+
+  await boxes.expectCardVisible(1);
+  await boxes.expectCardVisible(10);
+});
+
+  test('parts list includes seeded shift register', async ({ parts, testEvents }) => {
+    await testEvents.clearEvents();
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    const events = await testEvents.getEvents();
+    expect(hasListEvent(events, 'parts.list', 'loading')).toBeTruthy();
+    expect(hasListEvent(events, 'parts.list', 'ready')).toBeTruthy();
+
+    // Verify specific seeded part is present
+    await expect(parts.cardByKey('ABCD')).toBeVisible();
+    // Verify at least one shift register is visible (there may be multiple)
+    await expect(parts.cardByDescription(/shift register/i).first()).toBeVisible();
+  });
+});

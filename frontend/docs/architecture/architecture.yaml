@@ -1,0 +1,73 @@
+schemaVersion: "0.1"
+producer: electronics-inventory-ui
+
+# ─────────────────────────────────────────────────────────────────────
+# Electronics Inventory UI — the React/Vite single-page web app (SPA)
+# for the hobby electronics parts inventory. This is the frontend
+# producer only; the Flask BFF backend is a separate producer
+# (electronics-inventory) and is intentionally not modelled here.
+#
+# The SPA is served as static assets by an in-container nginx, which
+# also reverse-proxies /api/** (and /api/sse/**) to the backend and SSE
+# gateway on the same origin. The browser therefore makes all calls to
+# its own origin; its architectural dependencies are the backend API and
+# the in-house SSE gateway it streams live updates from.
+# ─────────────────────────────────────────────────────────────────────
+
+applicationComponents:
+  - id: app:electronics-inventory-ui,31069366-0e8b-4b4e-895b-77beb8023b47
+    label: Electronics Inventory UI
+    summary: React + Vite single-page web app (SPA) for the hobby electronics parts inventory.
+    introduced: 2025-08-22
+    lifecycle: active
+    stereotype: SoftwareProduct
+    sourceRepository: "git:pvginkel/ElectronicsInventoryUI"
+    stats:
+      image: "registry:5000/electronics-inventory-ui"
+
+applicationServices:
+  - id: svc:electronics-inventory-ui-web,36921b9b-7eef-400f-89f0-7771a9fb48e4
+    label: Electronics Inventory Web UI
+    summary: The web UI delivered over HTTP to end-user browsers (static SPA assets served by nginx).
+    introduced: 2025-08-22
+    lifecycle: active
+
+applicationInterfaces:
+  - id: if:electronics-inventory-ui-http,64fb86af-ccca-4cd2-a890-df8f52409acb
+    label: Electronics Inventory Web UI (HTTP)
+    summary: HTTP surface serving the SPA to the end-user browser consumer.
+    introduced: 2025-08-22
+    lifecycle: active
+
+relations:
+  # The product realises its exposed web UI service.
+  - id: rel:eiui-realizes-web
+    source: app:electronics-inventory-ui,31069366-0e8b-4b4e-895b-77beb8023b47
+    target: svc:electronics-inventory-ui-web,36921b9b-7eef-400f-89f0-7771a9fb48e4
+    type: Realization
+  # The browser HTTP interface is assigned to the web UI service.
+  - id: rel:eiui-http-if-assignment
+    source: if:electronics-inventory-ui-http,64fb86af-ccca-4cd2-a890-df8f52409acb
+    target: svc:electronics-inventory-ui-web,36921b9b-7eef-400f-89f0-7771a9fb48e4
+    type: Assignment
+
+  # ── Outbound consumption: the SPA consumes the backend API ───────────
+  # frontend → backend. The browser calls /api/** on its own origin and
+  # nginx reverse-proxies to the backend, so no env var carries the API
+  # base URL (the generated client uses an empty baseUrl). No boundBy
+  # recipe exists; the logical edge stands on its own.
+  # Cross-producer target: svc:electronics-inventory-api owned by the
+  # `electronics-inventory` (backend) producer; uuid resolved from that
+  # repo's local checkout. Dangles until the backend producer publishes.
+  - id: rel:eiui-consumes-backend-api
+    source: app:electronics-inventory-ui,31069366-0e8b-4b4e-895b-77beb8023b47
+    target: svc:electronics-inventory-api,2f8b6c1e-4d3a-4b9c-8a7f-6e5d4c3b2a19
+    type: Association
+
+  # ── frontend → SSE gateway ───────────────────────────────────────────
+  # The SPA opens an EventSource to /api/sse/** which nginx proxies to the
+  # in-house SSE gateway (same origin → no boundBy). Cross-producer svc.
+  - id: rel:eiui-consumes-sse-gateway
+    source: app:electronics-inventory-ui,31069366-0e8b-4b4e-895b-77beb8023b47
+    target: svc:ssegateway,59a7d043-bb0c-4e44-a8b8-3e943338f807
+    type: Association

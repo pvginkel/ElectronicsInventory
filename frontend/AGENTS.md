@@ -1,0 +1,131 @@
+# Electronics Inventory Frontend – Agent Notes
+
+Keep this file light and point contributors to the canonical documentation.
+
+## Core References
+
+- `docs/product_brief.md` — product context and workflows the app must serve.
+- `docs/contribute/index.md` — contributor hub with setup, environment, testing, and how-to guides.
+- `docs/contribute/architecture/application_overview.md` — architecture snapshot of React 19 + TanStack Router/Query, generated API client, Tailwind, and Vite.
+- `docs/contribute/testing/playwright_developer_guide.md` — Playwright usage, selector strategy, factories, and instrumentation checklist.
+
+## Sandbox Environment
+
+- Backend and frontend worktrees are bind-mounted into `/work` inside the container.
+- Each repository’s `.git` directory is mapped read-only, so staging or committing must happen outside the sandbox.
+- The container includes the standard project toolchain; request Dockerfile updates if more tooling is needed.
+- With Git safeguarded externally, no additional safety guardrails are enforced beyond the project’s own guidelines.
+
+### Playwright Test Requirements (Review Before Every Change)
+
+- `docs/contribute/testing/index.md` — high-level testing principles, mandatory real-backend policy, and backend coordination steps.
+- `docs/contribute/testing/playwright_developer_guide.md` — authoring patterns, backend extension expectations, and deterministic workflows.
+- `docs/contribute/testing/factories_and_fixtures.md` — API factory usage and the prohibition on request interception.
+- `docs/contribute/testing/ci_and_execution.md` — execution policies, managed services, and headless rules.
+
+Designers drafting plans and developers implementing Playwright work must re-read these documents before touching the suite.
+
+## Architecture Snapshot
+
+- Modern React 19 + TypeScript app with TanStack Router/Query and generated OpenAPI hooks.
+- Domain-driven folder layout (`src/components/<domain>`, `src/hooks`, `src/lib/{api,test,utils}`) — see the architecture overview doc for details.
+- Custom hooks wrap generated API clients and map snake_case payloads to camelCase models before reaching components.
+
+## Working Guidelines
+
+1. Follow the patterns documented in the contributor guides; prefer extending existing abstractions over introducing new ones.
+2. Use the generated API hooks and centralized error handling — avoid ad hoc `fetch` or manual toast logic.
+3. Keep instrumentation behind `isTestMode()` and follow the documented test-event taxonomy when enhancing visibility.
+4. When in doubt, defer to `docs/contribute/` rather than copying guidance back into this file.
+5. Treat instrumentation as part of the UI contract. Add or update `useListLoadingInstrumentation` and `trackForm*` hooks alongside any new loading or mutation flow.
+6. For tooltips, use the shared `Tooltip` component or plain `title` attribute — never create bespoke tooltip implementations. See `docs/contribute/ui/tooltip_guidelines.md` for the decision tree and usage patterns.
+
+## Role Gating
+
+- **`Gate` component** (`src/components/auth/gate.tsx`): Declarative role gate. Accepts `requires` (a `RequiredRole` or array) and optional `fallback`. When the user lacks the role and no fallback is provided, nothing renders. When a fallback is given (e.g., a disabled button), it renders in place of the children.
+- **`usePermissions` hook** (`src/hooks/use-permissions.ts`): Wraps `useAuthContext()` and exposes `hasRole(role)` for imperative checks. `Gate` uses this internally.
+- **Generated role constants** (`src/lib/api/generated/roles.ts`): Every protected endpoint produces a role constant. Import the constant next to the hook that triggers that endpoint and pass it to `Gate requires={...}`.
+- **ESLint rule** (`role-gating/role-import-enforcement`): Enforces that mutation hook imports are paired with their role constant imports. Violations are compile errors.
+- **Backend enforcement**: The frontend Gate is a UX convenience -- the backend enforces `x-required-role` on every endpoint regardless of frontend gating.
+- **Playwright coverage**: `tests/e2e/auth/role-gating.spec.ts` verifies reader-role and editor-role visibility across boxes, parts, kits, and pick-lists. See `docs/features/role_gating_playwright/plan.md` for the full test plan.
+
+### Gate enforcement checklist
+
+Apply this checklist to every UI element you add or modify.
+
+**What must be gated**: Any interactive element (button, icon button, form, drag handle) that directly or indirectly triggers an endpoint for which a role constant exists in `src/lib/api/generated/roles.ts`. This includes flows that eventually lead to a mutation — for example, an "AI Analysis" button triggers `postAiPartsAnalyzeRole` (even though the write happens at the end of the workflow) and must be gated.
+
+**Skeleton parity**: When the loaded state wraps an action in `<Gate>`, the skeleton placeholder for that same slot must be wrapped in the identical `<Gate>`. A reader must not see a skeleton button that silently vanishes when data loads. Wrap the skeleton button in the same gate, keeping it `disabled`.
+
+**Fallback vs. silent hide**:
+- Use a `fallback` (disabled button, optionally with a `title` tooltip) for prominent, top-level actions where a reader should understand that the action exists but is unavailable to them.
+- Omit the `fallback` (silent hide) for secondary, destructive, or contextual actions where showing a disabled affordance adds no value.
+
+**Non-button interactions**: For drag-and-drop or other non-button interactive surfaces, use `usePermissions().hasRole(...)` to derive a boolean and pass it to the component to disable the interaction (e.g., set `draggable={false}` or omit drag event handlers).
+
+**Choosing the role constant**: Use the role constant that corresponds to the first protected endpoint in the flow. If a single button can trigger several endpoints, gate on the most permissive one (in practice all resolve to `"editor"`, so any constant from the relevant domain works).
+
+**Import discipline**: Always import the role constant in the same file as the hook or callback it guards. The ESLint rule enforces pairing for mutation hooks; apply the same discipline manually for non-mutation hooks.
+
+## UI & Playwright Coupling
+
+- Ship instrumentation changes and matching Playwright coverage in the same slice; a UI feature is incomplete without automated verification.
+- Extend or add specs before calling the work done. Tests must wait on emitted `ListLoading`/`Form` events and assert real backend state via the documented helpers.
+- Update instrumentation first when adding flows so the tests can consume the events without ad hoc waits.
+
+
+## Development Workflow (Quick Links)
+
+- Setup & scripts: `docs/contribute/getting_started.md`
+- Environment variables & ports: `docs/contribute/environment.md`
+- Commands reference: `pnpm dev`, `pnpm check`, `pnpm generate:api`, `pnpm build`, `pnpm preview`
+- Playwright execution: `pnpm playwright test`, `pnpm playwright test --debug` (headless by default). Detailed policies live in `docs/contribute/testing/ci_and_execution.md`.
+
+## Verification Before Handoff
+
+- Follow `docs/contribute/testing/ci_and_execution.md#local-run-expectations` before delivering a plan or code slice: `pnpm check` must pass, every touched Playwright spec must be re-run and green, and your final message should call out the commands you executed.
+
+## Readability Comments
+
+- Add short “guidepost” comments in non-trivial functions to outline the flow or highlight invariants.
+- Keep existing explanatory comments unless they are clearly wrong; prefer updating over deleting.
+- Focus on intent-level commentary (why/what) rather than narrating obvious statements (how).
+
+## Definition of Done
+
+- TypeScript strict mode passes; no `any` without justification.
+- Generated API types, TanStack Query, and automatic error handling are used consistently.
+- UI state reflects camelCase domain models produced by custom hooks.
+- Playwright specs are created or updated in the same change, rely on the documented instrumentation events (no `page.route`/`mockSSE`), and keep `testing/no-route-mocks` green.
+
+## Command Templates
+
+For structured tasks use the command templates under `docs/commands/`:
+- Create product brief: `@docs/commands/create_brief.md`
+- Plan feature: `@docs/commands/plan_feature.md`
+- Review plan: `@docs/commands/review_plan.md`
+- Perform code review: `@docs/commands/code_review.md`
+
+Refer back to this file only as a launchpad; the authoritative content lives in the linked docs.
+
+## Tips and tricks
+
+This project contains quite a few files with $ in their name. You can't use these file names verbatim in shell commands. E.g. the following command will given an error:
+
+```bash
+head src/routes/shopping-lists/$listId.tsx
+```
+
+This is because `$listId` expands to an empty string (assuming the environment variable is not defined).
+
+Whenever you want to use such a filename in a shell command, escape the `$` sign like this:
+
+```bash
+head src/routes/shopping-lists/\$listId.tsx
+```
+
+## Federated architecture model
+
+We take part in a federated Architecture-as-Code model. The architecture for this repository is maintained in `docs/architecture/architecture.yaml`. Whenever a change is made in this repo that could impact an Enterprise Architecture / ArchiMate model modeling everything owned by this repo, nudge the user to spawn the `update-architecture` agent. The agent is incremental, so it's not a hard requirement that it runs on every change. Nudge a bit harder when significant changes are made (new managed host, new daemon, removed service, renamed external identity). When you are performing work unattended, feel free to invoke the agent yourself.
+
+The tooling is installed on the operator's filesystem (not in this repo): the `/seed-architecture` skill (one-shot, authors the first artifact) and the `update-architecture` agent (permanent, incremental). Generated producers — those whose `docs/architecture/*.yaml` is a build output from a generator + annotation layer — use the `update-architecture-generated` agent instead, which edits the annotations and never the output. The producer manual at `~/.claude/architecture/producer-manual.md` is the authoritative vocabulary reference; the skill and agents read it from the operator's filesystem on startup.

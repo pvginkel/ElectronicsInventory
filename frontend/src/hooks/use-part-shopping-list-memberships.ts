@@ -1,0 +1,252 @@
+import { useCallback } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api/generated/client';
+import { toApiError } from '@/lib/api/api-error';
+import {
+  type PartShoppingListMembershipQueryResponseSchema_d085feb,
+  type PartShoppingListMembershipQueryResponseSchema_d085feb_PartShoppingListMembershipQueryItemSchema,
+  type PartShoppingListMembershipQueryResponseSchema_d085feb_PartShoppingListMembershipSchema,
+  type PartShoppingListMembershipQueryResponseSchema_d085feb_SellerListSchema,
+} from '@/lib/api/generated/hooks';
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import type {
+  ShoppingListMembership,
+  ShoppingListMembershipSummary,
+  ShoppingListSellerSummary,
+} from '@/types/shopping-lists';
+import {
+  normalizeMembershipKeys,
+  useMembershipLookup,
+} from '@/hooks/use-membership-lookup';
+
+const MEMBERSHIP_QUERY_KEY = ['parts.shoppingListMemberships'] as const;
+
+type MembershipQueryResult = PartShoppingListMembershipQueryResponseSchema_d085feb;
+type MembershipQueryItem = PartShoppingListMembershipQueryResponseSchema_d085feb_PartShoppingListMembershipQueryItemSchema;
+type MembershipSchema = PartShoppingListMembershipQueryResponseSchema_d085feb_PartShoppingListMembershipSchema;
+type MembershipQueryKey = [typeof MEMBERSHIP_QUERY_KEY[number], { partKeys: string[]; includeDone: boolean }];
+
+function normalizePartKey(candidate: string): string | null {
+  if (typeof candidate !== 'string') {
+    return null;
+  }
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function membershipQueryKey(partKeys: string[], includeDone: boolean): MembershipQueryKey {
+  return [MEMBERSHIP_QUERY_KEY[0], { partKeys, includeDone }] as const;
+}
+
+async function fetchPartMemberships(partKeys: string[], includeDone: boolean): Promise<MembershipQueryResult> {
+  const { data, error } = await api.POST('/api/parts/shopping-list-memberships/query', {
+    body: {
+      part_keys: partKeys,
+      include_done: includeDone,
+    },
+  });
+  if (error) {
+    throw toApiError(error);
+  }
+  return data;
+}
+
+function mapSeller(
+  seller: PartShoppingListMembershipQueryResponseSchema_d085feb_SellerListSchema | null
+): ShoppingListSellerSummary | null {
+  if (!seller) {
+    return null;
+  }
+  return {
+    id: seller.id,
+    name: seller.name,
+    website: seller.website ?? null,
+    logoUrl: seller.logo_url ?? null,
+  };
+}
+
+function mapMembership(raw: MembershipSchema): ShoppingListMembership {
+  const note = typeof raw.note === 'string' ? raw.note.trim() : '';
+  return {
+    listId: raw.shopping_list_id,
+    listName: raw.shopping_list_name,
+    listStatus: raw.shopping_list_status,
+    lineId: raw.line_id,
+    lineStatus: raw.line_status,
+    needed: raw.needed,
+    ordered: raw.ordered,
+    received: raw.received,
+    note: note.length > 0 ? note : null,
+    seller: mapSeller(raw.seller ?? null),
+  };
+}
+
+function createSummary(partKey: string, memberships: ShoppingListMembership[]): ShoppingListMembershipSummary {
+  const activeMemberships = memberships.filter(
+    membership => membership.listStatus !== 'done' && membership.lineStatus !== 'done'
+  );
+
+  const listNames = Array.from(new Set(activeMemberships.map(membership => membership.listName)));
+  const activeListIds = Array.from(new Set(activeMemberships.map(membership => membership.listId)));
+
+  return {
+    partKey,
+    memberships,
+    hasActiveMembership: activeMemberships.length > 0,
+    listNames,
+    activeListIds,
+    activeCount: activeMemberships.length,
+    completedCount: memberships.length - activeMemberships.length,
+  };
+}
+
+function createEmptySummary(partKey: string): ShoppingListMembershipSummary {
+  return {
+    partKey,
+    memberships: [],
+    hasActiveMembership: false,
+    listNames: [],
+    activeListIds: [],
+    activeCount: 0,
+    completedCount: 0,
+  };
+}
+
+function mapQueryItem(item: MembershipQueryItem, includeDone: boolean): ShoppingListMembershipSummary {
+  const memberships = (item.memberships ?? []).map(mapMembership);
+  const filtered = includeDone
+    ? memberships
+    : memberships.filter(
+        membership => membership.listStatus !== 'done' && membership.lineStatus !== 'done'
+      );
+  return createSummary(item.part_key.trim(), filtered);
+}
+
+function buildSummaryResults(
+  originalKeys: string[],
+  uniqueKeys: string[],
+  response: MembershipQueryResult | undefined,
+  includeDone: boolean
+): { ordered: ShoppingListMembershipSummary[]; byKey: Map<string, ShoppingListMembershipSummary> } {
+  const byPartKey = new Map<string, ShoppingListMembershipSummary>();
+
+  for (const key of uniqueKeys) {
+    if (!byPartKey.has(key)) {
+      byPartKey.set(key, createEmptySummary(key));
+    }
+  }
+
+  const items = response?.memberships ?? [];
+  for (const item of items) {
+    const partKey = typeof item.part_key === 'string' ? item.part_key.trim() : '';
+    if (!partKey) {
+      continue;
+    }
+    const summary = mapQueryItem(item, includeDone);
+    byPartKey.set(partKey, summary);
+  }
+
+  const ordered = originalKeys.map(partKey => {
+    const summary = byPartKey.get(partKey);
+    if (summary) {
+      return summary;
+    }
+    const fallback = createEmptySummary(partKey);
+    byPartKey.set(partKey, fallback);
+    return fallback;
+  });
+
+  return { ordered, byKey: byPartKey };
+}
+
+interface UsePartShoppingListMembershipsOptions {
+  includeDone?: boolean;
+}
+
+export function usePartShoppingListMemberships(
+  partKey: string | undefined,
+  options?: UsePartShoppingListMembershipsOptions
+) {
+  const lookup = useMembershipLookup<string, MembershipQueryResult, ShoppingListMembershipSummary>({
+    keys: partKey,
+    includeDone: options?.includeDone,
+    normalizeKey: normalizePartKey,
+    queryKey: membershipQueryKey,
+    queryFn: fetchPartMemberships,
+    buildSummaries: ({ originalKeys, uniqueKeys, response, includeDone }) =>
+      buildSummaryResults(originalKeys, uniqueKeys, response, includeDone),
+  });
+
+  const fallbackKey = typeof partKey === 'string' ? normalizePartKey(partKey) ?? '' : '';
+  const summary = lookup.summaries[0] ?? createEmptySummary(fallbackKey);
+
+  const getReadyMetadata = useCallback(
+    () => ({
+      partKey: summary.partKey,
+      activeCount: summary.activeCount,
+    }),
+    [summary.activeCount, summary.partKey]
+  );
+
+  const getErrorMetadata = useCallback(
+    (error: unknown) => ({
+      partKey: summary.partKey,
+      message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
+    }),
+    [summary.partKey]
+  );
+
+  const getAbortedMetadata = useCallback(
+    () => ({
+      partCount: lookup.keys.length,
+    }),
+    [lookup.keys.length]
+  );
+
+  useListLoadingInstrumentation({
+    scope: 'parts.detail.shoppingLists',
+    isLoading: lookup.query.isLoading,
+    isFetching: lookup.query.isFetching,
+    error: lookup.query.error,
+    getReadyMetadata,
+    getErrorMetadata,
+    getAbortedMetadata,
+  });
+
+  return {
+    ...lookup.query,
+    memberships: summary.memberships,
+    summary,
+    hasActiveMembership: summary.hasActiveMembership,
+    listNames: summary.listNames,
+    activeListIds: summary.activeListIds,
+    activeCount: summary.activeCount,
+    completedCount: summary.completedCount,
+    partKeys: lookup.keys,
+    summaryByPartKey: lookup.summaryByKey,
+  };
+}
+
+export function invalidatePartMemberships(queryClient: QueryClient, partKeys: string | string[]): void {
+  const normalized = normalizeMembershipKeys<string>(partKeys, normalizePartKey);
+  if (normalized.unique.length === 0) {
+    return;
+  }
+
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      const key = query.queryKey;
+      if (!Array.isArray(key)) {
+        return false;
+      }
+      if (key[0] !== MEMBERSHIP_QUERY_KEY[0]) {
+        return false;
+      }
+      const params = key[1] as { partKeys?: string[] } | undefined;
+      if (!params?.partKeys) {
+        return false;
+      }
+      return normalized.unique.some(partKey => params.partKeys?.includes(partKey));
+    },
+  });
+}

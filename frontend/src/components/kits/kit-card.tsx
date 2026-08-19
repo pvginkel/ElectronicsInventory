@@ -1,0 +1,257 @@
+import type { ReactNode } from 'react';
+import { CardDescription, CardTitle } from '@/components/primitives/card';
+import { CardLink } from '@/components/ui/card-link';
+import { QuantityBadge, StatusBadge } from '@/components/ui';
+import { MembershipTooltipContent, type MembershipTooltipContentItem } from '@/components/parts/membership-tooltip-content';
+import { MembershipIndicator } from '@/components/parts/membership-indicator';
+import { CoverImageDisplay } from '@/components/documents/cover-image-display';
+import type {
+  KitSummary,
+  KitShoppingListMembershipSummary,
+  KitPickListMembershipSummary,
+} from '@/types/kits';
+import { ClipboardList, ShoppingCart } from 'lucide-react';
+
+interface MembershipIndicatorState<TSummary> {
+  summary: TSummary | undefined;
+  status: 'pending' | 'error' | 'success';
+  fetchStatus: 'idle' | 'fetching' | 'paused';
+  error: unknown;
+}
+
+interface KitCardProps {
+  kit: KitSummary;
+  shoppingIndicator: MembershipIndicatorState<KitShoppingListMembershipSummary>;
+  pickIndicator: MembershipIndicatorState<KitPickListMembershipSummary>;
+  to: string;
+  params: Record<string, string>;
+  search?: Record<string, unknown>;
+}
+
+export function KitCard({
+  kit,
+  shoppingIndicator,
+  pickIndicator,
+  to,
+  params,
+  search,
+}: KitCardProps) {
+  const hasDescription = Boolean(kit.description && kit.description.trim().length > 0);
+
+  const showShoppingIndicator = shouldShowIndicator(shoppingIndicator, kitHasShoppingMembership);
+  const showPickIndicator = shouldShowIndicator(pickIndicator, kitHasOpenPickList);
+
+  return (
+    <CardLink
+      to={to}
+      params={params}
+      search={search}
+      data-testid={`kits.overview.card.${kit.id}`}
+    >
+      <div className="flex flex-col gap-1">
+        {/* Row 1: Title and build target */}
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="text-xl font-semibold leading-tight">{kit.name}</CardTitle>
+          <div className="flex items-center gap-2">
+            <QuantityBadge
+              quantity={kit.buildTarget}
+              testId={`kits.overview.card.${kit.id}.quantity`}
+            />
+            {kit.status === 'archived' && (
+              <StatusBadge
+                color="inactive"
+                label="Archived"
+                testId={`kits.overview.card.${kit.id}.status`}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Description and activity icons */}
+        <div className="flex items-center justify-between gap-3">
+          {hasDescription ? (
+            <CardDescription className="line-clamp-2 text-sm text-muted-foreground flex-1">
+              {kit.description}
+            </CardDescription>
+          ) : <div className="flex-1" />}
+          <div
+            className="flex items-center gap-2 shrink-0"
+            data-testid={`kits.overview.card.${kit.id}.activity`}
+          >
+            {showShoppingIndicator ? (
+              <MembershipIndicator<KitShoppingListMembershipSummary>
+                summary={shoppingIndicator.summary}
+                status={shoppingIndicator.status}
+                fetchStatus={shoppingIndicator.fetchStatus}
+                error={shoppingIndicator.error}
+                testId={`kits.overview.card.${kit.id}.shopping-indicator`}
+                icon={ShoppingCart}
+                ariaLabel={getKitShoppingIndicatorLabel}
+                hasMembership={kitHasShoppingMembership}
+                renderTooltip={renderKitShoppingTooltip}
+                errorMessage="Failed to load kit shopping list memberships."
+              />
+            ) : null}
+            {showPickIndicator ? (
+              <MembershipIndicator<KitPickListMembershipSummary>
+                summary={pickIndicator.summary}
+                status={pickIndicator.status}
+                fetchStatus={pickIndicator.fetchStatus}
+                error={pickIndicator.error}
+                testId={`kits.overview.card.${kit.id}.pick-indicator`}
+                icon={ClipboardList}
+                ariaLabel={getKitPickIndicatorLabel}
+                hasMembership={kitHasOpenPickList}
+                renderTooltip={renderKitPickTooltip}
+                errorMessage="Failed to load kit pick list memberships."
+              />
+            ) : null}
+          </div>
+        </div>
+
+        {/* Cover Image - full content width, 16:9 aspect ratio, below content */}
+        <CoverImageDisplay
+          kitId={kit.id.toString()}
+          coverUrl={kit.coverUrl}
+          size="large"
+          className="!w-full !h-auto aspect-video mt-4"
+          showPlaceholder={true}
+        />
+      </div>
+    </CardLink>
+  );
+}
+
+function shouldShowIndicator<TSummary>(
+  indicator: MembershipIndicatorState<TSummary>,
+  predicate: (summary: TSummary) => boolean
+): boolean {
+  if (indicator.status === 'pending') {
+    return true;
+  }
+  if (indicator.fetchStatus === 'fetching') {
+    return true;
+  }
+  if (indicator.status === 'error') {
+    return true;
+  }
+  if (!indicator.summary) {
+    return false;
+  }
+  return predicate(indicator.summary);
+}
+
+function kitHasShoppingMembership(summary: KitShoppingListMembershipSummary): boolean {
+  return summary.hasActiveMembership;
+}
+
+function kitHasOpenPickList(summary: KitPickListMembershipSummary): boolean {
+  return summary.hasOpenMembership;
+}
+
+function getKitShoppingIndicatorLabel(summary: KitShoppingListMembershipSummary): string {
+  const count = summary.activeCount;
+  const noun = count === 1 ? 'shopping list' : 'shopping lists';
+  return `Kit appears on ${count} ${noun}`;
+}
+
+function getKitPickIndicatorLabel(summary: KitPickListMembershipSummary): string {
+  const count = summary.openCount;
+  const noun = count === 1 ? 'open pick list' : 'open pick lists';
+  return `Kit has ${count} ${noun}`;
+}
+
+function renderKitShoppingTooltip(summary: KitShoppingListMembershipSummary): ReactNode {
+  const items: MembershipTooltipContentItem[] = summary.memberships.map((membership) => {
+    const metadata: ReactNode[] = [];
+
+    if (membership.requestedUnits > 0) {
+      const unitNoun = membership.requestedUnits === 1 ? 'unit' : 'units';
+      metadata.push(<span key="units">{`${membership.requestedUnits} ${unitNoun}`}</span>);
+    }
+
+    if (membership.honorReserved) {
+      metadata.push(
+        <span key="reserved" className="font-medium text-muted-foreground/80">
+          Honors reservations
+        </span>
+      );
+    }
+
+    return {
+      id: membership.id,
+      label: membership.listName,
+      statusBadge: (
+        <StatusBadge
+          color={membership.status === 'active' ? 'active' : 'inactive'}
+          label={membership.status === 'active' ? 'Active' : 'Completed'}
+          size="default"
+          testId=""
+        />
+      ),
+      link: {
+        to: '/shopping-lists/$listId',
+        params: { listId: String(membership.listId) },
+        search: { sort: 'description', originSearch: undefined },
+      },
+      metadata: metadata.length > 0 ? metadata : undefined,
+    };
+  });
+
+  return (
+    <MembershipTooltipContent
+      heading="Linked shopping lists"
+      items={items}
+      emptyMessage="No active shopping lists."
+    />
+  );
+}
+
+function renderKitPickTooltip(summary: KitPickListMembershipSummary): ReactNode {
+  const items: MembershipTooltipContentItem[] = summary.memberships.map((membership) => {
+    const metadata: ReactNode[] = [];
+
+    metadata.push(
+      <span key="lines">
+        {membership.openLineCount} {membership.openLineCount === 1 ? 'open line' : 'open lines'}
+      </span>
+    );
+
+    metadata.push(
+      <span key="remaining">
+        {membership.remainingQuantity}{' '}
+        {membership.remainingQuantity === 1 ? 'remaining item' : 'items remaining'}
+      </span>
+    );
+
+    if (membership.requestedUnits > 0) {
+      metadata.push(
+        <span key="units">
+          {membership.requestedUnits} {membership.requestedUnits === 1 ? 'unit' : 'units'}
+        </span>
+      );
+    }
+
+    return {
+      id: membership.id,
+      label: `Pick list #${membership.id}`,
+      statusBadge: (
+        <StatusBadge
+          color="active"
+          label={membership.status === 'open' ? 'Open' : 'Closed'}
+          size="default"
+          testId=""
+        />
+      ),
+      metadata,
+    };
+  });
+
+  return (
+    <MembershipTooltipContent
+      heading="Open pick lists"
+      items={items}
+      emptyMessage="No open pick lists."
+    />
+  );
+}
