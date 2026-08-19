@@ -1,0 +1,3 @@
+backend:  cd backend && PORT=3001 poetry run dev
+frontend: cd frontend && pnpm dev
+gateway:  scripts/dev-sse-gateway.sh

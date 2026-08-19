@@ -16,7 +16,6 @@
     "generate:api": "node scripts/generate-api.js --fetch",
     "generate:api:build": "node scripts/generate-api.js --cache-only",
     "verify:build": "node scripts/verify-production-build.cjs",
-    "dev:sse-gateway": "bash scripts/dev-sse-gateway.sh",
     "playwright": "playwright",
     "test:unit": "vitest run",
     "docs:dev": "vitepress dev docs",

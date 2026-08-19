@@ -1,0 +1,9 @@
+/logs
+/tmp
+/test_results.md
+.pnpm-store
+__pycache__
+.venv/
+.claude/sessions/
+node_modules
+*.tsbuildinfo

@@ -1,0 +1,33 @@
+# Curated build/test/lint entry points for the Electronics Inventory monorepo.
+#
+# The test verbs delegate to the root suite runner (`poetry run run-suite`,
+# tools/suite_runner) so that local runs and the Jenkins validation job execute
+# exactly the same steps in the same order. run-suite lives in the *root*
+# poetry environment, hence the `cd ..` on the per-component test statements.
+
+projects:
+  root:
+    description: Electronics Inventory — hobby electronics parts inventory (Flask backend + React frontend).
+    jenkins: ElectronicsInventory
+    setup: poetry install --no-interaction
+    build: poetry install --no-interaction
+
+  backend:
+    description: Flask backend — parts inventory API, SQLAlchemy models, S3 attachments and AI helpers.
+    setup:
+      - poetry env use "$(command -v python3.13 || command -v python3)"
+      - poetry install --no-interaction
+    build:
+      - poetry env use "$(command -v python3.13 || command -v python3)"
+      - poetry install --no-interaction
+    test: cd .. && poetry run run-suite --suite backend
+    lint: poetry run check
+
+  frontend:
+    description: React + Vite frontend — TanStack Router UI, generated OpenAPI client and the Playwright suite.
+    setup: pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+    build:
+      - pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+      - pnpm build
+    test: cd .. && poetry run run-suite --suite frontend
+    lint: pnpm run check
