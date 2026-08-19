@@ -267,7 +267,7 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
         # for STARTUP notifications will be invoked here.
         container.lifecycle_coordinator().fire_startup()
 
-    app.wsgi_app = ProxyFix(
+    app.wsgi_app = ProxyFix(  # type: ignore[method-assign]
         app.wsgi_app,
         x_proto=1,
         x_host=1,
