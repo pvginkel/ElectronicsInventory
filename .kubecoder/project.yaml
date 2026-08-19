@@ -1,33 +1,47 @@
 # Curated build/test/lint entry points for the Electronics Inventory monorepo.
 #
-# The test verbs delegate to the root suite runner (`poetry run run-suite`,
-# tools/suite_runner) so that local runs and the Jenkins validation job execute
-# exactly the same steps in the same order. run-suite lives in the *root*
-# poetry environment, hence the `cd ..` on the per-component test statements.
+# `kc project` is pure-local: it runs each statement as a subprocess in the dev
+# container, which carries no language toolchain. Poetry and pnpm live in the
+# `modern-app` tool sidecar, so every statement goes through `cexec modern-app`.
+#
+# The test verbs delegate to the root suite runner (tools/suite_runner) so local
+# runs and the Jenkins validation job execute the same steps in the same order.
+# run-suite lives in the *root* poetry environment, hence the `cd ..` on the
+# per-component test statements.
 
 projects:
   root:
-    description: Electronics Inventory — hobby electronics parts inventory (Flask backend + React frontend).
+    description: >-
+      Electronics Inventory monorepo — a Flask BFF backend and a React SPA,
+      plus the suite runner, the honcho dev stack and CI.
     jenkins: ElectronicsInventory
-    setup: poetry install --no-interaction
-    build: poetry install --no-interaction
+    setup: cexec modern-app poetry install --no-interaction
+    build: cexec modern-app poetry install --no-interaction
 
   backend:
-    description: Flask backend — parts inventory API, SQLAlchemy models, S3 attachments and AI helpers.
+    description: >-
+      Flask BFF backend — parts inventory API, SQLAlchemy models, S3 attachments,
+      SSE notifications and the OpenAI-backed part analysis helpers.
     setup:
-      - poetry env use "$(command -v python3.13 || command -v python3)"
-      - poetry install --no-interaction
+      - cexec modern-app poetry install --no-interaction
     build:
-      - poetry env use "$(command -v python3.13 || command -v python3)"
-      - poetry install --no-interaction
-    test: cd .. && poetry run run-suite --suite backend
-    lint: poetry run check
+      - cexec modern-app poetry install --no-interaction
+    test: cd .. && cexec modern-app poetry run run-suite --suite backend
+    lint:
+      - cexec modern-app poetry run ruff check .
+      - cexec modern-app poetry run mypy .
+      - cexec modern-app poetry run vulture app/ vulture_whitelist.py --min-confidence 80
 
   frontend:
-    description: React + Vite frontend — TanStack Router UI, generated OpenAPI client and the Playwright suite.
-    setup: pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+    description: >-
+      React 19 + Vite SPA with TanStack Router/Query and a generated OpenAPI
+      client; Playwright E2E suite that boots the backend, SSE gateway and
+      frontend per worker.
+    setup:
+      - cexec modern-app pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+      - cexec modern-app pnpm playwright install chromium
     build:
-      - pnpm install --frozen-lockfile --config.confirmModulesPurge=false
-      - pnpm build
-    test: cd .. && poetry run run-suite --suite frontend
-    lint: pnpm run check
+      - cexec modern-app pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+      - cexec modern-app pnpm build
+    test: cd .. && cexec modern-app poetry run run-suite --suite frontend
+    lint: cexec modern-app pnpm check
