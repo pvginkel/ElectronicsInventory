@@ -5,9 +5,12 @@
 # `modern-app` sidecar (Node 24 + pnpm + the Chromium system libraries,
 # plus uv/Poetry/Ruff).
 #
-# No data sidecars: the backend test suite runs against in-memory SQLite, and
-# attachment storage points at the shared Ceph RGW S3 endpoint — the same shape
-# the CI validation job uses, which runs with no sidecars either.
+# No database sidecar: the backend test suite runs against in-memory SQLite.
+# S3 attachment storage does need a real endpoint, though — the backend test
+# fixtures hard-fail when the bucket check fails — so a MinIO sidecar provides
+# it locally. CI differs deliberately: the Jenkins validation job talks to the
+# shared Ceph RGW endpoint with credentials injected from Vault, which is why it
+# needs no sidecar of its own.
 
 cwd: ElectronicsInventory
 
@@ -16,6 +19,12 @@ capabilities:
 
 tools:
   - use: modern-app
+
+# S3-compatible object storage for the backend's attachment handling. Not
+# exposed: it is reached on localhost from the modern-app sidecar, which is
+# where the suites actually run.
+services:
+  - minio
 
 # Projected from the deployment's secret catalog; the backend's AI helpers need it.
 secrets:
@@ -46,11 +55,13 @@ preamble:
     invoking poetry or pnpm directly; both toolchains live in the `modern-app`
     tool sidecar, so ad-hoc commands need `cexec modern-app ...`.
 
-    Tests need no data services: the backend suite runs on in-memory SQLite and
-    the Playwright suite boots its own backend, SSE gateway and frontend per
-    worker. S3 attachment storage points at the shared Ceph RGW endpoint via
-    `backend/.env` / `backend/.env.test`, which are gitignored and local to the
-    environment.
+    The backend suite runs on in-memory SQLite and the Playwright suite boots
+    its own backend, SSE gateway and frontend per worker, so there is no
+    database sidecar. S3 attachment storage does need a live endpoint — the test
+    fixtures abort when the bucket check fails — and it comes from the `minio`
+    sidecar on localhost:9000, configured in `backend/.env` / `backend/.env.test`
+    (gitignored, local to this environment). CI instead points at the shared
+    Ceph RGW endpoint with credentials from Vault.
 
     `./scripts/dev.py` starts the dev stack (backend :3001, frontend :3000,
     SSE gateway :3002) via honcho.
