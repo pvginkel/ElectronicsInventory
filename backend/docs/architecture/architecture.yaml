@@ -3,8 +3,11 @@ producer: electronics-inventory
 
 # ─────────────────────────────────────────────────────────────────────
 # Electronics Inventory — Flask BFF backend for the hobby electronics
-# parts inventory. This is the backend producer only; the SPA frontend
-# is a separate producer and is intentionally not modelled here.
+# parts inventory.
+#
+# This is one of two artifacts published by the single `electronics-inventory`
+# producer (the monorepo). The SPA frontend is modelled alongside it in
+# frontend/docs/architecture/architecture.yaml — same producer, separate file.
 # ─────────────────────────────────────────────────────────────────────
 
 applicationComponents:

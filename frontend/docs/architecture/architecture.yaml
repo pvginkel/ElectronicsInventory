@@ -1,11 +1,13 @@
 schemaVersion: "0.1"
-producer: electronics-inventory-ui
+producer: electronics-inventory
 
 # ─────────────────────────────────────────────────────────────────────
 # Electronics Inventory UI — the React/Vite single-page web app (SPA)
-# for the hobby electronics parts inventory. This is the frontend
-# producer only; the Flask BFF backend is a separate producer
-# (electronics-inventory) and is intentionally not modelled here.
+# for the hobby electronics parts inventory.
+#
+# This is one of two artifacts published by the single `electronics-inventory`
+# producer (the monorepo). The Flask BFF backend is modelled alongside it in
+# backend/docs/architecture/architecture.yaml — same producer, separate file.
 #
 # The SPA is served as static assets by an in-container nginx, which
 # also reverse-proxies /api/** (and /api/sse/**) to the backend and SSE
@@ -21,7 +23,7 @@ applicationComponents:
     introduced: 2025-08-22
     lifecycle: active
     stereotype: SoftwareProduct
-    sourceRepository: "git:pvginkel/ElectronicsInventoryUI"
+    sourceRepository: "git:pvginkel/ElectronicsInventory"
     stats:
       image: "registry:5000/electronics-inventory-ui"
 
@@ -56,9 +58,8 @@ relations:
   # nginx reverse-proxies to the backend, so no env var carries the API
   # base URL (the generated client uses an empty baseUrl). No boundBy
   # recipe exists; the logical edge stands on its own.
-  # Cross-producer target: svc:electronics-inventory-api owned by the
-  # `electronics-inventory` (backend) producer; uuid resolved from that
-  # repo's local checkout. Dangles until the backend producer publishes.
+  # Target svc:electronics-inventory-api is declared by this same producer,
+  # in backend/docs/architecture/architecture.yaml.
   - id: rel:eiui-consumes-backend-api
     source: app:electronics-inventory-ui,31069366-0e8b-4b4e-895b-77beb8023b47
     target: svc:electronics-inventory-api,2f8b6c1e-4d3a-4b9c-8a7f-6e5d4c3b2a19

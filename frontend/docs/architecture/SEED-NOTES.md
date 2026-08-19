@@ -6,7 +6,10 @@ borderline elements defaulted to `out` per the inclusion rule.
 
 ## Identity (fixed by the operator, not re-derived)
 
-- Producer id: `electronics-inventory-ui`
+- Producer id: `electronics-inventory-ui` — **superseded.** When the backend and
+  frontend repos were merged into one monorepo, the two producers were folded
+  into the single `electronics-inventory` producer. Element ids below are
+  unchanged; only the artifact's `producer:` stamp and `sourceRepository` moved.
 - Mode: hand-authored, mint-once uuid4.
 - `introduced` = this repo's first commit date `2025-08-22`
   (`git log --reverse --format=%ad --date=short | head -1`), same on every element.

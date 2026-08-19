@@ -1,0 +1,43 @@
+// Architecture producer pipeline for the federated Architecture-as-Code model.
+//
+// This repository publishes ONE producer (`electronics-inventory`), covering
+// both the backend and the frontend. Both artifact sets are hand-authored:
+// the source of truth is backend/docs/architecture/*.yaml and
+// frontend/docs/architecture/*.yaml. Nothing here is generated.
+//
+// The agent needs outbound HTTPS to architecture.webathome.org for validation.
+// arch-validate.py is stdlib-only, so the python container needs no pip install.
+
+library identifier: 'JenkinsPipelineUtils', changelog: false
+
+podTemplate(inheritFrom: 'jenkins-agent', containers: [
+    containerTemplates.python('python')
+]) {
+    node(POD_LABEL) {
+        stage('Cloning repo') {
+            checkout scm
+        }
+
+        // NOTE: dir() only moves the cwd for `sh` steps — archiveArtifacts globs
+        // always resolve workspace-root-relative, so they stay at the top level
+        // and carry the subdirectory prefix themselves.
+        stage('Validate backend architecture') {
+            dir('backend') {
+                container('python') {
+                    sh '../scripts/arch-validate.py docs/architecture/*.yaml'
+                }
+            }
+        }
+
+        stage('Validate frontend architecture') {
+            dir('frontend') {
+                container('python') {
+                    sh '../scripts/arch-validate.py docs/architecture/*.yaml'
+                }
+            }
+        }
+
+        archiveArtifacts artifacts: 'backend/docs/architecture/*.yaml, frontend/docs/architecture/*.yaml',
+                         fingerprint: true
+    }
+}
