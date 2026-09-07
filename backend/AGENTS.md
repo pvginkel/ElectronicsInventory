@@ -18,10 +18,12 @@ app/
 
 ## Sandbox Environment
 
-- Backend and frontend worktrees are bind-mounted into `/work` inside the container.
-- Each repository’s `.git` directory is mapped read-only, so staging or committing must happen outside the sandbox.
-- The container includes the standard project toolchain; request Dockerfile updates if more tooling is needed.
-- With Git safeguarded externally, no additional safety guardrails are enforced beyond the project’s own guidelines.
+- Backend and frontend are one monorepo, checked out at `/work/ElectronicsInventory`. Git is fully
+  writable here — commit as you go.
+- The toolchain (Poetry, Node, pnpm) lives in the `modern-app` sidecar, not in this container:
+  prefix ad-hoc commands with `cexec modern-app …`, or use `kc project` from the repo root.
+- The full command set, the dev stack and where local config lives are in the root `CLAUDE.md` and
+  `docs/commands.md`.
 
 ## Deprecation and Backwards Compatibility
 
