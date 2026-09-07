@@ -1,0 +1,11 @@
+spec_repo = "../ElectronicsInventorySpecs"
+design_philosophy = "docs/change-discipline.md"
+
+[test_phase]
+strategy = "docs/slice-test-plan.md"
+
+[doc_phase]
+plan = "docs/slice-doc-plan.md"
+
+[push]
+enabled = true
