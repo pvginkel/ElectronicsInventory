@@ -98,15 +98,14 @@ Apply this checklist to every UI element you add or modify.
 - UI state reflects camelCase domain models produced by custom hooks.
 - Playwright specs are created or updated in the same change, rely on the documented instrumentation events (no `page.route`/`mockSSE`), and keep `testing/no-route-mocks` green.
 
-## Command Templates
+## Planned work
 
-For structured tasks use the command templates under `docs/commands/`:
-- Create product brief: `@docs/commands/create_brief.md`
-- Plan feature: `@docs/commands/plan_feature.md`
-- Review plan: `@docs/commands/review_plan.md`
-- Perform code review: `@docs/commands/code_review.md`
+Planning and execution belong to the `dev` plugin, which ships them: `/dev:triage` records a
+request as a slice, `/dev:plan-slice` plans it, `/dev:run-slice` executes it, and `/dev:arch-design`
+answers a cross-cutting design question first. Slices live in the spec repo named by the repo
+root's `.aiworkflowrc`; the rules a change obeys are in the root `docs/change-discipline.md`.
 
-Refer back to this file only as a launchpad; the authoritative content lives in the linked docs.
+When planning or implementing a feature, reference the product brief at `@docs/product_brief.md`.
 
 ## Tips and tricks
 

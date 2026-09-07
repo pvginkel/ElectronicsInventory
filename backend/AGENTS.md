@@ -575,17 +575,14 @@ poetry run python -m app.cli load-test-data --yes-i-am-sure
 
 The type sync is fully **idempotent** - running multiple times will only add missing types, never create duplicates.
 
-## Command Templates
+## Planned work
 
-The repository includes command templates for specific development workflows:
+Planning and execution belong to the `dev` plugin, which ships them: `/dev:triage` records a
+request as a slice, `/dev:plan-slice` plans it, `/dev:run-slice` executes it, and `/dev:arch-design`
+answers a cross-cutting design question first. Slices live in the spec repo named by the repo
+root's `.aiworkflowrc`; the rules a change obeys are in the root `docs/change-discipline.md`.
 
-- When writing a product brief: @docs/commands/create_brief.md
-- When planning a new feature: @docs/commands/plan_feature.md
-- When reviewing a plan: @docs/commands/review_plan.md
-- When doing code review: @docs/commands/code_review.md
-- When planning or implementing a new feature, reference the product brief at @docs/product_brief.md
-
-Use these files when the user asks you to perform the applicable action.
+When planning or implementing a feature, reference the product brief at @docs/product_brief.md.
 
 ## Federated architecture model
 

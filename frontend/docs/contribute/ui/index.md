@@ -25,6 +25,5 @@ Use these building-block docs whenever you extend a pattern. They summarize reus
 - [Contributor Hub](../index.md) for setup, environment, and process guidance.
 - [Architecture → Application Overview](../architecture/application_overview.md) for the React 19 + TanStack Router/Query stack and generated API client overview.
 - [Testing → Playwright Developer Guide](../testing/playwright_developer_guide.md) and [Testing → Factories & Fixtures](../testing/factories_and_fixtures.md) for real-backend execution rules and selector strategy.
-- [Commands → Plan Feature](../../commands/plan_feature.md) (updated to reference this suite) for the template that feature plans should follow.
 
 Re-read these documents whenever you touch the Playwright suite or introduce new UI surface types; they serve as the source of truth for consistency, instrumentation, and implementation detail.

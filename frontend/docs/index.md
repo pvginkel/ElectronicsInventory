@@ -29,6 +29,5 @@ features:
 - [Testing Guides](/contribute/testing/)
 - [Application Overview](/contribute/architecture/application_overview)
 - [Feature Plans](/features)
-- [Command Templates](/commands/create_brief)
 
 Need something else? The repository README contains project-level context, and `docs/pending_documentation` tracks future doc work.

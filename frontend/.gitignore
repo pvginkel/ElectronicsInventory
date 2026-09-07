@@ -2,6 +2,9 @@ node_modules
 .env
 .env.local
 /dist
+# `pnpm docs:build` output; the docs image builds it inside the container.
+/docs/.vitepress/dist
+/docs/.vitepress/cache
 .pnpm-store
 /browsers
 /.local
