@@ -74,9 +74,13 @@ cexec modern-app sh -c 'cd frontend && pnpm test:unit'      # vitest — see bel
 ### Dev stack
 
 ```bash
-./scripts/dev.py                      # honcho: backend :3001, frontend :3000, SSE gateway :3002
-./scripts/dev.py backend frontend     # subset (positional; honcho's -e is --env, not --except)
+cexec modern-app ./scripts/dev.py                    # honcho: backend :3001, frontend :3000, SSE gateway :3002
+cexec modern-app ./scripts/dev.py backend frontend   # subset (positional; honcho's -e is --env, not --except)
 ```
+
+`dev.py` runs honcho, and every Procfile line needs poetry, pnpm or node — none of
+which exist in the dev container — so the `cexec` prefix is not optional. VS Code's
+_Dev Services_ task in `ElectronicsInventory.code-workspace` runs exactly this.
 
 Per-service output is tee'd to `logs/<service>.log`. The same three ports are what
 `.kubecoder/config.yaml` exposes.
@@ -84,7 +88,7 @@ Per-service output is tee'd to `logs/<service>.log`. The same three ports are wh
 ### Regenerating the API client
 
 ```bash
-scripts/regenerate-openapi.py
+cexec modern-app scripts/regenerate-openapi.py
 ```
 
 Boots the backend on a free port, polls `/api/docs/openapi.json`, then runs
@@ -93,16 +97,19 @@ Boots the backend on a free port, polls `/api/docs/openapi.json`, then runs
 
 ### Database
 
-From `backend/`: `poetry run cli upgrade-db` applies migrations *and* syncs part types from
-`app/data/setup/types.txt`; `poetry run cli load-test-data --yes-i-am-sure` recreates the
-schema and loads the fixed dataset from `app/data/test_data/`. New migration:
-`poetry run alembic revision --autogenerate -m "..."` into `backend/alembic/versions/`
-(numbered `NNN_slug.py`).
+All from `backend/`, so through the sidecar as
+`cexec modern-app sh -c 'cd backend && …'`: `poetry run cli upgrade-db` applies migrations
+*and* syncs part types from `app/data/setup/types.txt`; `poetry run cli load-test-data
+--yes-i-am-sure` recreates the schema and loads the fixed dataset from `app/data/test_data/`.
+New migration: `poetry run alembic revision --autogenerate -m "..."` into
+`backend/alembic/versions/` (numbered `NNN_slug.py`).
 
 ### Architecture validation
 
 `scripts/arch-validate.py docs/architecture/*.yaml` (run from `backend/` or `frontend/`)
 POSTs the model to the federated architecture service; exit 0 valid, 1 invalid, 2 transport.
+It is stdlib-only, so it runs in the dev container with no `cexec` prefix, and it is the
+last statement of both components' `kc project lint`.
 
 ## Architecture
 
@@ -183,6 +190,13 @@ in CI it is a MinIO sidecar inside the validation pod.
 - Secrets and local config live in gitignored `backend/.env`, `backend/.env.test`, and
   `frontend/.env.test`; the committed templates are the `.env.example` files. `OIDC_ENABLED`
   is `false` locally, and the Playwright harness forces it off for its own processes.
+  `kc project setup` seeds `backend/.env` and `backend/.env.test` at the MinIO sidecar when
+  they do not exist — it never overwrites an existing file. `OPENAI_API_KEY` is projected as
+  an environment variable from the secret catalog, which beats the `.env` in
+  pydantic-settings, so it does not belong in either file.
+- `/work/ElectronicsInventorySpecs` is the AI workflow's spec repository, a shared clone
+  mounted into every environment of this project by `.kubecoder/config.yaml`. It is not part
+  of this repository and `kc project` knows nothing about it.
 - CI is one root `Jenkinsfile`: a throwaway k8s Job runs `run-suite --output-mode full`, then
   three kaniko image builds (`electronics-inventory`, `-ui`, `-docs`) and a Helm deploy.
 - Filenames containing `$` (TanStack route params, e.g. `src/routes/parts/$partId.tsx`) must
