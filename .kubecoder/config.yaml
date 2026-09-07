@@ -7,7 +7,11 @@
 # worker and so needs both toolsets in one container.
 #
 # No database sidecar: the backend test suite runs against in-memory SQLite and
-# the Playwright harness seeds a per-worker SQLite file. S3 attachment storage
+# the Playwright harness seeds a per-worker SQLite file. That covers both
+# suites, but NOT the honcho dev stack, which gets the code default
+# `postgresql+psycopg://…@localhost:5432` and has nothing to talk to — see the
+# preamble. Adding `postgres` here is the fix if the dev stack is wanted;
+# it is an open question for the operator, not an oversight. S3 attachment storage
 # does need a real endpoint, though — the backend test fixtures hard-fail when
 # `S3_ENDPOINT_URL` is unreachable — so a MinIO sidecar provides it locally.
 # CI does the same thing its own way: the Jenkins validation Job runs a `minio`
@@ -91,6 +95,17 @@ preamble:
     `kc project test` also leave `.mypy_cache`, `.pytest_cache` and
     `.ruff_cache` behind; every image build context excludes them, so a build
     after a lint run does not stream them to the builder.
+
+    **The dev stack has no database in this environment.** `DATABASE_URL`
+    defaults to `postgresql+psycopg://…@localhost:5432` and there is no postgres
+    sidecar, so `cexec modern-app ./scripts/dev.py` boots and serves the SPA,
+    and every data call answers 500 with `psycopg.OperationalError` —
+    `/health/readyz` says so itself (503, `database.connected: false`). Both
+    test suites are unaffected: they use SQLite by their own configuration.
+    Adding `postgres` to `services:` is the fix; pointing `DATABASE_URL` at
+    SQLite also works but then `alembic revision --autogenerate` generates
+    migrations against the wrong dialect. Neither has been done — it is an
+    operator decision.
 
     `/work/ElectronicsInventorySpecs` is a *shared* clone mounted into this pod.
     It is not a folder on this environment's own volume, and it is the AI

@@ -85,6 +85,13 @@ _Dev Services_ task in `ElectronicsInventory.code-workspace` runs exactly this.
 Per-service output is tee'd to `logs/<service>.log`. The same three ports are what
 `.kubecoder/config.yaml` exposes.
 
+**The dev stack needs a PostgreSQL, and a KubeCoder environment has none.**
+`DATABASE_URL` defaults to `postgresql+psycopg://…@localhost:5432`; with nothing
+listening there the SPA and `/health/healthz` are fine while every data call answers
+500 and `/health/readyz` returns 503 with `database.connected: false`. Both suites are
+unaffected — they configure SQLite themselves. Adding `postgres` to `services:` in
+`.kubecoder/config.yaml` is the fix; it has not been done.
+
 ### Regenerating the API client
 
 ```bash
