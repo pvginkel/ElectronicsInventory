@@ -2,21 +2,42 @@
 #
 # `kc project` is pure-local: it runs each statement as a subprocess in the dev
 # container, which carries no language toolchain. Poetry and pnpm live in the
-# `modern-app` tool sidecar, so every statement goes through `cexec modern-app`.
+# `modern-app` tool sidecar, so every toolchain statement goes through
+# `cexec modern-app`. Statements that need nothing but a shell or stdlib
+# python3 (the .env seeds, scripts/arch-validate.py) run bare — CI wraps the
+# validator in a `python` container only because a Jenkins agent has no Python.
 #
 # The test verbs delegate to the root suite runner (tools/suite_runner) so local
 # runs and the Jenkins validation job execute the same steps in the same order.
 # run-suite lives in the *root* poetry environment, hence the `cd ..` on the
 # per-component test statements.
+#
+# Container images are deliberately NOT wired into `build:`. Jenkins builds all
+# three (`electronics-inventory`, `-ui`, `-docs`) with `helmCharts.kaniko(...)`,
+# nothing builds them locally, and putting three image builds in the default
+# `kc project build` sweep would make the AI workflow's per-task gate cost
+# minutes. To prove one by hand, from the repository root:
+#     kaniko --dockerfile backend/Dockerfile  --context backend  --no-push
+#     kaniko --dockerfile frontend/Dockerfile --context frontend --no-push
+#     kaniko --dockerfile frontend/Dockerfile.docs --context frontend --no-push
 
 projects:
   root:
     description: >-
       Electronics Inventory monorepo — a Flask BFF backend and a React SPA,
       plus the suite runner, the honcho dev stack and CI.
-    jenkins: ElectronicsInventory
+    # The main build/deploy pipeline. A second job, `AaC/ElectronicsInventory`,
+    # runs Jenkinsfile.architecture (the architecture-as-code producer) off the
+    # same repository; `jenkins:` takes one name, so it is recorded here.
+    jenkins: ElectronicsInventory/ElectronicsInventory
+    # The root poetry environment exists only for tools/suite_runner and honcho,
+    # which is what the components' `test:` statements invoke.
     setup: cexec modern-app poetry install --no-interaction
-    build: cexec modern-app poetry install --no-interaction
+    # No `build:` — a poetry project has nothing to compile, and installing the
+    # dependencies is `setup:`'s job.
+    # No `test:`/`lint:` either. run-suite is CI's aggregate entry point; the
+    # components own the suites, and wiring it here as well would make
+    # `kc project test` run both suites twice.
 
   backend:
     description: >-
@@ -24,13 +45,25 @@ projects:
       SSE notifications and the OpenAI-backed part analysis helpers.
     setup:
       - cexec modern-app poetry install --no-interaction
-    build:
-      - cexec modern-app poetry install --no-interaction
+      # A fresh clone has neither .env nor .env.test (both gitignored), and the
+      # suite hard-exits in pytest_configure when S3_ENDPOINT_URL is unset, so
+      # seed both at the MinIO sidecar. `test -f` first, so an operator's own
+      # file is never overwritten. OPENAI_API_KEY is not seeded: it arrives as
+      # an environment variable from the secret catalog, which beats the
+      # env_file in pydantic-settings.
+      - "test -f .env || printf 'S3_ENDPOINT_URL=http://localhost:9000\\nS3_ACCESS_KEY_ID=minioadmin\\nS3_SECRET_ACCESS_KEY=minioadmin\\nS3_BUCKET_NAME=electronics-inventory-part-attachments\\n' > .env"
+      - "test -f .env.test || printf 'FLASK_ENV=testing\\nS3_ENDPOINT_URL=http://localhost:9000\\nS3_ACCESS_KEY_ID=minioadmin\\nS3_SECRET_ACCESS_KEY=minioadmin\\nS3_BUCKET_NAME=electronics-inventory-test-attachments\\n' > .env.test"
+    # No `build:` — see root.
     test: cd .. && cexec modern-app poetry run run-suite --suite backend
+    # Mirrors backend/scripts/check.py minus its pytest step, which is `test:`.
     lint:
       - cexec modern-app poetry run ruff check .
       - cexec modern-app poetry run mypy .
       - cexec modern-app poetry run vulture app/ vulture_whitelist.py --min-confidence 80
+      # The architecture-as-code producer CI validates in AaC/ElectronicsInventory.
+      # stdlib-only, so it runs in this container. Exit 0 valid, 1 invalid,
+      # 2 transport — a 2 is the validation service, not this repository.
+      - ../scripts/arch-validate.py docs/architecture/*.yaml
 
   frontend:
     description: >-
@@ -39,9 +72,19 @@ projects:
       frontend per worker.
     setup:
       - cexec modern-app pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+      # src/lib/api/generated/ and src/routeTree.gen.ts are gitignored, so a
+      # fresh clone cannot type-check until they exist. `generate:api:build` is
+      # the offline variant — it reads the committed openapi-cache/ rather than
+      # booting the backend. `pnpm build` re-runs both; `lint:` does not.
+      - cexec modern-app pnpm generate:api:build
+      - cexec modern-app pnpm generate:routes
       - cexec modern-app pnpm playwright install chromium
     build:
+      # The install stays here as well as in `setup:`: it is a no-op on a
+      # satisfied tree and it keeps a build honest after a lockfile change.
       - cexec modern-app pnpm install --frozen-lockfile --config.confirmModulesPurge=false
       - cexec modern-app pnpm build
     test: cd .. && cexec modern-app poetry run run-suite --suite frontend
-    lint: cexec modern-app pnpm check
+    lint:
+      - cexec modern-app pnpm check
+      - ../scripts/arch-validate.py docs/architecture/*.yaml

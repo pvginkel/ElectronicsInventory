@@ -1,18 +1,29 @@
 # KubeCoder environment manifest for the Electronics Inventory monorepo.
 #
-# One repository, two components: a Poetry/Flask backend and a pnpm/Vite
+# One primary repository, two components: a Poetry/Flask backend and a pnpm/Vite
 # frontend with a Playwright suite. Both toolchains come from the single
-# `modern-app` sidecar (Node 24 + pnpm + the Chromium system libraries,
-# plus uv/Poetry/Ruff).
+# `modern-app` sidecar (Node 24 + pnpm + the Chromium system libraries, plus
+# uv/Poetry/Ruff), because the Playwright harness boots the Python backend per
+# worker and so needs both toolsets in one container.
 #
-# No database sidecar: the backend test suite runs against in-memory SQLite.
-# S3 attachment storage does need a real endpoint, though — the backend test
-# fixtures hard-fail when the bucket check fails — so a MinIO sidecar provides
-# it locally. CI differs deliberately: the Jenkins validation job talks to the
-# shared Ceph RGW endpoint with credentials injected from Vault, which is why it
-# needs no sidecar of its own.
+# No database sidecar: the backend test suite runs against in-memory SQLite and
+# the Playwright harness seeds a per-worker SQLite file. S3 attachment storage
+# does need a real endpoint, though — the backend test fixtures hard-fail when
+# `S3_ENDPOINT_URL` is unreachable — so a MinIO sidecar provides it locally.
+# CI does the same thing its own way: the Jenkins validation Job runs a `minio`
+# sidecar beside the suite container and injects the same four `S3_*` variables
+# (Jenkinsfile, "Run validation").
 
 cwd: ElectronicsInventory
+
+# The spec repository the AI workflow (/dev:onboard, /dev:plan-slice) reads and
+# writes. Shared, so one clone is mounted into every environment of this project
+# rather than each of them holding its own. It is empty on GitHub today — a
+# shared entry with an unborn HEAD clones and mounts fine.
+repos:
+  - url: https://github.com/pvginkel/ElectronicsInventorySpecs
+    path: ElectronicsInventorySpecs
+    shared: true
 
 capabilities:
   github: rw
@@ -26,7 +37,15 @@ tools:
 services:
   - minio
 
+# The three images CI publishes (electronics-inventory, -ui, -docs) are built by
+# Jenkins with `helmCharts.kaniko(...)`, not by `kc project build` — see the
+# comment in project.yaml. The builder is on so those Dockerfiles can still be
+# proven in-env with a by-hand `kaniko --no-push`.
+imageBuilder: true
+
 # Projected from the deployment's secret catalog; the backend's AI helpers need it.
+# It arrives as an environment variable, which beats `backend/.env` in
+# pydantic-settings, so nothing has to write it to disk.
 secrets:
   OPENAI_API_KEY: openai-api-key
 
@@ -55,13 +74,24 @@ preamble:
     invoking poetry or pnpm directly; both toolchains live in the `modern-app`
     tool sidecar, so ad-hoc commands need `cexec modern-app ...`.
 
-    The backend suite runs on in-memory SQLite and the Playwright suite boots
-    its own backend, SSE gateway and frontend per worker, so there is no
-    database sidecar. S3 attachment storage does need a live endpoint — the test
-    fixtures abort when the bucket check fails — and it comes from the `minio`
-    sidecar on localhost:9000, configured in `backend/.env` / `backend/.env.test`
-    (gitignored, local to this environment). CI instead points at the shared
-    Ceph RGW endpoint with credentials from Vault.
+    The dev runner needs that prefix too — this container has no poetry, pnpm or
+    honcho, so it is `cexec modern-app ./scripts/dev.py`, not `./scripts/dev.py`
+    (backend :3001, frontend :3000, SSE gateway :3002).
 
-    `./scripts/dev.py` starts the dev stack (backend :3001, frontend :3000,
-    SSE gateway :3002) via honcho.
+    The backend suite runs on in-memory SQLite and the Playwright suite boots its
+    own backend, SSE gateway and frontend per worker, so there is no database
+    sidecar. S3 attachment storage does need a live endpoint — the test fixtures
+    abort when `S3_ENDPOINT_URL` is unset or unreachable — and it comes from the
+    `minio` sidecar on localhost:9000 (minioadmin/minioadmin). `kc project setup`
+    seeds `backend/.env` and `backend/.env.test` to point at it, only when they
+    do not already exist, so an operator's own files are never overwritten.
+
+    `kc project test` writes a gitignored, multi-megabyte `test_results.md` at
+    the repository root — grep it, never read it whole. `kc project lint` and
+    `kc project test` also leave `.mypy_cache`, `.pytest_cache` and
+    `.ruff_cache` behind; every image build context excludes them, so a build
+    after a lint run does not stream them to the builder.
+
+    `/work/ElectronicsInventorySpecs` is a *shared* clone mounted into this pod.
+    It is not a folder on this environment's own volume, and it is the AI
+    workflow's spec repository — not a sibling of the application code.
