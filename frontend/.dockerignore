@@ -60,3 +60,16 @@ pids
 
 # Generated API files (will be regenerated in container)
 src/lib/api/generated
+
+# Added during KubeCoder onboarding. CI builds from a clean clone, so none of
+# these exist there; in a dev environment they are the whole cost of the
+# context, and this Dockerfile does `COPY . .`, so they would land in the build
+# layer too. Both frontend images build from this same context directory —
+# `docs/` and `openapi-cache/` are inputs and must stay.
+.pnpm-store
+test-results
+playwright-report
+docs/.vitepress/dist
+docs/.vitepress/cache
+.claude
+.env.test

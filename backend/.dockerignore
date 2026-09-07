@@ -1,0 +1,27 @@
+# Read from the BUILD CONTEXT root, which for this image is `backend/` —
+# Jenkins builds it as helmCharts.kaniko("backend/Dockerfile", "backend", ...).
+# The repository-root .dockerignore is therefore never read by any build.
+#
+# Only entries that are definitionally not build inputs are listed: caches,
+# virtualenvs, local env files, editor and agent state, logs. Source trees are
+# deliberately left in, so a future `COPY` in the Dockerfile cannot silently
+# lose a file to this list.
+.git
+.venv
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage
+# Local configuration and credentials. `backend/.env` holds a real OpenAI key in
+# a KubeCoder environment; the Dockerfile never COPYs it, but without this line
+# it is still streamed to the builder on every build.
+.env
+.env.*
+.vscode
+.claude
+logs
+tmp
+*.log
