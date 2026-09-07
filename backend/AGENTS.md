@@ -23,7 +23,7 @@ app/
 - The toolchain (Poetry, Node, pnpm) lives in the `modern-app` sidecar, not in this container:
   prefix ad-hoc commands with `cexec modern-app …`, or use `kc project` from the repo root.
 - The full command set, the dev stack and where local config lives are in the root `CLAUDE.md` and
-  `docs/commands.md`.
+  the root `docs/commands.md`.
 
 ## Deprecation and Backwards Compatibility
 
