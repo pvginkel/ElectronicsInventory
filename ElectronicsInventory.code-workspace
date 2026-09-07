@@ -1,0 +1,40 @@
+{
+  // Folder names are derived from the paths: ElectronicsInventory, backend,
+  // frontend, ElectronicsInventorySpecs. The two component folders are listed
+  // as well as the root so each one's .vscode/settings.json applies to it.
+  //
+  // ElectronicsInventorySpecs is the AI workflow's spec repository. It is a
+  // shared clone mounted at /work/ElectronicsInventorySpecs by
+  // .kubecoder/config.yaml, so it is present in every environment of this
+  // project but is not part of this repository.
+  "folders": [
+    { "path": "." },
+    { "path": "backend" },
+    { "path": "frontend" },
+    { "path": "../ElectronicsInventorySpecs" }
+  ],
+  // Starting a Claude session and every `kc project` verb are commands the
+  // KubeCoder VS Code extension already publishes on F1 — only the repository's
+  // own dev runner needs a task. It needs the `cexec modern-app` prefix: this
+  // container has no poetry, pnpm or honcho.
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Dev Services",
+        "type": "shell",
+        "command": "cexec modern-app ./scripts/dev.py",
+        "options": { "cwd": "${workspaceFolder:ElectronicsInventory}" },
+        "icon": { "id": "server-process" },
+        "problemMatcher": [],
+        "presentation": {
+          "panel": "dedicated",
+          "reveal": "always",
+          "focus": true,
+          "showReuseMessage": false
+        },
+        "isBackground": true
+      }
+    ]
+  }
+}
