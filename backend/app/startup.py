@@ -25,6 +25,8 @@ import sqlalchemy as sa
 from flask import Blueprint, Flask
 from flask.wrappers import Response
 
+from app.app import App
+
 if TYPE_CHECKING:
     import click
 
@@ -83,7 +85,7 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
     # Child blueprints on api_bp can only be registered before api_bp's
     # first registration on an app. Guard against repeated create_app() calls
     # in test suites where api_bp is a module-level singleton.
-    if not api_bp._got_registered_once:  # type: ignore[attr-defined]
+    if not api_bp._got_registered_once:
         from app.api.ai_parts import ai_parts_bp
         from app.api.attachment_sets import attachment_sets_bp
         from app.api.boxes import boxes_bp
@@ -103,23 +105,23 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
         from app.api.utils import utils_bp
 
         # Domain resource blueprints on api_bp
-        api_bp.register_blueprint(ai_parts_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(attachment_sets_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(boxes_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(dashboard_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(documents_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(inventory_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(kits_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(kit_shopping_list_links_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(locations_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(pick_lists_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(part_seller_links_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(parts_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(sellers_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(shopping_lists_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(shopping_list_lines_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(types_bp)  # type: ignore[attr-defined]
-        api_bp.register_blueprint(utils_bp)  # type: ignore[attr-defined]
+        api_bp.register_blueprint(ai_parts_bp)
+        api_bp.register_blueprint(attachment_sets_bp)
+        api_bp.register_blueprint(boxes_bp)
+        api_bp.register_blueprint(dashboard_bp)
+        api_bp.register_blueprint(documents_bp)
+        api_bp.register_blueprint(inventory_bp)
+        api_bp.register_blueprint(kits_bp)
+        api_bp.register_blueprint(kit_shopping_list_links_bp)
+        api_bp.register_blueprint(locations_bp)
+        api_bp.register_blueprint(pick_lists_bp)
+        api_bp.register_blueprint(part_seller_links_bp)
+        api_bp.register_blueprint(parts_bp)
+        api_bp.register_blueprint(sellers_bp)
+        api_bp.register_blueprint(shopping_lists_bp)
+        api_bp.register_blueprint(shopping_list_lines_bp)
+        api_bp.register_blueprint(types_bp)
+        api_bp.register_blueprint(utils_bp)
 
 
 
@@ -193,7 +195,7 @@ def register_cli_commands(cli: click.Group) -> None:
     pass
 
 
-def post_migration_hook(app: Flask) -> None:
+def post_migration_hook(app: App) -> None:
     """Sync master data after database migrations.
 
     Called unconditionally by the upgrade-db CLI handler after migrations
@@ -221,7 +223,7 @@ def post_migration_hook(app: Flask) -> None:
         session.close()
 
 
-def load_test_data_hook(app: Flask) -> None:
+def load_test_data_hook(app: App) -> None:
     """Load master data, test fixtures, and print a dataset summary.
 
     Called by the load-test-data CLI handler after the database has been
