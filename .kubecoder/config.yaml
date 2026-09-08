@@ -6,14 +6,15 @@
 # uv/Poetry/Ruff), because the Playwright harness boots the Python backend per
 # worker and so needs both toolsets in one container.
 #
-# No database sidecar: the backend test suite runs against in-memory SQLite and
-# the Playwright harness seeds a per-worker SQLite file. That covers both
-# suites, but NOT the honcho dev stack, which gets the code default
-# `postgresql+psycopg://…@localhost:5432` and has nothing to talk to — see the
-# preamble. Adding `postgres` here is the fix if the dev stack is wanted;
-# it is an open question for the operator, not an oversight. S3 attachment storage
-# does need a real endpoint, though — the backend test fixtures hard-fail when
-# `S3_ENDPOINT_URL` is unreachable — so a MinIO sidecar provides it locally.
+# Two sidecars beside it. `postgres` is the honcho dev stack's database: the
+# backend's code default `DATABASE_URL` points at
+# `postgresql+psycopg://…@localhost:5432/electronics_inventory`, and
+# `kc project setup` creates that database and applies the migrations. Neither
+# test suite uses it — the backend suite runs against in-memory SQLite and the
+# Playwright harness seeds a per-worker SQLite file, both by their own
+# configuration. S3 attachment storage does need a real endpoint, though — the
+# backend test fixtures hard-fail when `S3_ENDPOINT_URL` is unreachable — so a
+# MinIO sidecar provides it locally.
 # CI does the same thing its own way: the Jenkins validation Job runs a `minio`
 # sidecar beside the suite container and injects the same four `S3_*` variables
 # (Jenkinsfile, "Run validation").
@@ -35,11 +36,13 @@ capabilities:
 tools:
   - use: modern-app
 
-# S3-compatible object storage for the backend's attachment handling. Not
-# exposed: it is reached on localhost from the modern-app sidecar, which is
-# where the suites actually run.
+# S3-compatible object storage for the backend's attachment handling, and the
+# PostgreSQL the dev stack stores its data in. Neither is exposed: both are
+# reached on localhost from the modern-app sidecar, which is where the suites
+# and the dev stack actually run.
 services:
   - minio
+  - postgres
 
 # The three images CI publishes (electronics-inventory, -ui, -docs) are built by
 # Jenkins with `helmCharts.kaniko(...)`, not by `kc project build` — see the
@@ -83,12 +86,14 @@ preamble:
     (backend :3001, frontend :3000, SSE gateway :3002).
 
     The backend suite runs on in-memory SQLite and the Playwright suite boots its
-    own backend, SSE gateway and frontend per worker, so there is no database
-    sidecar. S3 attachment storage does need a live endpoint — the test fixtures
-    abort when `S3_ENDPOINT_URL` is unset or unreachable — and it comes from the
-    `minio` sidecar on localhost:9000 (minioadmin/minioadmin). `kc project setup`
-    seeds `backend/.env` and `backend/.env.test` to point at it, only when they
-    do not already exist, so an operator's own files are never overwritten.
+    own backend, SSE gateway and frontend per worker, so neither suite touches
+    the `postgres` sidecar — that one is the honcho dev stack's database
+    (PostgreSQL 18 on localhost:5432, postgres/postgres). S3 attachment storage
+    needs a live endpoint — the test fixtures abort when `S3_ENDPOINT_URL` is
+    unset or unreachable — and it comes from the `minio` sidecar on
+    localhost:9000 (minioadmin/minioadmin). `kc project setup` seeds
+    `backend/.env` (database and S3) and `backend/.env.test` (S3), only when
+    they do not already exist, so an operator's own files are never overwritten.
 
     `kc project test` writes a gitignored, multi-megabyte `test_results.md` at
     the repository root — grep it, never read it whole. `kc project lint` and
@@ -96,16 +101,16 @@ preamble:
     `.ruff_cache` behind; every image build context excludes them, so a build
     after a lint run does not stream them to the builder.
 
-    **The dev stack has no database in this environment.** `DATABASE_URL`
-    defaults to `postgresql+psycopg://…@localhost:5432` and there is no postgres
-    sidecar, so `cexec modern-app ./scripts/dev.py` boots and serves the SPA,
-    and every data call answers 500 with `psycopg.OperationalError` —
-    `/health/readyz` says so itself (503, `database.connected: false`). Both
-    test suites are unaffected: they use SQLite by their own configuration.
-    Adding `postgres` to `services:` is the fix; pointing `DATABASE_URL` at
-    SQLite also works but then `alembic revision --autogenerate` generates
-    migrations against the wrong dialect. Neither has been done — it is an
-    operator decision.
+    **The dev stack runs on the `postgres` sidecar.** `DATABASE_URL` defaults to
+    `postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory`
+    and the sidecar answers there. The sidecar starts with only its `postgres`
+    maintenance database, so `kc project setup` creates `electronics_inventory`
+    (`backend/scripts/init-dev-database.py`) and applies the migrations
+    (`cli upgrade-db`); both are idempotent, so a re-run is a no-op. That makes
+    `cexec modern-app ./scripts/dev.py` serve data as well as the SPA, with
+    `/health/readyz` answering 200 and `database.connected: true`. Both test
+    suites are unaffected either way: they use SQLite by their own
+    configuration and never touch the sidecar.
 
     `/work/ElectronicsInventorySpecs` is a *shared* clone mounted into this pod.
     It is not a folder on this environment's own volume, and it is the AI

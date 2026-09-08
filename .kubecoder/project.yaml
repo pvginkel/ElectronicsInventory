@@ -47,12 +47,20 @@ projects:
       - cexec modern-app poetry install --no-interaction
       # A fresh clone has neither .env nor .env.test (both gitignored), and the
       # suite hard-exits in pytest_configure when S3_ENDPOINT_URL is unset, so
-      # seed both at the MinIO sidecar. `test -f` first, so an operator's own
-      # file is never overwritten. OPENAI_API_KEY is not seeded: it arrives as
-      # an environment variable from the secret catalog, which beats the
-      # env_file in pydantic-settings.
-      - "test -f .env || printf 'S3_ENDPOINT_URL=http://localhost:9000\\nS3_ACCESS_KEY_ID=minioadmin\\nS3_SECRET_ACCESS_KEY=minioadmin\\nS3_BUCKET_NAME=electronics-inventory-part-attachments\\n' > .env"
+      # seed both at the MinIO sidecar — and .env at the postgres sidecar the
+      # dev stack stores its data in. That DATABASE_URL is the code default
+      # (app/config.py), written out so the file says where the data goes.
+      # `test -f` first, so an operator's own file is never overwritten.
+      # OPENAI_API_KEY is not seeded: it arrives as an environment variable
+      # from the secret catalog, which beats the env_file in pydantic-settings.
+      - "test -f .env || printf 'DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory\\nS3_ENDPOINT_URL=http://localhost:9000\\nS3_ACCESS_KEY_ID=minioadmin\\nS3_SECRET_ACCESS_KEY=minioadmin\\nS3_BUCKET_NAME=electronics-inventory-part-attachments\\n' > .env"
       - "test -f .env.test || printf 'FLASK_ENV=testing\\nS3_ENDPOINT_URL=http://localhost:9000\\nS3_ACCESS_KEY_ID=minioadmin\\nS3_SECRET_ACCESS_KEY=minioadmin\\nS3_BUCKET_NAME=electronics-inventory-test-attachments\\n' > .env.test"
+      # The postgres sidecar comes up with only its `postgres` maintenance
+      # database, so the application one has to be created before Alembic can
+      # touch it; upgrade-db then applies the migrations and syncs the part
+      # types. Both are idempotent, so a re-run of setup is a no-op.
+      - cexec modern-app poetry run python scripts/init-dev-database.py
+      - cexec modern-app poetry run cli upgrade-db
     # No `build:` — see root.
     test: cd .. && cexec modern-app poetry run run-suite --suite backend
     # Mirrors backend/scripts/check.py minus its pytest step, which is `test:`.
