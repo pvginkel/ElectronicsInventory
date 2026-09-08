@@ -7,3 +7,4 @@ __pycache__
 .claude/sessions/
 node_modules
 *.tsbuildinfo
+docs/*.epub
