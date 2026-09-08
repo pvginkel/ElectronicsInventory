@@ -56,7 +56,8 @@ There are no service mocks in the E2E layer. Playwright's global setup seeds a S
 `backend/scripts/initialize-sqlite-database.sh`, then each worker boots its own backend, SSE
 gateway and frontend on `get-port`-allocated ports. `page.route`/response mocking is banned by the
 `testing/no-route-mocks` eslint rule. The backend suite runs on in-memory SQLite (Alembic once per
-session, then a per-test copy), so no database sidecar exists — but **S3 must be reachable**:
+session, then a per-test copy), so neither suite touches the `postgres` sidecar — that one is the
+honcho dev stack's database. **S3 must be reachable**, though:
 `pytest_configure` aborts the entire run if `S3_ENDPOINT_URL` is down. Locally that is the MinIO
 sidecar at `localhost:9000` (`minioadmin`/`minioadmin`); in CI it is a MinIO sidecar inside the
 validation pod.

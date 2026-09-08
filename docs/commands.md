@@ -22,8 +22,10 @@ the frontend; both end with `scripts/arch-validate.py`. Note `backend/scripts/ch
 (`poetry run check`) also runs pytest, which duplicates the `test` verb — the `lint` verb
 deliberately does not use it.
 
-`kc project setup` seeds `backend/.env` and `backend/.env.test` at the MinIO sidecar when they do
-not exist; it never overwrites an existing file.
+`kc project setup` seeds `backend/.env` (at the postgres and MinIO sidecars) and
+`backend/.env.test` (MinIO) when they do not exist; it never overwrites an existing file. It then
+creates the `electronics_inventory` database if the sidecar has not got one yet and applies the
+migrations — both idempotent, so a re-run is a no-op.
 
 ## Tests
 
@@ -73,12 +75,12 @@ the dev container — so the `cexec` prefix is not optional. VS Code's _Dev Serv
 `ElectronicsInventory.code-workspace` runs exactly this. Per-service output is tee'd to
 `logs/<service>.log`, and the same three ports are what `.kubecoder/config.yaml` exposes.
 
-**The dev stack needs a PostgreSQL, and a KubeCoder environment has none.** `DATABASE_URL`
-defaults to `postgresql+psycopg://…@localhost:5432`; with nothing listening there the SPA and
-`/health/healthz` are fine while every data call answers 500 and `/health/readyz` returns 503 with
-`database.connected: false`. Both suites are unaffected — they configure SQLite themselves. Adding
-`postgres` to `services:` in `.kubecoder/config.yaml` is the fix; it has not been done.
-`docs/slice-test-plan.md` describes how a slice's live check works around this.
+**The dev stack runs on the `postgres` sidecar.** `DATABASE_URL` defaults to
+`postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory`, which is where the
+sidecar listens, and `kc project setup` creates that database and applies the migrations — see the
+two commands below. So the SPA, `/health/healthz` and the data calls all answer, and
+`/health/readyz` returns 200 with `database.connected: true`. Neither suite touches it: both
+configure SQLite themselves.
 
 ## Regenerating the API client
 

@@ -73,17 +73,17 @@ curl -sS --retry 40 --retry-delay 3 --retry-connrefused -o /dev/null \
 curl -sS -w 'healthz %{http_code} ' http://localhost:3001/health/healthz
 curl -sS -w 'readyz  %{http_code} ' http://localhost:3001/health/readyz
 curl -sS -o /dev/null -w 'openapi %{http_code}\n' http://localhost:3001/api/docs/openapi.json
+curl -sS -o /dev/null -w 'types   %{http_code}\n' http://localhost:3001/api/types
+curl -sS -o /dev/null -w 'proxied %{http_code}\n' http://localhost:3000/api/types
 ```
 
-Expected, and **not** a finding: `frontend 200`, `healthz 200`, `openapi 200`, and
-`readyz 503` with `"database": {"connected": false}` and `"sse_gateway": {"reachable": true}`.
-**This environment has no database.** `DATABASE_URL` defaults at
-`postgresql+psycopg://…@localhost:5432` with no postgres sidecar, so every data call answers 500 —
-including anything proxied through the Vite dev server at `http://localhost:3000/api/…`. Both
-suites are unaffected, because both configure SQLite themselves. What this check proves is that all
-three processes boot, serve, and wire to each other; it cannot prove a data path. A slice whose
-change is only observable through a data call is verified by step 1's Playwright suite, which does
-have a database — say that explicitly rather than reporting the 500 as a pass or as a failure.
+Expected: `frontend 200`, `healthz 200`, `openapi 200`, `types 200`, `proxied 200`, and
+`readyz 200` with `"database": {"connected": true}` and `"sse_gateway": {"reachable": true}`.
+The dev stack has a database — the `postgres` sidecar, which `kc project setup` creates and
+migrates — so `/api/types` is a real read against it, direct on 3001 and through the Vite dev
+server's proxy on 3000. That makes this check prove a data path as well as that all three
+processes boot, serve and wire to each other. Both suites remain unaffected either way: they
+configure SQLite themselves.
 
 Stop it by sending Ctrl-C down the FIFO and waiting on the pid you captured:
 
