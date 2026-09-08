@@ -20,10 +20,9 @@ and deploys to one production instance. There is no DTAP: a push to `main` deplo
   **separate git repo** and a shared clone mounted into every environment of this project: commit
   there separately, early and often, staging by name.
 
-**Each component has its own agent instructions**: `backend/AGENTS.md` and `frontend/AGENTS.md`
-(each component's `CLAUDE.md` is a symlink to its `AGENTS.md` — edit `AGENTS.md`, never the
-symlink). Those files hold the layer-by-layer patterns, testing requirements, and definitions of
-done. **Read the one for the component you are touching.**
+**Each component has its own agent instructions**: `backend/CLAUDE.md` and
+`frontend/CLAUDE.md`. Those files hold the layer-by-layer patterns, testing requirements, and
+definitions of done. **Read the one for the component you are touching.**
 
 ## Commands
 
@@ -63,7 +62,7 @@ The one thing to know before touching the frontend: `src/lib/api/generated/` and
 
 ## Where to read next
 
-- `backend/AGENTS.md`, `frontend/AGENTS.md` — the per-component patterns and definitions of done.
+- `backend/CLAUDE.md`, `frontend/CLAUDE.md` — the per-component patterns and definitions of done.
 - `frontend/docs/contribute/` — the contributor handbook: setup, testing, UI patterns.
 - `docs/` — the cross-cutting topic docs, including the pipeline's change discipline, slice testing
   strategy and slice doc plan.

@@ -1,7 +1,7 @@
 # Architecture
 
 The system-level shape, across both components. Each component's own layer-by-layer patterns are in
-its `AGENTS.md`.
+its `CLAUDE.md`.
 
 ## Runtime: three processes
 
@@ -28,7 +28,7 @@ Two consequences worth internalising:
 - **Authorisation is generated, then lint-enforced.** `role-import-enforcement` requires a mutation
   hook import to be paired with its role constant; `gate-usage-enforcement` requires that constant
   to actually reach a `<Gate requires={…}>` or `hasRole(…)`. The backend enforces the role
-  regardless — the frontend gate is UX only. The gating checklist in `frontend/AGENTS.md` is the
+  regardless — the frontend gate is UX only. The gating checklist in `frontend/CLAUDE.md` is the
   authority on what must be gated.
 
 ## Backend layering
@@ -39,7 +39,7 @@ Two consequences worth internalising:
 holds the app-specific hooks the factory calls. Services with threads register with
 `app/utils/lifecycle_coordinator.py` for graceful K8s shutdown. Prometheus metrics are
 decentralised — module-level metric objects in the owning service, no wrapper. Details and required
-patterns: `backend/AGENTS.md`.
+patterns: `backend/CLAUDE.md`.
 
 ## Frontend layering
 
@@ -48,7 +48,7 @@ hooks in `src/hooks/` that wrap the generated clients and map snake_case payload
 models before components see them. `src/lib/test/` holds the test instrumentation (`isTestMode()`,
 `ListLoading`/`Form` events) that the Playwright suite waits on instead of sleeping;
 `scripts/verify-production-build.cjs` fails the build if any of it leaks into `dist/`. Details:
-`frontend/AGENTS.md` and `frontend/docs/contribute/`.
+`frontend/CLAUDE.md` and `frontend/docs/contribute/`.
 
 ## Tests boot real services
 

@@ -3,8 +3,8 @@
 The rules every code change in this repo obeys, in both components. This is the doc
 `.aiworkflowrc` names as `design_philosophy`: it is handed to every `code-writer`, `code-reviewer`,
 `plan-writer` and `plan-reviewer` the pipeline dispatches, and it is what a reviewer cites when
-sending work back. It states the rules; the patterns they apply to live in `backend/AGENTS.md` and
-`frontend/AGENTS.md`, which each component's `CLAUDE.md` symlinks to.
+sending work back. It states the rules; the patterns they apply to live in `backend/CLAUDE.md`
+and `frontend/CLAUDE.md`.
 
 ## Clean breaking changes
 

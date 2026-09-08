@@ -27,20 +27,19 @@ generated API client is the clearest case: it is one seam with two ends.
 
 ### 2. The component the change lives in
 
-Each component carries an `AGENTS.md` (its `CLAUDE.md` is a symlink — edit `AGENTS.md`, never the
-symlink) and its own `docs/`:
+Each component carries a `CLAUDE.md` and its own `docs/`:
 
-- **`backend/AGENTS.md`** — the layer-by-layer patterns (`api/` → `services/` → `models/`+`schemas/`),
+- **`backend/CLAUDE.md`** — the layer-by-layer patterns (`api/` → `services/` → `models/`+`schemas/`),
   the container wiring, the testing requirements, the definition of done.
 - **`backend/docs/`** — `product_brief.md`, `features.md`, `task_system_usage.md`, and the
   architecture artifact.
-- **`frontend/AGENTS.md`** — routing and component layout, the hook/model mapping, the role-gating
+- **`frontend/CLAUDE.md`** — routing and component layout, the hook/model mapping, the role-gating
   checklist, the instrumentation contract, the definition of done.
 - **`frontend/docs/`** — a **published VitePress site** (see the gate below): `index.md`, the
   `contribute/` hub (getting started, environment, architecture, testing, UI patterns),
   `product_brief.md` and `features.md`.
 
-The role-gating checklist in `frontend/AGENTS.md` is the authority on what must be gated; a slice
+The role-gating checklist in `frontend/CLAUDE.md` is the authority on what must be gated; a slice
 that adds a gated surface updates it there, not in a new doc.
 
 ### 3. The two READMEs
