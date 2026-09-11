@@ -56,10 +56,6 @@ imageBuilder: true
 secrets:
   OPENAI_API_KEY: openai-api-key
 
-# One definition of setup, shared by a fresh pod and any later re-run.
-setup:
-  - kc project setup
-
 ports:
   - name: frontend
     port: 3000
