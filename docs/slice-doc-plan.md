@@ -57,9 +57,7 @@ paragraph and say so.
 **one** producer (`electronics-inventory`) in the federated architecture-as-code model. Keep them
 consistent; `Jenkinsfile.architecture` validates both, and `scripts/arch-validate.py` is the last
 statement of both components' `kc project lint`. **Element ids are referenced by the wider
-federated model — never rename one.** The `update-architecture` agent on the operator's filesystem
-owns editing these; a slice that added a managed host, a daemon, a service or an external identity
-should say so rather than hand-editing the model.
+federated model — never rename one.** The doc phase does not hand-edit them.
 
 ### 5. What is not a doc surface
 
