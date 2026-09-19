@@ -34,7 +34,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
                 // Stream the whole working tree in instead of baking it into an image.
                 sh "tar czf /tmp/context.tar.gz --exclude=.git --exclude=node_modules --exclude=.venv --exclude=test-results --exclude=.pnpm-store ."
 
-                // S3 comes from a MinIO sidecar in the validation pod rather than the
+                // S3 comes from a RustFS sidecar in the validation pod rather than the
                 // shared Ceph RGW endpoint: the suite needs a real S3 API (the backend
                 // test fixtures abort without one) but not shared storage, and a
                 // throwaway bucket per run keeps builds from tripping over each other.
@@ -93,20 +93,19 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
                                               - name: S3_ENDPOINT_URL
                                                 value: http://localhost:9000
                                               - name: S3_ACCESS_KEY_ID
-                                                value: minioadmin
+                                                value: s3storage
                                               - name: S3_SECRET_ACCESS_KEY
-                                                value: minioadmin
+                                                value: s3storage
                                               - name: S3_BUCKET_NAME
                                                 value: "electronics-inventory-validation"
-                                        - name: minio
-                                          image: minio/minio
-                                          command: ["minio"]
-                                          args: ["server", "/data"]
+                                        - name: s3storage
+                                          image: rustfs/rustfs:latest
+                                          imagePullPolicy: Always
                                           env:
-                                              - name: MINIO_ROOT_USER
-                                                value: minioadmin
-                                              - name: MINIO_ROOT_PASSWORD
-                                                value: minioadmin
+                                              - name: RUSTFS_ACCESS_KEY
+                                                value: s3storage
+                                              - name: RUSTFS_SECRET_KEY
+                                                value: s3storage
                     """.stripIndent())
 
                     def podName = kubectl.getJobPodName(jobName, k8sNamespace)

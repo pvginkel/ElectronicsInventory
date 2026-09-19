@@ -59,7 +59,7 @@ gateway and frontend on `get-port`-allocated ports. `page.route`/response mockin
 session, then a per-test copy), so neither suite touches the `postgres` sidecar — that one is the
 honcho dev stack's database. **S3 must be reachable**, though:
 `pytest_configure` aborts the entire run if `S3_ENDPOINT_URL` is down. Locally that is the MinIO
-sidecar at `localhost:9000` (`minioadmin`/`minioadmin`); in CI it is a MinIO sidecar inside the
+sidecar at `localhost:9000` (`minioadmin`/`minioadmin`); in CI it is a RustFS sidecar inside the
 validation pod.
 
 ## Deployment
