@@ -217,8 +217,17 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
             }
         }
 
-        stage('Deploy Helm charts') {
-            cicd.helmDeploy()
+        // The build hands its images to Argo CD by pinning them in the deploy repo (argo-cd D53);
+        // Argo syncs the commit. HelmCharts no longer deploys this app.
+        stage('Write image pins') {
+            container('k8s') {
+                cicd.writeVersionPins(repo: 'pvginkel/ElectronicsInventoryDeploy', pins: [
+                    'config/prd/values.yaml': [
+                        'images.electronicsInventory': ":${currentBuild.number}",
+                        'images.electronicsInventoryUI': ":${currentBuild.number}"
+                    ]
+                ])
+            }
         }
     }
 }
