@@ -2,24 +2,32 @@
 """Start all dev services via honcho (process manager).
 
 Usage:
-    ./scripts/dev.py             # start all services
-    ./scripts/dev.py -e gateway  # start all except the SSE gateway
+    ./scripts/dev.py              # start all services (backend + frontend + gateway)
+    ./scripts/dev.py -e gateway   # start all except the SSE gateway
 
-Per-service logs (ANSI-stripped) are written to logs/<service>.log.
-Ctrl-C stops everything cleanly.
+Reads the repo-root Procfile.dev. Per-service logs (ANSI-stripped) are written
+to logs/<service>.log. Ctrl-C stops everything cleanly.
 
-All child processes run inside a PID namespace (via unshare --pid --fork)
-so the kernel unconditionally kills every descendant when honcho exits.
-Requires CAP_SYS_ADMIN.
+honcho runs inside the modern-app tool container: the dev container has neither
+poetry nor honcho, and every service needs that container anyway, so the
+Procfile lines run there natively without their own cexec. Terminating the
+cexec client stops the processes in the sidecar with it.
+
+This wrapper still runs honcho under a PID namespace (unshare --user --pid
+--fork) so nothing local is left behind.
+
+Note: run `kc project setup` first — it installs the poetry and pnpm
+dependencies the services need (the SSE gateway on :3002 runs the
+`ssegateway` frontend devDependency).
 """
 
+import io
 import os
+import pty
 import re
 import signal
 import sys
 from pathlib import Path
-
-import pty
 
 ROOT = Path(__file__).resolve().parent.parent
 LOGS = ROOT / "logs"
@@ -77,6 +85,7 @@ def main() -> None:
     # Run honcho inside a PTY (for colors) and a PID namespace (for cleanup).
     status = pty.spawn(
         ["unshare", "--user", "--pid", "--fork",
+         "cexec", "modern-app",
          "poetry", "run", "honcho", "start", "-f", "Procfile.dev"] + sys.argv[1:],
         read,
     )

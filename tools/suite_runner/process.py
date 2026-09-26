@@ -34,11 +34,11 @@ def _emit_timeout_kill(args, timeout):
     )
 
 
-def run(args, cwd, timeout=600):
+def run(args, cwd, timeout=600, env=None):
     """Run a command, return (success, stdout+stderr)."""
     try:
         result = subprocess.run(
-            args, cwd=cwd, capture_output=True, text=True, timeout=timeout,
+            args, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env,
         )
         return result.returncode == 0, result.stdout + result.stderr
     except subprocess.TimeoutExpired:

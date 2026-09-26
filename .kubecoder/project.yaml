@@ -35,9 +35,12 @@ projects:
     setup: cexec modern-app poetry install --no-interaction
     # No `build:` — a poetry project has nothing to compile, and installing the
     # dependencies is `setup:`'s job.
-    # No `test:`/`lint:` either. run-suite is CI's aggregate entry point; the
+    # No `test:` either. run-suite is CI's aggregate entry point; the
     # components own the suites, and wiring it here as well would make
     # `kc project test` run both suites twice.
+    # The root's own Python only; backend/ and frontend/ lint themselves. The
+    # rule set and the Ruff version are pinned in the root pyproject.toml.
+    lint: cexec modern-app poetry run ruff check scripts tools
 
   backend:
     description: >-

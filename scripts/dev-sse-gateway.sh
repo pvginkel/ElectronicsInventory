@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Start the SSE gateway sidecar for local development.
+# Start the SSE gateway sidecar for local development (honcho `gateway` service).
 #
-# The gateway comes from the `ssegateway` npm package (a frontend
-# devDependency, git+https://github.com/pvginkel/SSEGateway.git#stable) — the
-# same way the Playwright harness and the production sidecar consume it. There
-# is no sibling SSEGateway checkout.
-#
-# Ports mirror the dev defaults: the backend serves on 3001, the gateway on
-# 3002, and the gateway posts events back to the backend's SSE callback.
+# The gateway is the `ssegateway` package (github:pvginkel/SSEGateway#stable, a
+# devDependency of the frontend) — the same package the Playwright harness runs
+# (frontend/tests/support/process/servers.ts) and the same one the production
+# deployment runs as a sidecar. No sibling checkout is needed: cd into frontend/
+# so Node resolves it from frontend/node_modules, then exec it directly (clean
+# under honcho's piped stdin).
+set -euo pipefail
+
 export PORT="${SSE_GATEWAY_PORT:-3002}"
 export CALLBACK_URL="${CALLBACK_URL:-http://localhost:3001/api/sse/callback}"
 

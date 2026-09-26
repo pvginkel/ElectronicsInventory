@@ -1,15 +1,17 @@
-"""Local suite runner — runs the backend and frontend test suites.
+"""Local suite runner — runs the ElectronicsInventory backend + frontend test suites.
 
-This is a direct port of the old `frontend/scripts/validation-entrypoint.sh`,
-which ran in the CI validation job before the repos were merged. The step
-order is deliberately identical to that script:
+The same command runs locally and in CI (the Jenkinsfile's validation Job).
 
-    backend  install -> pytest
-    frontend install -> build -> playwright install chromium -> playwright test
+Flow:
+  1. install the backend (Poetry)
+  2. wait for services, when backend/scripts/wait-for-services.py exists
+  3. run backend pytest
+  4. install the frontend's npm deps (standalone pnpm project), build the
+     frontend, install the Playwright browser, run Playwright
 
-The frontend is a *standalone* pnpm project (it has no `workspace:` deps), so
-its install runs with cwd=frontend against its own lockfile — there is no root
-pnpm workspace.
+Step 2 is the app's hook for sidecars that are slow to come up in CI (a search
+engine, a message broker): the script runs under the backend's Poetry venv and
+must exit non-zero if a service never becomes ready.
 
 Output modes:
   simple  — progress indicators, captured output, test_results.md (default)
@@ -37,10 +39,10 @@ from .process import run, run_streamed, run_tracked
 
 APP_NAME = "ElectronicsInventory"
 
-# The backend targets Python 3.13; poetry is pinned to it explicitly when the
-# interpreter is present so a 3.12-default image still builds the right venv.
+# The backend requires Python 3.13 (e.g. queue.ShutDown). Pin its Poetry venv to
+# python3.13 when that interpreter is on PATH; in CI the base image's default
+# python is already 3.13 (the binary may be absent by that name), so we skip it.
 HAS_PYTHON313 = shutil.which("python3.13") is not None
-SKIP_UNSHARE = os.environ.get("SKIP_UNSHARE") == "1"
 
 
 # ---------------------------------------------------------------------------
@@ -49,13 +51,13 @@ SKIP_UNSHARE = os.environ.get("SKIP_UNSHARE") == "1"
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        description="Run the backend and frontend test suites.",
+        description=f"Run the {APP_NAME} backend and frontend test suites.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
   %(prog)s --suite backend
-  %(prog)s --suite backend --backend-args "tests/test_parts.py -k create"
-  %(prog)s --suite frontend --frontend-args "tests/e2e/parts.spec.ts"
+  %(prog)s --suite backend --backend-args "tests/test_foo.py -k bar"
+  %(prog)s --suite frontend --frontend-args "tests/e2e/foo.spec.ts"
   %(prog)s --max-failures 10
   %(prog)s --output-mode full --junitxml-dir /work/results --retries 2""",
     )
@@ -66,9 +68,9 @@ examples:
     parser.add_argument("--backend-args", default="",
                         help='Extra pytest arguments (e.g., "tests/test_foo.py -k bar")')
     parser.add_argument("--frontend-args", default="",
-                        help="Extra playwright arguments")
+                        help='Extra playwright arguments')
     parser.add_argument("--max-failures", type=int, default=None,
-                        help="Max failures before stopping (default: tool config)")
+                        help="Max failures before stopping (pytest --maxfail / playwright --max-failures)")
     parser.add_argument("--retries", type=int, default=None,
                         help="Playwright retry count for failed tests (default: Playwright config)")
     parser.add_argument("--workers", type=int, default=None,
@@ -95,11 +97,11 @@ examples:
 
 
 # ---------------------------------------------------------------------------
-# Suite orchestration
+# Command helpers
 # ---------------------------------------------------------------------------
 
 def _run_cmd(cmd, *, cwd, timeout=120, env=None):
-    """Run a command, choosing streamed or captured based on output mode.
+    """Run a test command, choosing streamed or tracked based on output mode.
 
     Returns ``(ok, detail, peak_mb)`` — in full mode *detail* is always
     empty and *peak_mb* is always None.
@@ -111,16 +113,20 @@ def _run_cmd(cmd, *, cwd, timeout=120, env=None):
     return ok, detail, peak_mb
 
 
-def _install_cmd(cmd, *, cwd, timeout=120):
-    """Run an install command (no memory tracking).
+def _install_cmd(cmd, *, cwd, timeout=120, env=None):
+    """Run an install/build command (no memory tracking).
 
     Returns ``(ok, detail)`` — in full mode *detail* is always empty.
     """
     if is_full_mode():
-        ok = run_streamed(cmd, cwd=cwd, timeout=timeout)
+        ok = run_streamed(cmd, cwd=cwd, timeout=timeout, env=env)
         return ok, ""
-    return run(cmd, cwd=cwd, timeout=timeout)
+    return run(cmd, cwd=cwd, timeout=timeout, env=env)
 
+
+# ---------------------------------------------------------------------------
+# Suite orchestration
+# ---------------------------------------------------------------------------
 
 def run_tests(args):
     """Run test steps for selected suites. Returns (exit_code, results).
@@ -136,40 +142,43 @@ def run_tests(args):
         "frontend": shlex.split(args.frontend_args) if args.frontend_args else [],
     }
 
-    # --- Backend install ---
-    # Always required: the Playwright harness boots the backend per worker via
-    # backend/scripts/testing-server.sh, so the frontend suite needs it too.
+    # --- Backend install (always — the frontend's Playwright harness boots the
+    #     backend per worker, so the backend venv is needed even for frontend-only runs) ---
     backend_installed = False
+    col = progress_start("Installing backend dependencies")
     if backend.is_dir():
-        col = progress_start("Installing backend dependencies")
-
         cmds = []
         if HAS_PYTHON313:
             cmds.append(["poetry", "env", "use", "python3.13"])
         cmds.append(["poetry", "install", "--no-interaction"])
-
-        ok = True
-        detail = ""
+        ok, detail = True, ""
         for cmd in cmds:
-            ok, detail = _install_cmd(cmd, cwd=backend, timeout=600)
+            ok, detail = _install_cmd(cmd, cwd=backend, timeout=300)
             if not ok:
                 break
-
         progress_end(ok, col)
         results.append(("backend install", ok, detail, None))
         backend_installed = ok
     else:
-        col = progress_start("Installing backend dependencies")
         progress_end(False, col)
         results.append(("backend install", False, f"Directory not found: {backend}", None))
 
-    if not backend_installed:
-        exit_code = 1
+    # --- Service readiness (app hook) ---
+    wait_script = backend / "scripts" / "wait-for-services.py"
+    if backend_installed and wait_script.is_file():
+        col = progress_start("Waiting for services")
+        ok, detail = _install_cmd(
+            ["poetry", "run", "python", str(wait_script)], cwd=backend, timeout=300
+        )
+        progress_end(ok, col)
+        results.append(("services", ok, detail, None))
+        if not ok:
+            exit_code = 1
 
     # --- Backend tests ---
     if "backend" in args.suites:
+        col = progress_start("Running backend tests")
         if not backend_installed:
-            col = progress_start("Running backend tests")
             progress_skip(col)
             results.append(("backend pytest", False, "Skipped (install failed)", None))
         else:
@@ -179,9 +188,7 @@ def run_tests(args):
             if args.max_failures is not None:
                 pytest_cmd.append(f"--maxfail={args.max_failures}")
             pytest_cmd.extend(extra_args["backend"])
-
-            col = progress_start("Running backend tests")
-            ok, detail, peak_mb = _run_cmd(pytest_cmd, cwd=backend, timeout=1800)
+            ok, detail, peak_mb = _run_cmd(pytest_cmd, cwd=backend, timeout=900)
             progress_end(ok, col)
             results.append(("backend pytest", ok, detail, peak_mb))
             if not ok:
@@ -189,94 +196,70 @@ def run_tests(args):
 
     # --- Frontend ---
     if "frontend" in args.suites:
-        if not frontend.is_dir():
-            col = progress_start("Installing frontend dependencies")
-            progress_end(False, col)
-            results.append(("frontend install", False, f"Directory not found: {frontend}", None))
-            return 1, results
-
-        # Install (standalone project, own lockfile, cwd=frontend)
-        col = progress_start("Installing frontend dependencies")
-        ok, detail = _install_cmd(
-            ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
-            cwd=frontend, timeout=600,
-        )
+        # The frontend is a standalone pnpm project (its own lockfile), not a
+        # workspace member — install it in its own directory.
+        col = progress_start("Installing npm dependencies")
+        pnpm_install = ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"]
+        ok, detail = _install_cmd(pnpm_install, cwd=frontend, timeout=300)
+        if not ok:
+            ok, detail = _install_cmd(
+                ["pnpm", "install", "--config.confirmModulesPurge=false"],
+                cwd=frontend, timeout=300,
+            )
         progress_end(ok, col)
         results.append(("frontend install", ok, detail, None))
+        pnpm_installed = ok
 
-        if not ok:
-            exit_code = 1
-            for step in ("frontend build", "playwright browsers", "frontend playwright"):
-                col = progress_start(f"Running {step}")
+        if not frontend.is_dir():
+            col = progress_start("Building frontend")
+            progress_end(False, col)
+            results.append(("frontend build", False, f"Directory not found: {frontend}", None))
+        elif not pnpm_installed:
+            for step in ("build", "playwright"):
+                col = progress_start(f"Running frontend {step}" if step != "build" else "Building frontend")
                 progress_skip(col)
-                results.append((step, False, "Skipped (install failed)", None))
-            return exit_code, results
+                results.append((f"frontend {step}", False, "Skipped (install failed)", None))
+        else:
+            # Build (generates the API client + routes, runs check, vite build).
+            col = progress_start("Building frontend")
+            ok, detail = _install_cmd(["pnpm", "build"], cwd=frontend, timeout=600)
+            progress_end(ok, col)
+            results.append(("frontend build", ok, detail, None))
 
-        # Build. `pnpm build` also runs `pnpm check` (lint, type-check, knip)
-        # and verifies the production bundle, so a green build covers the
-        # frontend's static gates as well.
-        col = progress_start("Building frontend")
-        ok, detail = _install_cmd(["pnpm", "build"], cwd=frontend, timeout=900)
-        progress_end(ok, col)
-        results.append(("frontend build", ok, detail, None))
-
-        if not ok:
-            exit_code = 1
-            for step in ("playwright browsers", "frontend playwright"):
-                col = progress_start(f"Running {step}")
+            if not ok:
+                exit_code = 1
+                col = progress_start("Running frontend playwright tests")
                 progress_skip(col)
-                results.append((step, False, "Skipped (build failed)", None))
-            return exit_code, results
+                results.append(("frontend playwright", False, "Skipped (build failed)", None))
+            else:
+                # Ensure Chromium is present. The validation base image pre-bakes
+                # the matching browser, so this is a fast no-op there.
+                col = progress_start("Installing Playwright browser")
+                ok_pw, detail_pw = _install_cmd(
+                    ["pnpm", "playwright", "install", "chromium"], cwd=frontend, timeout=300
+                )
+                progress_end(ok_pw, col)
+                results.append(("playwright install", ok_pw, detail_pw, None))
 
-        # Playwright browsers (chromium only, matching the CI entrypoint)
-        col = progress_start("Installing Playwright browsers")
-        ok, detail = _install_cmd(
-            ["pnpm", "playwright", "install", "chromium"], cwd=frontend, timeout=900,
-        )
-        progress_end(ok, col)
-        results.append(("playwright browsers", ok, detail, None))
+                reporter = "list,junit" if args.junitxml_dir else "list"
+                pw_cmd = ["pnpm", "playwright", "test", f"--reporter={reporter}"]
+                if args.max_failures is not None:
+                    pw_cmd.append(f"--max-failures={args.max_failures}")
+                if args.retries is not None:
+                    pw_cmd.append(f"--retries={args.retries}")
+                if args.workers is not None:
+                    pw_cmd.append(f"--workers={args.workers}")
+                pw_env = {**os.environ, "PLAYWRIGHT_BACKEND_LOG_STREAM": "true"}
+                if args.junitxml_dir:
+                    pw_env["PLAYWRIGHT_JUNIT_OUTPUT_NAME"] = f"{args.junitxml_dir}/frontend.xml"
+                pw_cmd.extend(extra_args["frontend"])
 
-        if not ok:
-            exit_code = 1
-            col = progress_start("Running frontend playwright tests")
-            progress_skip(col)
-            results.append(("frontend playwright", False, "Skipped (browser install failed)", None))
-            return exit_code, results
-
-        # Playwright tests
-        if not backend_installed:
-            col = progress_start("Running frontend playwright tests")
-            progress_skip(col)
-            results.append(
-                ("frontend playwright", False, "Skipped (backend install failed)", None)
-            )
-            return 1, results
-
-        pw_base = (
-            ["pnpm", "exec", "playwright", "test"]
-            if SKIP_UNSHARE
-            else ["pnpm", "playwright", "test"]
-        )
-        reporter = "list,junit" if args.junitxml_dir else "list"
-        pw_cmd = pw_base + [f"--reporter={reporter}"]
-        if args.max_failures is not None:
-            pw_cmd.append(f"--max-failures={args.max_failures}")
-        if args.retries is not None:
-            pw_cmd.append(f"--retries={args.retries}")
-        if args.workers is not None:
-            pw_cmd.append(f"--workers={args.workers}")
-        pw_cmd.extend(extra_args["frontend"])
-
-        pw_env = {**os.environ, "PLAYWRIGHT_BACKEND_LOG_STREAM": "true"}
-        if args.junitxml_dir:
-            pw_env["PLAYWRIGHT_JUNIT_OUTPUT_NAME"] = f"{args.junitxml_dir}/frontend.xml"
-
-        col = progress_start("Running frontend playwright tests")
-        ok, detail, peak_mb = _run_cmd(pw_cmd, cwd=frontend, timeout=3600, env=pw_env)
-        progress_end(ok, col)
-        results.append(("frontend playwright", ok, detail, peak_mb))
-        if not ok:
-            exit_code = 1
+                col = progress_start("Running frontend playwright tests")
+                ok, detail, peak_mb = _run_cmd(pw_cmd, cwd=frontend, timeout=1800, env=pw_env)
+                progress_end(ok, col)
+                results.append(("frontend playwright", ok, detail, peak_mb))
+                if not ok:
+                    exit_code = 1
 
     return exit_code, results
 
@@ -296,9 +279,8 @@ def _emit_suite_results(junitxml_dir):
             tree = ET.parse(xml_file)
             root = tree.getroot()
             # For a <testsuites> root, aggregate across all <testsuite> children
-            # (Playwright emits one per spec file). The root's own attributes are
-            # populated by pytest and Playwright, but we sum children to stay
-            # robust against reporters that only populate per-suite counts.
+            # (Playwright emits one per spec file). Sum children to stay robust
+            # against reporters that only populate per-suite counts.
             if root.tag == "testsuites":
                 suites = root.findall("testsuite")
             else:
@@ -348,8 +330,7 @@ def format_summary(all_results):
 
     for app_name, steps in all_results:
         failures = [(step, detail, peak_mb)
-                    for step, ok, detail, peak_mb
-                    in (s for s in steps) if not ok]
+                    for step, ok, detail, peak_mb in steps if not ok]
         if failures:
             any_failure = True
             lines.append(f"\n{app_name}: FAILURES")
@@ -377,8 +358,7 @@ def format_summary(all_results):
                     lines.append(f"  {step}: FAILED (see test_results.md)")
         else:
             mem_parts = []
-            for s in steps:
-                step, ok, detail, peak_mb = s
+            for step, _ok, _detail, peak_mb in steps:
                 mem = _format_mem(peak_mb)
                 mem_parts.append(f"{step}{mem}")
             lines.append(f"\n{app_name}: all passed ({', '.join(mem_parts)})")
@@ -391,8 +371,7 @@ def format_summary(all_results):
 
 def format_app_detailed(app_name, steps):
     lines = [f"## {app_name}\n"]
-    for s in steps:
-        step, ok, detail, peak_mb = s
+    for step, ok, detail, peak_mb in steps:
         status = "PASS" if ok else "FAIL"
         mem = _format_mem(peak_mb)
         lines.append(f"### {step}: {status}{mem}\n")

@@ -16,7 +16,6 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
 
         stage('Cloning repo') {
             def scmVars = checkout scm
-
             gitRev = scmVars.GIT_COMMIT
         }
 
@@ -31,14 +30,14 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
                 def validationImage = "registry:5000/modern-app-dev-playwright:playwright-${playwrightVersion}"
                 echo "Validation image: ${validationImage}"
 
-                // Stream the whole working tree in instead of baking it into an image.
+                // Stream the whole monorepo working tree in instead of baking an image.
                 sh "tar czf /tmp/context.tar.gz --exclude=.git --exclude=node_modules --exclude=.venv --exclude=test-results --exclude=.pnpm-store ."
 
-                // S3 comes from a RustFS sidecar in the validation pod rather than the
-                // shared Ceph RGW endpoint: the suite needs a real S3 API (the backend
-                // test fixtures abort without one) but not shared storage, and a
-                // throwaway bucket per run keeps builds from tripping over each other.
-                // The backend creates the bucket itself on first use.
+                // S3 comes from a RustFS sidecar in the validation pod rather than
+                // shared storage: the suite needs a real S3 API (the backend test
+                // fixtures abort without one), and a throwaway bucket per run keeps
+                // builds from tripping over each other. The backend creates the
+                // bucket itself on first use.
                 def suites = ['backend', 'frontend']
                 def jobName = "electronics-inventory-validation-${BUILD_NUMBER}"
 
@@ -81,7 +80,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
                                                 echo "Code received, extracting..."
                                                 tar xzf /work/staging/context.tar.gz -C /work
                                                 rm -rf /work/staging
-                                                cd /work && poetry install --no-interaction
+                                                cd /work && poetry install --no-interaction --without dev
                                                 poetry run run-suite --output-mode full --junitxml-dir /work/results --retries 2
                                                 echo \$? > /work/results/exit-code
                                                 sleep infinity
@@ -126,9 +125,9 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko', containers: [
 
                     def exitCode = fileExists('test-results/exit-code') ? readFile('test-results/exit-code').trim() : ''
 
-                    // Generate summary from SUITE_RESULT markers in the log.
-                    // run-suite emits one marker per JUnit XML; the file stem is
-                    // the suite name (backend, frontend).
+                    // Generate a summary from the SUITE_RESULT markers in the log.
+                    // run-suite emits one marker per JUnit XML; the file stem is the
+                    // suite name (backend, frontend). Group by suite via prefix match.
                     def log = readFile('validation.log')
                     def resultLines = log.split('\n').findAll { it.startsWith('===SUITE_RESULT:') }
                     def summaryLines = []
