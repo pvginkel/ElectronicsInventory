@@ -77,9 +77,9 @@ preamble:
     invoking poetry or pnpm directly; both toolchains live in the `modern-app`
     tool sidecar, so ad-hoc commands need `cexec modern-app ...`.
 
-    The dev runner needs that prefix too — this container has no poetry, pnpm or
-    honcho, so it is `cexec modern-app ./scripts/dev.py`, not `./scripts/dev.py`
-    (backend :3001, frontend :3000, SSE gateway :3002).
+    The dev runner is the exception: `./scripts/dev.py` runs honcho inside the
+    `modern-app` sidecar itself (backend :3001, frontend :3000, SSE gateway
+    :3002).
 
     The backend suite runs on in-memory SQLite and the Playwright suite boots its
     own backend, SSE gateway and frontend per worker, so neither suite touches
@@ -103,7 +103,7 @@ preamble:
     maintenance database, so `kc project setup` creates `electronics_inventory`
     (`backend/scripts/init-dev-database.py`) and applies the migrations
     (`cli upgrade-db`); both are idempotent, so a re-run is a no-op. That makes
-    `cexec modern-app ./scripts/dev.py` serve data as well as the SPA, with
+    `./scripts/dev.py` serve data as well as the SPA, with
     `/health/readyz` answering 200 and `database.connected: true`. Both test
     suites are unaffected either way: they use SQLite by their own
     configuration and never touch the sidecar.

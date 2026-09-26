@@ -59,7 +59,7 @@ Ctrl-C, so drive it through a FIFO and keep the wrapper's pid:
 
 ```bash
 mkfifo /tmp/devfifo
-timeout 600 cexec modern-app ./scripts/dev.py > /tmp/dev.out 2>&1 < /tmp/devfifo &
+timeout 600 ./scripts/dev.py > /tmp/dev.out 2>&1 < /tmp/devfifo &
 DEVPID=$!
 exec 9> /tmp/devfifo                 # hold the write end open, or dev.py sees EOF
 ```

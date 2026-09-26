@@ -23,7 +23,7 @@
       {
         "label": "Dev Services",
         "type": "shell",
-        "command": "cexec modern-app ./scripts/dev.py",
+        "command": "scripts/dev.py",
         "options": { "cwd": "${workspaceFolder:ElectronicsInventory}" },
         "icon": { "id": "server-process" },
         "problemMatcher": [],
