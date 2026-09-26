@@ -1,6 +1,5 @@
 """CLI commands for application operations."""
 
-
 import sys
 
 import click
@@ -23,7 +22,6 @@ def cli(ctx: click.Context) -> None:
     """electronics-inventory CLI."""
     ctx.ensure_object(dict)
     ctx.obj["app"] = create_app(skip_background_services=True)
-
 
 
 @cli.command()
@@ -162,7 +160,6 @@ def handle_load_test_data(app: App, confirmed: bool = False) -> None:
         except Exception as e:
             print(f"Failed to load test data: {e}", file=sys.stderr)
             sys.exit(1)
-
 
 
 def main() -> None:

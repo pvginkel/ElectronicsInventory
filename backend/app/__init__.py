@@ -12,6 +12,10 @@ from app.app import App
 from app.app_config import AppSettings
 from app.config import Settings
 from app.extensions import db
+from app.utils.after_commit import (
+    clear_after_commit_callbacks,
+    run_after_commit_callbacks,
+)
 
 
 def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | None" = None, skip_background_services: bool = False) -> App:
@@ -233,6 +237,9 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
         original exception to teardown_request when an errorhandler
         successfully returns a response, so the flag is the reliable
         rollback signal for handled exceptions.
+
+        Callbacks registered with ``app.utils.after_commit.after_commit()``
+        run only once the commit succeeded, never on rollback.
         """
         try:
             db_session = container.db_session()
@@ -245,9 +252,13 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
 
             db_session.close()
 
+            if not needs_rollback:
+                run_after_commit_callbacks()
+
         finally:
             # Ensure the scoped session is removed after each request
             container.db_session.reset()
+            clear_after_commit_callbacks()
 
     # Start background services only when not in CLI mode
     if not skip_background_services:
@@ -267,6 +278,8 @@ def create_app(settings: "Settings | None" = None, app_settings: "AppSettings | 
         # for STARTUP notifications will be invoked here.
         container.lifecycle_coordinator().fire_startup()
 
+    # Flask documents replacing wsgi_app with middleware, but declares it as a
+    # method, so mypy reads the assignment as clobbering one.
     app.wsgi_app = ProxyFix(  # type: ignore[method-assign]
         app.wsgi_app,
         x_proto=1,

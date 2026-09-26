@@ -17,7 +17,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import psycopg
 
-# Keep in step with Settings.DATABASE_URL in app/config.py.
+# Keep in step with Settings.database_url in app/config.py.
 DEFAULT_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory"
 
 # Database that always exists, used to issue the CREATE DATABASE.

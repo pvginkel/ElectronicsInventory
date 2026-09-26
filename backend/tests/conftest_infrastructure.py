@@ -5,7 +5,6 @@ client, session, OIDC) that the template owns. App-specific fixtures
 (domain objects, domain builders) live in conftest.py.
 """
 
-
 import os
 import sqlite3
 from collections.abc import Generator
@@ -31,7 +30,6 @@ from app.services.container import ServiceContainer
 _TEST_ENV_FILE = Path(__file__).parent.parent / ".env.test"
 if _TEST_ENV_FILE.exists():
     load_dotenv(_TEST_ENV_FILE, override=True)
-
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -60,11 +58,9 @@ def pytest_configure(config: pytest.Config) -> None:
     try:
         urllib.request.urlopen(endpoint, timeout=3)
     except urllib.error.HTTPError:
-        # Any HTTP status proves the endpoint is up and speaking HTTP, which is
-        # all this check is for. An unauthenticated GET / is not meant to
-        # succeed: MinIO answers 403 where Ceph RGW happens to answer 200.
-        # HTTPError subclasses both URLError and OSError, so it must be caught
-        # before them or a healthy MinIO reads as unreachable.
+        # Any HTTP response means the storage server is up and answering: MinIO
+        # replies to an anonymous GET / (ListBuckets) with 403, whereas Ceph RGW
+        # returns 200. Only the connection-level failures below mean "unreachable".
         pass
     except (urllib.error.URLError, OSError, TimeoutError):
         pytest.exit(
@@ -73,7 +69,6 @@ def pytest_configure(config: pytest.Config) -> None:
             "storage server is running.",
             returncode=1,
         )
-
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +100,6 @@ def clear_prometheus_registry():
 def _build_test_settings() -> Settings:
     """Construct base Settings object for tests."""
     return Settings(
-
         database_url="sqlite:///:memory:",
         db_pool_size=20,
         db_pool_max_overflow=30,
@@ -115,7 +109,6 @@ def _build_test_settings() -> Settings:
         diagnostics_slow_query_threshold_ms=100,
         diagnostics_slow_request_threshold_ms=500,
         diagnostics_log_all_queries=False,
-
         secret_key="test-secret-key",
         debug=True,
         flask_env="testing",
@@ -129,7 +122,6 @@ def _build_test_settings() -> Settings:
         # Shutdown
         graceful_shutdown_timeout=600,
         drain_auth_key="",
-
         # S3 configuration (from environment, see .env.test)
         s3_endpoint_url=os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
         s3_access_key_id=os.environ.get("S3_ACCESS_KEY_ID", "admin"),
@@ -137,15 +129,11 @@ def _build_test_settings() -> Settings:
         s3_bucket_name=os.environ.get("S3_BUCKET_NAME", "test-app-test-attachments"),
         s3_region=os.environ.get("S3_REGION", "us-east-1"),
         s3_use_ssl=os.environ.get("S3_USE_SSL", "false").lower() == "true",
-
-
         # SSE
         sse_heartbeat_interval=1,
         frontend_version_url="http://localhost:3000/version.json",
         sse_gateway_url="http://localhost:3002",
         sse_callback_secret="",
-
-
         # OIDC Authentication (disabled for most tests)
         baseurl="http://localhost:3000",
         oidc_enabled=False,
@@ -159,7 +147,6 @@ def _build_test_settings() -> Settings:
         oidc_cookie_secure=False,
         oidc_cookie_samesite="Lax",
         oidc_refresh_cookie_name="refresh_token",
-
     )
 
 
@@ -180,7 +167,6 @@ def test_app_settings() -> AppSettings:
     return _build_test_app_settings()
 
 
-
 def _assert_s3_available(app: Flask) -> None:
     """Ensure S3 storage is reachable for tests."""
     try:
@@ -195,8 +181,6 @@ def _assert_s3_available(app: Flask) -> None:
             "Unexpected error while verifying S3 availability for tests: "
             f"{exc}"
         )
-
-
 
 
 @pytest.fixture(scope="session")
@@ -216,9 +200,7 @@ def template_connection() -> Generator[sqlite3.Connection]:
     template_app = create_app(settings, app_settings=app_settings, skip_background_services=True)
     with template_app.app_context():
         upgrade_database(recreate=True)
-
         _assert_s3_available(template_app)
-
 
     # Note: Prometheus registry cleanup is handled by the autouse
     # clear_prometheus_registry fixture, no need to do it here
@@ -285,7 +267,6 @@ def session(container: ServiceContainer) -> Generator[Session]:
     container.db_session.reset()
 
 
-
 @pytest.fixture
 def client(app: Flask):
     """Create test client."""
@@ -303,7 +284,6 @@ def container(app: Flask):
     """Access to the DI container for testing with session provided."""
     container = app.container
 
-
     with app.app_context():
         # Ensure SessionLocal is initialized for tests
         from sqlalchemy.orm import sessionmaker
@@ -320,9 +300,7 @@ def container(app: Flask):
 
     container.session_maker.override(SessionLocal)
 
-
     return container
-
 
 
 # ---------------------------------------------------------------------------
@@ -436,9 +414,7 @@ def generate_test_jwt(test_settings: Settings) -> Any:
 def oidc_app(
     test_settings: Settings,
     test_app_settings: AppSettings,
-
     template_connection: sqlite3.Connection,
-
     mock_oidc_discovery: dict[str, Any],
     generate_test_jwt: Any,
 ) -> Generator[Flask]:
@@ -447,7 +423,6 @@ def oidc_app(
     Keeps httpx.get and PyJWKClient mocks active so that AuthService can
     discover endpoints and validate tokens throughout the test.
     """
-
     clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
     template_connection.backup(clone_conn)
 
@@ -460,7 +435,6 @@ def oidc_app(
         "oidc_enabled": True,
         "oidc_client_secret": "test-secret",
     })
-
 
     with patch("httpx.get") as mock_get:
         mock_response = MagicMock()
@@ -486,17 +460,14 @@ def oidc_app(
                 except Exception:
                     pass
 
-
                 with app.app_context():
                     from app.extensions import db as flask_db
                     flask_db.session.remove()
                 clone_conn.close()
 
 
-
 @pytest.fixture
 def oidc_client(oidc_app: Flask) -> Any:
     """Create test client for the OIDC-enabled app."""
     return oidc_app.test_client()
-
 
