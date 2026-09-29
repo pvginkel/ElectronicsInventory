@@ -12,9 +12,9 @@ the suites tree-wide and boots the dev stack in this environment, from the merge
 
 **The push at step 4 deploys to production.** `Jenkinsfile` is one pipeline with no DTAP: it runs
 the validation suites, builds all three images (`electronics-inventory`, `-ui`, `-docs`) tagged
-`latest` plus the build number, and ends in `cicd.helmDeploy()`. That is the repo's standing
-behaviour — every push to `main` has always done it — not something this phase controls. The
-consequence for ordering is the whole point of this doc: **everything is verified before the push,
+`latest` plus the build number, and ends by pinning them in ElectronicsInventoryDeploy
+(`cicd.writeVersionPins`), which Argo CD syncs. That is the repo's standing behaviour — every push
+to `main` has always done it — not something this phase controls. The consequence for ordering is the whole point of this doc: **everything is verified before the push,
 because after the push it is live.**
 
 There is no `devlock`: with no dev instance, nothing contends.
