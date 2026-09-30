@@ -58,8 +58,8 @@ gateway and frontend on `get-port`-allocated ports. `page.route`/response mockin
 `testing/no-route-mocks` eslint rule. The backend suite runs on in-memory SQLite (Alembic once per
 session, then a per-test copy), so neither suite touches the `postgres` sidecar — that one is the
 honcho dev stack's database. **S3 must be reachable**, though:
-`pytest_configure` aborts the entire run if `S3_ENDPOINT_URL` is down. Locally that is the MinIO
-sidecar at `localhost:9000` (`minioadmin`/`minioadmin`); in CI it is a RustFS sidecar inside the
+`pytest_configure` aborts the entire run if `S3_ENDPOINT_URL` is down. Locally that is the `s3storage`
+sidecar (RustFS) at `localhost:9000` (`s3storage`/`s3storage`); in CI it is a RustFS sidecar inside the
 validation pod.
 
 ## Deployment

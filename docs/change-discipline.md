@@ -55,7 +55,7 @@ not a substitute — the point of the test is that it runs again next time.
 | `backend` | pytest, under `backend/tests/` | `kc project test --project backend` |
 | `frontend` | Playwright E2E, under `frontend/tests/e2e/` | `kc project test --project frontend` |
 
-Both boot real services: the backend suite runs on in-memory SQLite against a live MinIO, and the
+Both boot real services: the backend suite runs on in-memory SQLite against a live S3 sidecar, and the
 Playwright suite boots its own backend, SSE gateway and frontend per worker. There are no service
 mocks in the E2E layer and `page.route`/response mocking is banned by the `testing/no-route-mocks`
 eslint rule — a test that needs a stub is a seam that needs fixing.

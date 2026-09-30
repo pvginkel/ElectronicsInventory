@@ -22,8 +22,8 @@ the frontend; both end with `arch-validate` from the aac-tools toolchain. Note
 `backend/scripts/check.py` (`poetry run check`) also runs pytest, which duplicates the `test` verb —
 the `lint` verb deliberately does not use it.
 
-`kc project setup` seeds `backend/.env` (at the postgres and MinIO sidecars) and
-`backend/.env.test` (MinIO) when they do not exist; it never overwrites an existing file. It then
+`kc project setup` seeds `backend/.env` (at the postgres and s3storage sidecars) and
+`backend/.env.test` (s3storage) when they do not exist; it never overwrites an existing file. It then
 creates the `electronics_inventory` database if the sidecar has not got one yet and applies the
 migrations — both idempotent, so a re-run is a no-op.
 
