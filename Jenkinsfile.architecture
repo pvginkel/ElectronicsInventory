@@ -6,12 +6,11 @@
 // frontend/docs/architecture/*.yaml. Nothing here is generated.
 //
 // The agent needs outbound HTTPS to architecture.webathome.org for validation.
-// arch-validate.py is stdlib-only, so the python container needs no pip install.
 
 library identifier: 'JenkinsPipelineUtils', changelog: false
 
 podTemplate(inheritFrom: 'jenkins-agent', containers: [
-    containerTemplates.python('python')
+    containerTemplates.aac_tools('aac-tools')
 ]) {
     node(POD_LABEL) {
         stage('Cloning repo') {
@@ -23,16 +22,16 @@ podTemplate(inheritFrom: 'jenkins-agent', containers: [
         // and carry the subdirectory prefix themselves.
         stage('Validate backend architecture') {
             dir('backend') {
-                container('python') {
-                    sh '../scripts/arch-validate.py docs/architecture/*.yaml'
+                container('aac-tools') {
+                    sh 'arch-validate docs/architecture/*.yaml'
                 }
             }
         }
 
         stage('Validate frontend architecture') {
             dir('frontend') {
-                container('python') {
-                    sh '../scripts/arch-validate.py docs/architecture/*.yaml'
+                container('aac-tools') {
+                    sh 'arch-validate docs/architecture/*.yaml'
                 }
             }
         }

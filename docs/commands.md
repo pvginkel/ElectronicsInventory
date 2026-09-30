@@ -18,9 +18,9 @@ kc project info                                              # what is configure
 ```
 
 Lint is `ruff` + `mypy` + `vulture` for the backend and `pnpm check` (eslint + `tsc -b` + knip) for
-the frontend; both end with `scripts/arch-validate.py`. Note `backend/scripts/check.py`
-(`poetry run check`) also runs pytest, which duplicates the `test` verb — the `lint` verb
-deliberately does not use it.
+the frontend; both end with `arch-validate` from the aac-tools toolchain. Note
+`backend/scripts/check.py` (`poetry run check`) also runs pytest, which duplicates the `test` verb —
+the `lint` verb deliberately does not use it.
 
 `kc project setup` seeds `backend/.env` (at the postgres and MinIO sidecars) and
 `backend/.env.test` (MinIO) when they do not exist; it never overwrites an existing file. It then
@@ -105,10 +105,9 @@ All from `backend/`, so through the sidecar as `cexec modern-app sh -c 'cd backe
 
 ## Architecture validation
 
-`scripts/arch-validate.py docs/architecture/*.yaml` (run from `backend/` or `frontend/`) POSTs the
-model to the federated architecture service; exit 0 valid, 1 invalid, 2 transport. It is
-stdlib-only, so it runs in the dev container with no `cexec` prefix, and it is the last statement
-of both components' `kc project lint`.
+`cexec aac-tools arch-validate docs/architecture/*.yaml` (run from `backend/` or `frontend/`) POSTs
+the model to the federated architecture service; exit 0 valid, 1 invalid, 2 transport. It runs in
+the `aac-tools` sidecar, and it is the last statement of both components' `kc project lint`.
 
 ## Local config
 

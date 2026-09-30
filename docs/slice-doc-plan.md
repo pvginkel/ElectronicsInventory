@@ -55,9 +55,10 @@ paragraph and say so.
 
 `docs/architecture/architecture.yaml` exists in **both** components, but they are two files of
 **one** producer (`electronics-inventory`) in the federated architecture-as-code model. Keep them
-consistent; `Jenkinsfile.architecture` validates both, and `scripts/arch-validate.py` is the last
-statement of both components' `kc project lint`. **Element ids are referenced by the wider
-federated model — never rename one.** The doc phase does not hand-edit them.
+consistent; `Jenkinsfile.architecture` validates both, and the aac-tools toolchain's
+`arch-validate` is the last statement of both components' `kc project lint`. **Element ids are
+referenced by the wider federated model — never rename one.** The doc phase does not hand-edit
+them.
 
 ### 5. What is not a doc surface
 

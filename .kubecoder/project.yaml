@@ -3,9 +3,9 @@
 # `kc project` is pure-local: it runs each statement as a subprocess in the dev
 # container, which carries no language toolchain. Poetry and pnpm live in the
 # `modern-app` tool sidecar, so every toolchain statement goes through
-# `cexec modern-app`. Statements that need nothing but a shell or stdlib
-# python3 (the .env seeds, scripts/arch-validate.py) run bare — CI wraps the
-# validator in a `python` container only because a Jenkins agent has no Python.
+# `cexec modern-app`. arch-validate lives in the `aac-tools` sidecar, so it
+# goes through `cexec aac-tools`. Statements that need nothing but a shell
+# (the .env seeds) run bare.
 #
 # The test verbs delegate to the root suite runner (tools/suite_runner) so local
 # runs and the Jenkins validation job execute the same steps in the same order.
@@ -72,9 +72,9 @@ projects:
       - cexec modern-app poetry run mypy .
       - cexec modern-app poetry run vulture app/ vulture_whitelist.py --min-confidence 80
       # The architecture-as-code producer CI validates in AaC/ElectronicsInventory.
-      # stdlib-only, so it runs in this container. Exit 0 valid, 1 invalid,
-      # 2 transport — a 2 is the validation service, not this repository.
-      - ../scripts/arch-validate.py docs/architecture/*.yaml
+      # Exit 0 valid, 1 invalid, 2 transport — a 2 is the validation service,
+      # not this repository.
+      - cexec aac-tools arch-validate docs/architecture/*.yaml
 
   frontend:
     description: >-
@@ -98,4 +98,4 @@ projects:
     test: cd .. && cexec modern-app poetry run run-suite --suite frontend
     lint:
       - cexec modern-app pnpm check
-      - ../scripts/arch-validate.py docs/architecture/*.yaml
+      - cexec aac-tools arch-validate docs/architecture/*.yaml

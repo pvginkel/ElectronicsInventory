@@ -35,6 +35,7 @@ capabilities:
 
 tools:
   - use: modern-app
+  - use: aac-tools # arch-validate, the last statement of both components' lint
 
 # S3-compatible object storage for the backend's attachment handling, and the
 # PostgreSQL the dev stack stores its data in. Neither is exposed: both are
