@@ -17,7 +17,7 @@
 # `s3storage` sidecar (RustFS, storage cleared on every start) provides it
 # locally. CI does the same thing its own way: the Jenkins validation Job runs a
 # RustFS sidecar beside the suite container and injects the same four `S3_*`
-# variables (Jenkinsfile, "Run validation").
+# variables (Jenkinsfile, "Test").
 
 cwd: ElectronicsInventory
 
@@ -46,7 +46,7 @@ services:
   - postgres
 
 # The three images CI publishes (electronics-inventory, -ui, -docs) are built by
-# Jenkins with `helmCharts.kaniko(...)`, not by `kc project build` — see the
+# Jenkins with `helmCharts.kaniko2(...)`, not by `kc project build` — see the
 # comment in project.yaml. The builder is on so those Dockerfiles can still be
 # proven in-env with a by-hand `kaniko --no-push`.
 imageBuilder: true

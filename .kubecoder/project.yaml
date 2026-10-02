@@ -13,7 +13,7 @@
 # per-component test statements.
 #
 # Container images are deliberately NOT wired into `build:`. Jenkins builds all
-# three (`electronics-inventory`, `-ui`, `-docs`) with `helmCharts.kaniko(...)`,
+# three (`electronics-inventory`, `-ui`, `-docs`) with `helmCharts.kaniko2(...)`,
 # nothing builds them locally, and putting three image builds in the default
 # `kc project build` sweep would make the AI workflow's per-task gate cost
 # minutes. To prove one by hand, from the repository root:

@@ -3,14 +3,15 @@
 # A .dockerignore is read from the build CONTEXT root, and all three images are
 # built from a subdirectory:
 #
-#   helmCharts.kaniko("backend/Dockerfile",       "backend",  ...)
-#   helmCharts.kaniko("frontend/Dockerfile",      "frontend", ...)
-#   helmCharts.kaniko("frontend/Dockerfile.docs", "frontend", ...)
+#   helmCharts.kaniko2(dockerfile: 'backend/Dockerfile',       context: 'backend',  ...)
+#   helmCharts.kaniko2(dockerfile: 'frontend/Dockerfile',      context: 'frontend', ...)
+#   helmCharts.kaniko2(dockerfile: 'frontend/Dockerfile.docs', context: 'frontend', ...)
 #
 # so the files that matter are backend/.dockerignore and
 # frontend/.dockerignore. Edit those. This one is kept only for a future build
-# whose context is the repository root; the Jenkinsfile's own validation-context
-# tar carries its own --exclude flags and does not read it either.
+# whose context is the repository root; the validation Job's tar (modernApp.test
+# in the Jenkinsfile's Test stage) carries its own --exclude flags and does not
+# read it either.
 **/.git
 **/.pnpm-store
 **/.venv

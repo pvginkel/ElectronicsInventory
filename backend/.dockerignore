@@ -1,5 +1,6 @@
 # Read from the BUILD CONTEXT root, which for this image is `backend/` —
-# Jenkins builds it as helmCharts.kaniko("backend/Dockerfile", "backend", ...).
+# Jenkins builds it as helmCharts.kaniko2(dockerfile: 'backend/Dockerfile',
+# context: 'backend', ...).
 # The repository-root .dockerignore is therefore never read by any build.
 #
 # Only entries that are definitionally not build inputs are listed: caches,
