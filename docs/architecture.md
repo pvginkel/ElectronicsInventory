@@ -65,7 +65,7 @@ validation pod.
 ## Deployment
 
 One root `Jenkinsfile`, triggered by a push: a throwaway k8s Job runs `run-suite --output-mode
-full`, then three kaniko image builds (`electronics-inventory`, `-ui`, `-docs`) and a Helm deploy.
+full`, then three kaniko image builds (`electronics-inventory`, `-ui`, `-docs`), then a pin of the new image tags into ElectronicsInventoryDeploy, which Argo CD syncs to prd.
 There is **no DTAP** — a push to `main` goes to production. `docs/slice-test-plan.md` is what a
 slice does about that.
 

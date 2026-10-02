@@ -122,7 +122,7 @@ mcp__jenkins__getBuild jobFullName=ElectronicsInventory
                        buildNumber=<n>  tree=number,building,result,description
 ```
 
-A full build takes **about 20 minutes** (validation Job, three kaniko image builds, helm deploy),
+A full build takes **about 20 minutes** (validation Job, three kaniko image builds, image pins),
 so poll every few minutes rather than continuously. `description` carries the suite totals
 (`exit=0, 1382 passed, 0 failed, 6 skipped`) as soon as validation finishes, well before `result`
 is set. If this session has no `mcp__jenkins__*` tools, fall back to the job's JSON API at
@@ -132,7 +132,7 @@ and the API is only a fallback for a session that has those credentials.
 
 This is a **did-I-break-CI check, not a verification gate** — the slice was already proven in
 steps 1–2. What it catches is the class of failure only CI can see: the three image builds, the
-helm deploy, and the suites running under the validation Job's retry policy. A red build is a
+image pins into ElectronicsInventoryDeploy, and the suites running under the validation Job's retry policy. A red build is a
 blocking finding even though every local check passed.
 
 ## Findings
