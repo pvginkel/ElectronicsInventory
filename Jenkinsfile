@@ -6,7 +6,7 @@
 // there is no promote stage.
 //
 // Controller config:
-//   - Job: ElectronicsInventory/ElectronicsInventory
+//   - Job: ElectronicsInventory
 //   - SCM: pvginkel/ElectronicsInventory, branch main
 //   - Script Path: Jenkinsfile
 

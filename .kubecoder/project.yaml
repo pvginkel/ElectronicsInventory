@@ -29,7 +29,7 @@ projects:
     # The main build/deploy pipeline. A second job, `AaC/ElectronicsInventory`,
     # runs Jenkinsfile.architecture (the architecture-as-code producer) off the
     # same repository; `jenkins:` takes one name, so it is recorded here.
-    jenkins: ElectronicsInventory/ElectronicsInventory
+    jenkins: ElectronicsInventory
     # The root poetry environment exists only for tools/suite_runner and honcho,
     # which is what the components' `test:` statements invoke.
     setup: cexec modern-app poetry install --no-interaction

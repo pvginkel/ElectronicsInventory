@@ -112,13 +112,13 @@ one, honouring any repo named in `plan.md`'s `## Push holds`. The spec repo is a
 and is pushed separately.
 
 Then follow the build the push triggered, on the Jenkins job
-**`ElectronicsInventory/ElectronicsInventory`**. Record `lastBuild.number` *before* pushing so you
+**`ElectronicsInventory`**. Record `lastBuild.number` *before* pushing so you
 can tell the new build from the old one, then poll:
 
 ```
-mcp__jenkins__getJob   jobFullName=ElectronicsInventory/ElectronicsInventory
+mcp__jenkins__getJob   jobFullName=ElectronicsInventory
                        tree=lastBuild[number,building,result,description]
-mcp__jenkins__getBuild jobFullName=ElectronicsInventory/ElectronicsInventory
+mcp__jenkins__getBuild jobFullName=ElectronicsInventory
                        buildNumber=<n>  tree=number,building,result,description
 ```
 
@@ -126,7 +126,7 @@ A full build takes **about 20 minutes** (validation Job, three kaniko image buil
 so poll every few minutes rather than continuously. `description` carries the suite totals
 (`exit=0, 1382 passed, 0 failed, 6 skipped`) as soon as validation finishes, well before `result`
 is set. If this session has no `mcp__jenkins__*` tools, fall back to the job's JSON API at
-`https://jenkins.webathome.org/job/ElectronicsInventory/job/ElectronicsInventory/lastBuild/api/json?tree=number,building,result,description`
+`https://jenkins.webathome.org/job/ElectronicsInventory/lastBuild/api/json?tree=number,building,result,description`
 — which needs Jenkins credentials this pod does not carry, so the MCP tools are the working path
 and the API is only a fallback for a session that has those credentials.
 
