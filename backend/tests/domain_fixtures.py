@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import BinaryIO
 
 import pytest
-from flask import Flask
 from PIL import Image
 
 from app.models.attachment_set import AttachmentSet
@@ -52,28 +51,6 @@ def make_attachment_set(session):
         attachment_set = AttachmentSet()
         session.add(attachment_set)
         session.flush()
-        return attachment_set
-
-    return _make
-
-
-@pytest.fixture
-def make_attachment_set_flask(app: Flask):
-    """Helper fixture to create AttachmentSet instances using Flask's db.session.
-
-    Returns a callable that creates and persists an AttachmentSet.
-    This variant is for tests using app context and Flask's db.session.
-    Usage:
-        with app.app_context():
-            attachment_set = make_attachment_set_flask()
-            kit = Kit(..., attachment_set_id=attachment_set.id)
-    """
-    from app.extensions import db
-
-    def _make():
-        attachment_set = AttachmentSet()
-        db.session.add(attachment_set)
-        db.session.flush()
         return attachment_set
 
     return _make

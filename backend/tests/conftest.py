@@ -30,7 +30,6 @@ from tests.conftest_infrastructure import (
 from tests.domain_fixtures import (  # noqa: F401
     large_image_file,
     make_attachment_set,
-    make_attachment_set_flask,
     mock_html_content,
     mock_url_metadata,
     sample_image_file,

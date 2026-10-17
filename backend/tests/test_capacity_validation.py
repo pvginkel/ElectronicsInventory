@@ -5,7 +5,6 @@ from flask import Flask
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.extensions import db
 from app.models.box import Box
 from app.models.location import Location
 from app.schemas.box import BoxCreateSchema
@@ -50,7 +49,7 @@ class TestCapacityValidation:
 
                 # Verify in database
                 db_locations = (
-                    db.session.query(Location).filter_by(box_no=box.box_no).all()
+                    session.query(Location).filter_by(box_no=box.box_no).all()
                 )
                 assert len(db_locations) == capacity
 
@@ -91,7 +90,7 @@ class TestCapacityValidation:
 
             # Verify in database
             db_locations = (
-                db.session.query(Location).filter_by(box_no=original_box_no).all()
+                session.query(Location).filter_by(box_no=original_box_no).all()
             )
             assert len(db_locations) == 10
             db_location_numbers = sorted([loc.loc_no for loc in db_locations])
@@ -121,7 +120,7 @@ class TestCapacityValidation:
 
             # Verify in database that higher-numbered locations are gone
             db_locations = (
-                db.session.query(Location).filter_by(box_no=original_box_no).all()
+                session.query(Location).filter_by(box_no=original_box_no).all()
             )
             assert len(db_locations) == 6
             db_location_numbers = sorted([loc.loc_no for loc in db_locations])
@@ -129,7 +128,7 @@ class TestCapacityValidation:
 
             # Specifically verify locations 7-10 don't exist
             high_locations = (
-                db.session.query(Location)
+                session.query(Location)
                 .filter(Location.box_no == original_box_no, Location.loc_no > 6)
                 .all()
             )
