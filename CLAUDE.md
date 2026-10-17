@@ -92,8 +92,8 @@ a template-owned file; what the template lacks is changed in the template, not h
 One edit stands in a template-owned file, and a `copier update` that conflicts on it keeps both
 sides: **`frontend/eslint.config.js`** carries EI's `role-gating` plugin (the imports of
 `scripts/eslint-rules/role-import-enforcement.js` and `gate-usage-enforcement.js`, and their two
-config blocks), after the template's own blocks. The template has no hook for app lint rules yet
-(card MAT-18). The violation finder (`scripts/find_template_violations.py` in ModernAppTemplate)
+config blocks), after the template's own blocks. The template has no hook for app lint rules yet.
+The violation finder (`scripts/find_template_violations.py` in ModernAppTemplate)
 also reports older, unsorted divergence in a few template-owned files (`.gitignore`s,
 `frontend/knip.config.ts`, a handful of UI components); treat those as drift, not standing edits.
 
