@@ -10,6 +10,7 @@ These tests verify that:
 """
 
 import json
+from collections.abc import Generator
 
 import pytest
 from flask import Flask
@@ -17,7 +18,14 @@ from flask.testing import FlaskClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.app_config import AppSettings
+from app.config import Settings
 from app.services.container import ServiceContainer
+from tests.conftest_infrastructure import (
+    _create_test_app,
+    _dispose_app,
+    _TestSessionMaker,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers: create a test blueprint with endpoints that raise each exception
@@ -152,10 +160,56 @@ def _register_error_trigger_routes(app: Flask) -> None:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def error_client(app: Flask) -> FlaskClient:
+def fresh_app(
+    app: Flask,
+    session: Session,
+    test_settings: Settings,
+    test_app_settings: AppSettings,
+) -> Generator[Flask]:
+    """An app of its own, on the session app's database and the test's session.
+
+    Flask refuses a blueprint on an app that has handled a request, and the
+    session app has, so routes a test adds go on this one, before its first
+    request. Its requests share ``session``, as ``oidc_app``'s do, so what
+    they write is rolled back with the rest.
+    """
+    settings = test_settings.model_copy(
+        update={"database_url": app.config["SQLALCHEMY_DATABASE_URI"]}
+    )
+    application = _create_test_app(settings, test_app_settings)
+    application.container.session_maker.override(_TestSessionMaker(session))
+
+    try:
+        yield application
+    finally:
+        _dispose_app(application)
+
+
+@pytest.fixture(scope="module")
+def error_app(
+    app: Flask, test_settings: Settings, test_app_settings: AppSettings
+) -> Generator[Flask]:
+    """An app with the error-trigger routes, shared by this module's tests.
+
+    The routes write nothing, so it keeps its own session maker; built once,
+    as ``fresh_app`` per test would cost about 0.2 s each.
+    """
+    settings = test_settings.model_copy(
+        update={"database_url": app.config["SQLALCHEMY_DATABASE_URI"]}
+    )
+    application = _create_test_app(settings, test_app_settings)
+    _register_error_trigger_routes(application)
+
+    try:
+        yield application
+    finally:
+        _dispose_app(application)
+
+
+@pytest.fixture
+def error_client(error_app: Flask) -> FlaskClient:
     """Flask test client with error-trigger routes registered."""
-    _register_error_trigger_routes(app)
-    return app.test_client()
+    return error_app.test_client()
 
 
 # ---------------------------------------------------------------------------
@@ -358,7 +412,7 @@ class TestSessionTeardownRollback:
     and commits on success."""
 
     def test_exception_triggers_rollback_via_teardown(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, fresh_app: Flask
     ):
         """When an endpoint raises an exception caught by an error handler,
         teardown_request receives exc != None and rolls back the session.
@@ -371,7 +425,7 @@ class TestSessionTeardownRollback:
 
         @rollback_bp.route("/write-then-fail", methods=["POST"])
         def write_then_fail():
-            db = container.db_session()
+            db = fresh_app.container.db_session()
             # Insert a row that should be rolled back
             db.execute(
                 text("INSERT INTO types (name) VALUES (:name)"),
@@ -380,33 +434,33 @@ class TestSessionTeardownRollback:
             db.flush()
             raise InvalidOperationException("test", "deliberate failure")
 
-        app.register_blueprint(rollback_bp)
-        client = app.test_client()
+        fresh_app.register_blueprint(rollback_bp)
+        client = fresh_app.test_client()
 
         # Count types before the failing request
-        with app.app_context():
-            db = container.db_session()
+        with fresh_app.app_context():
+            db = fresh_app.container.db_session()
             before = db.execute(text("SELECT COUNT(*) FROM types")).scalar()
-            container.db_session.reset()
+            fresh_app.container.db_session.reset()
 
         # Make the failing request
         resp = client.post("/rollback-test/write-then-fail")
         assert resp.status_code == 409
 
         # Verify the sentinel row was rolled back
-        with app.app_context():
-            db = container.db_session()
+        with fresh_app.app_context():
+            db = fresh_app.container.db_session()
             after = db.execute(text("SELECT COUNT(*) FROM types")).scalar()
             sentinel = db.execute(
                 text("SELECT COUNT(*) FROM types WHERE name = '__rollback_sentinel__'")
             ).scalar()
-            container.db_session.reset()
+            fresh_app.container.db_session.reset()
 
         assert after == before
         assert sentinel == 0
 
     def test_successful_request_commits(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, fresh_app: Flask
     ):
         """When an endpoint succeeds, teardown_request receives exc == None
         and commits the session."""
@@ -416,7 +470,7 @@ class TestSessionTeardownRollback:
 
         @commit_bp.route("/write-and-succeed", methods=["POST"])
         def write_and_succeed():
-            db = container.db_session()
+            db = fresh_app.container.db_session()
             db.execute(
                 text("INSERT INTO types (name) VALUES (:name)"),
                 {"name": "__commit_sentinel__"},
@@ -424,25 +478,25 @@ class TestSessionTeardownRollback:
             db.flush()
             return {"ok": True}
 
-        app.register_blueprint(commit_bp)
-        client = app.test_client()
+        fresh_app.register_blueprint(commit_bp)
+        client = fresh_app.test_client()
 
         # Make the successful request
         resp = client.post("/commit-test/write-and-succeed")
         assert resp.status_code == 200
 
         # Verify the sentinel row was committed
-        with app.app_context():
-            db = container.db_session()
+        with fresh_app.app_context():
+            db = fresh_app.container.db_session()
             sentinel = db.execute(
                 text("SELECT COUNT(*) FROM types WHERE name = '__commit_sentinel__'")
             ).scalar()
-            container.db_session.reset()
+            fresh_app.container.db_session.reset()
 
         assert sentinel == 1
 
     def test_record_not_found_rolls_back_prior_writes(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, fresh_app: Flask
     ):
         """RecordNotFoundException also triggers rollback via teardown."""
         from flask import Blueprint
@@ -453,7 +507,7 @@ class TestSessionTeardownRollback:
 
         @rnf_bp.route("/write-then-not-found", methods=["POST"])
         def write_then_not_found():
-            db = container.db_session()
+            db = fresh_app.container.db_session()
             db.execute(
                 text("INSERT INTO types (name) VALUES (:name)"),
                 {"name": "__rnf_sentinel__"},
@@ -461,18 +515,18 @@ class TestSessionTeardownRollback:
             db.flush()
             raise RecordNotFoundException("Part", "ZZZZ")
 
-        app.register_blueprint(rnf_bp)
-        client = app.test_client()
+        fresh_app.register_blueprint(rnf_bp)
+        client = fresh_app.test_client()
 
         resp = client.post("/rnf-test/write-then-not-found")
         assert resp.status_code == 404
 
-        with app.app_context():
-            db = container.db_session()
+        with fresh_app.app_context():
+            db = fresh_app.container.db_session()
             sentinel = db.execute(
                 text("SELECT COUNT(*) FROM types WHERE name = '__rnf_sentinel__'")
             ).scalar()
-            container.db_session.reset()
+            fresh_app.container.db_session.reset()
 
         assert sentinel == 0
 
