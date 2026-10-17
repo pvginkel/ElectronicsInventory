@@ -30,17 +30,13 @@ class _DummyQuery:
 class _DummySession:
     """Minimal session stub for startup hook tests."""
 
-    def __init__(self, dialect_name: str = "sqlite") -> None:
-        self._dialect_name = dialect_name
+    def __init__(self) -> None:
         self.committed = False
         self.closed = False
         self.executed_statements: list[Any] = []
 
     def query(self, model: Any) -> _DummyQuery:
         return _DummyQuery(0)
-
-    def get_bind(self) -> SimpleNamespace:
-        return SimpleNamespace(dialect=SimpleNamespace(name=self._dialect_name))
 
     def execute(self, stmt: Any, *args: Any, **kwargs: Any) -> None:
         self.executed_statements.append(stmt)
@@ -68,7 +64,7 @@ def _make_app(
 ) -> Flask:
     """Create a minimal Flask app with a stubbed container for hook tests."""
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///hook-test.db"
+    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg://hook-test/db"
 
     if session is None:
         session = _DummySession()
@@ -216,8 +212,8 @@ class TestLoadTestDataHook:
         assert "storage boxes" in output
 
     def test_postgres_sequence_reset(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """On PostgreSQL, the boxes_box_no_seq sequence is reset."""
-        session = _DummySession(dialect_name="postgresql")
+        """The boxes_box_no_seq sequence is reset to the loaded boxes."""
+        session = _DummySession()
         app = _make_app(session=session)
 
         monkeypatch.setattr(
@@ -231,20 +227,6 @@ class TestLoadTestDataHook:
         stmt_text = str(session.executed_statements[0])
         assert "setval" in stmt_text
         assert "boxes_box_no_seq" in stmt_text
-
-    def test_sqlite_skips_sequence_reset(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """On SQLite, the sequence reset step is skipped."""
-        session = _DummySession(dialect_name="sqlite")
-        app = _make_app(session=session)
-
-        monkeypatch.setattr(
-            "app.services.setup_service.SetupService", _mock_setup_service()
-        )
-
-        startup.load_test_data_hook(app)
-
-        # No SQL statements should be executed for SQLite (no setval)
-        assert len(session.executed_statements) == 0
 
     def test_sync_failure_propagates(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """If SetupService.sync_types_from_setup raises, the exception propagates (fatal)."""

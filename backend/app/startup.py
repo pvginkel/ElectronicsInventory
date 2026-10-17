@@ -257,20 +257,15 @@ def load_test_data_hook(app: App) -> None:
         test_data_service = app.container.test_data_service()
         test_data_service.load_full_dataset()
 
-        # Keep the box number sequence aligned with loaded fixtures when supported
-        bind = session.get_bind() if hasattr(session, "get_bind") else None
-        if bind is None:
-            bind = getattr(session, "bind", None)
-
-        if bind is not None and bind.dialect.name.startswith("postgres"):
-            session.execute(
-                sa.text(
-                    "SELECT setval('boxes_box_no_seq', "
-                    "COALESCE(MAX(box_no), 1), "
-                    "CASE WHEN MAX(box_no) IS NULL THEN false ELSE true END) "
-                    "FROM boxes"
-                )
+        # Keep the box number sequence aligned with the loaded fixtures
+        session.execute(
+            sa.text(
+                "SELECT setval('boxes_box_no_seq', "
+                "COALESCE(MAX(box_no), 1), "
+                "CASE WHEN MAX(box_no) IS NULL THEN false ELSE true END) "
+                "FROM boxes"
             )
+        )
         print("✅ Test data loaded successfully")
 
         # Print dataset summary
