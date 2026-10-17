@@ -293,9 +293,8 @@ test.describe('Shopping List Line Deletion Undo', () => {
     await undo2Event;
     await waitForListLoading(shoppingLists.playwrightPage, 'shoppingLists.kanban', 'ready');
 
-    // Verify by content: the undo re-creates the line with a new backend ID
-    // (SQLite may reuse deleted IDs), so we check text content rather than
-    // original line IDs to avoid flakiness.
+    // Verify by content: the undo re-creates the line with a new backend ID,
+    // so we check text content rather than the original line IDs.
     const allCards = shoppingLists.kanbanColumnCards('ungrouped');
     await expect(allCards).toHaveCount(1);
 

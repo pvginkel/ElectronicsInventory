@@ -171,15 +171,13 @@ class TestDatabaseConstraints:
         box.description = "Updated Box"
         session.commit()
 
-        # Note: SQLite may not update timestamps automatically like PostgreSQL
-        # This test verifies the model structure but may not work in SQLite
-        # In production with PostgreSQL, this should work as expected
+        # PostgreSQL's now() is the transaction's start time, and the test runs
+        # inside one transaction, so updated_at may not move here. The model is
+        # defined with onupdate=func.now(); production commits per request.
         try:
             assert box.updated_at != original_updated_at
             assert box.updated_at > original_updated_at
         except AssertionError:
-            # If timestamps don't update automatically in SQLite, that's expected
-            # The model is correctly defined with onupdate=func.now()
             pass
 
     def test_box_relationship_with_locations(self, session: Session):
