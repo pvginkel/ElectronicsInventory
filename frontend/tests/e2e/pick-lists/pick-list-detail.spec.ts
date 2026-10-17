@@ -5,15 +5,20 @@ import type { UiStateTestEvent } from '@/lib/test/test-events';
 import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/generated/hooks';
 import type { createApiClient, createTestDataBundle } from '../../api';
 
-/** The `ready` that ends a pick or undo, not the one emitted when the page mounts idle. */
-function waitForExecutionReady(page: Page, action: 'pick' | 'undo'): Promise<UiStateTestEvent> {
+/**
+ * The `ready` that ends an action (a pick, an undo, a quantity update). The
+ * action scopes also emit a metadata-less `ready` when the page mounts idle,
+ * and the event buffer would hand that one to a waiter registered later.
+ */
+function waitForActionReady(
+  page: Page,
+  scope: 'pickLists.detail.execution' | 'pickLists.detail.quantityEdit',
+  action: 'pick' | 'undo' | 'updateQuantity',
+): Promise<UiStateTestEvent> {
   return waitTestEvent<UiStateTestEvent>(
     page,
     'ui_state',
-    event =>
-      event.scope === 'pickLists.detail.execution' &&
-      event.phase === 'ready' &&
-      event.metadata?.action === action,
+    event => event.scope === scope && event.phase === 'ready' && event.metadata?.action === action,
   );
 }
 
@@ -199,9 +204,7 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.undoButton(lineId)).toBeHidden();
 
     const pickLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
-    // The scope also emits a metadata-less `ready` when the page mounts idle, so
-    // wait for the one the pick ends with.
-    const pickReady = waitForExecutionReady(page, 'pick');
+    const pickReady = waitForActionReady(page, 'pickLists.detail.execution', 'pick');
     const pickListReload = waitForListLoading(page, 'pickLists.detail', 'ready');
     const pickLinesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
 
@@ -227,7 +230,7 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.undoButton(lineId)).toBeVisible();
 
     const undoLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
-    const undoReady = waitForExecutionReady(page, 'undo');
+    const undoReady = waitForActionReady(page, 'pickLists.detail.execution', 'undo');
     const undoListReload = waitForListLoading(page, 'pickLists.detail', 'ready');
     const undoLinesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
 
@@ -736,7 +739,7 @@ test.describe('Pick list detail workspace', () => {
     await quantityInput.fill(newQuantity.toString());
 
     // Save the change
-    const quantityUpdateReady = waitForUiState(page, 'pickLists.detail.quantityEdit', 'ready');
+    const quantityUpdateReady = waitForActionReady(page, 'pickLists.detail.quantityEdit', 'updateQuantity');
     await saveButton.click();
     await quantityUpdateReady;
 
@@ -839,7 +842,7 @@ test.describe('Pick list detail workspace', () => {
     const newQuantity = 12;
     await quantityInput.fill(newQuantity.toString());
 
-    const quantityUpdateReady = waitForUiState(page, 'pickLists.detail.quantityEdit', 'ready');
+    const quantityUpdateReady = waitForActionReady(page, 'pickLists.detail.quantityEdit', 'updateQuantity');
     await quantityInput.press('Enter');
     await quantityUpdateReady;
 
@@ -1002,7 +1005,7 @@ test.describe('Pick list detail workspace', () => {
     await quantityInput.fill('0');
 
     const saveButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-save`);
-    const quantityUpdateReady = waitForUiState(page, 'pickLists.detail.quantityEdit', 'ready');
+    const quantityUpdateReady = waitForActionReady(page, 'pickLists.detail.quantityEdit', 'updateQuantity');
     await saveButton.click();
     await quantityUpdateReady;
 
