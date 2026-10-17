@@ -193,7 +193,7 @@ function mapLine(line: AnyShoppingListLineResponse): ShoppingListLine {
       key: line.part.key,
       description: line.part.description,
       manufacturerCode: line.part.manufacturer_code,
-      coverUrl: line.part.cover_url,
+      coverUrl: line.part.cover_url ?? null,
     },
     seller: mapSeller(line.seller),
     effectiveSeller: mapSeller(line.seller),

@@ -682,7 +682,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                   
                   <CoverImageDisplay
                     partId={partId}
-                    coverUrl={part.cover_url}
+                    coverUrl={part.cover_url ?? null}
                     size="medium"
                     showPlaceholder={false}
                   />

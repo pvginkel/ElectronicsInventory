@@ -144,7 +144,7 @@ function mapPickListLineContent(
     partKey: content.part_key,
     description,
     manufacturerCode: null,
-    coverUrl: content.cover_url,
+    coverUrl: content.cover_url ?? null,
   };
 }
 
