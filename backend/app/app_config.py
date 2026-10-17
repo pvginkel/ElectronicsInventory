@@ -11,9 +11,12 @@ The same two-layer pattern is used:
 """
 
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.config import Sensitive, dump_config_for_logging
 
 # Project root directory (parent of app/)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -122,6 +125,9 @@ class AppSettings(BaseModel):
 
     For production, use AppSettings.load() to load from environment.
     For tests, construct directly with test values (defaults provided for convenience).
+
+    Annotate every field that holds a secret ``Annotated[str, Sensitive]``:
+    run.py logs these settings at boot.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -163,7 +169,7 @@ class AppSettings(BaseModel):
         default="openai",
         description="AI provider to use ('openai')",
     )
-    openai_api_key: str = Field(
+    openai_api_key: Annotated[str, Sensitive] = Field(
         default="",
         description="OpenAI API key for AI features",
     )
@@ -197,10 +203,14 @@ class AppSettings(BaseModel):
     )
 
     # Mouser API
-    mouser_search_api_key: str = Field(
+    mouser_search_api_key: Annotated[str, Sensitive] = Field(
         default="",
         description="Mouser Search API key for part search integration",
     )
+
+    def dump_for_logging(self) -> dict[str, str]:
+        """Every setting, for the boot log, with the Sensitive ones as ``***``."""
+        return dump_config_for_logging(self)
 
     @property
     def real_ai_allowed(self) -> bool:
