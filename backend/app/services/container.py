@@ -105,8 +105,21 @@ class ServiceContainer(containers.DeclarativeContainer):
         session_maker.provided.call()
     )
 
+    # Lifecycle coordinator - Singleton for managing startup and graceful shutdown
+    lifecycle_coordinator = providers.Singleton(
+        LifecycleCoordinator,
+        graceful_shutdown_timeout=config.provided.graceful_shutdown_timeout,
+    )
+
+    # Health service - Singleton with callback registry for health checks
+    health_service = providers.Singleton(
+        HealthService,
+        lifecycle_coordinator=lifecycle_coordinator,
+        settings=config,
+    )
+
     # Document management services - defined early for service dependencies
-    s3_service = providers.Factory(S3Service, settings=config)
+    s3_service = providers.Factory(S3Service, settings=config, health_service=health_service)
     register_for_background_startup(lambda c: c.s3_service().startup())
 
     cas_image_service = providers.Factory(
@@ -150,19 +163,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         ShoppingListService,
         db=db_session,
         part_seller_service=part_seller_service,
-    )
-
-    # Lifecycle coordinator - Singleton for managing startup and graceful shutdown
-    lifecycle_coordinator = providers.Singleton(
-        LifecycleCoordinator,
-        graceful_shutdown_timeout=config.provided.graceful_shutdown_timeout,
-    )
-
-    # Health service - Singleton with callback registry for health checks
-    health_service = providers.Singleton(
-        HealthService,
-        lifecycle_coordinator=lifecycle_coordinator,
-        settings=config,
     )
 
     # Utility services
@@ -216,6 +216,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         SSEConnectionManager,
         gateway_url=config.provided.sse_gateway_url,
         http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
+        health_service=health_service,
     )
 
     kit_reservation_service = providers.Factory(
