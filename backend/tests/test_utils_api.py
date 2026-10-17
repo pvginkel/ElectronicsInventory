@@ -6,9 +6,11 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from app.services.container import ServiceContainer
+from app.config import Settings
 from app.services.frontend_version_service import FrontendVersionService
+from app.services.sse_connection_manager import BROADCAST_TARGET, Target
 from app.utils.lifecycle_coordinator import LifecycleEvent
+from tests.testing_utils import StubLifecycleCoordinator
 
 # Note: The /api/utils/version/stream endpoint was removed in favor of SSE Gateway pattern.
 # SSE Gateway tests are in tests/api/test_sse.py
@@ -18,9 +20,17 @@ class TestFrontendVersionService:
     """Test frontend version service methods."""
 
     @pytest.fixture
-    def version_service(self, container: ServiceContainer):
-        """Create frontend version service instance for testing."""
-        return container.frontend_version_service()
+    def version_service(self, test_settings: Settings) -> FrontendVersionService:
+        """A service of the test's own.
+
+        The tests swap its SSE manager, queue pending versions and shut it
+        down; on the session app's singleton, that would outlive the test.
+        """
+        return FrontendVersionService(
+            settings=test_settings,
+            lifecycle_coordinator=StubLifecycleCoordinator(),
+            sse_connection_manager=Mock(),
+        )
 
     def test_fetch_frontend_version_success(self, version_service: FrontendVersionService):
         """Test successful version fetching."""
@@ -37,34 +47,28 @@ class TestFrontendVersionService:
             assert mock_get.call_count == 1
 
     def test_fetch_frontend_version_http_error_fallback(self, version_service: FrontendVersionService):
-        """Test version fetching with HTTP error returns fallback."""
+        """Test version fetching with HTTP error returns None."""
         with patch('app.services.frontend_version_service.requests.get') as mock_get:
             mock_response = Mock()
             mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
             mock_get.return_value = mock_response
 
-            # Should not raise, returns fallback
-            result = version_service._fetch_frontend_version()
-            assert "version" in result
-            assert result["version"] == "unknown"
+            # Should not raise; a failed fetch gives nothing to send
+            assert version_service._fetch_frontend_version() is None
 
     def test_fetch_frontend_version_timeout_fallback(self, version_service: FrontendVersionService):
-        """Test version fetching with timeout returns fallback."""
+        """Test version fetching with timeout returns None."""
         with patch('app.services.frontend_version_service.requests.get', side_effect=requests.Timeout("Request timed out")):
-            # Should not raise, returns fallback
-            result = version_service._fetch_frontend_version()
-            assert "version" in result
-            assert result["version"] == "unknown"
+            # Should not raise; a failed fetch gives nothing to send
+            assert version_service._fetch_frontend_version() is None
 
     def test_fetch_frontend_version_connection_error_fallback(self, version_service: FrontendVersionService):
-        """Test version fetching with connection error returns fallback."""
+        """Test version fetching with connection error returns None."""
         with patch('app.services.frontend_version_service.requests.get', side_effect=requests.ConnectionError("Connection failed")):
-            # Should not raise, returns fallback
-            result = version_service._fetch_frontend_version()
-            assert "version" in result
-            assert result["version"] == "unknown"
+            # Should not raise; a failed fetch gives nothing to send
+            assert version_service._fetch_frontend_version() is None
 
-    def test_queue_version_event_stores_as_pending(self, version_service: FrontendVersionService, container: ServiceContainer):
+    def test_queue_version_event_stores_as_pending(self, version_service: FrontendVersionService):
         """Events should be stored as pending and broadcast."""
         from unittest.mock import Mock
 
@@ -82,7 +86,7 @@ class TestFrontendVersionService:
         mock_sse_connection_manager.send_event.assert_called_once()
         call_args = mock_sse_connection_manager.send_event.call_args
         # call_args has positional args and kwargs
-        assert call_args.args[0] is None  # None = broadcast mode
+        assert call_args.args[0] == BROADCAST_TARGET
         assert call_args.args[1] == {"version": "1.0.0"}
         assert call_args.kwargs["event_name"] == "version"
         assert call_args.kwargs["service_type"] == "version"
@@ -122,10 +126,6 @@ class TestFrontendVersionService:
         # Try to queue event during shutdown
         delivered = version_service.queue_version_event(request_id, "3.1.4")
         assert delivered is False
-
-        # Clean up shutdown state for other tests
-        version_service._handle_lifecycle_event(LifecycleEvent.SHUTDOWN)
-        version_service._is_shutting_down = False
 
     def test_queue_version_event_thread_safety(self, version_service: FrontendVersionService):
         """Concurrent queue writers should not drop events."""
@@ -183,7 +183,7 @@ class TestFrontendVersionService:
         # Verify version was sent (targeted send with request_id)
         mock_sse_connection_manager.send_event.assert_called_once()
         call_args = mock_sse_connection_manager.send_event.call_args
-        assert call_args.args[0] == request_id  # Targeted send
+        assert call_args.args[0] == Target.connection(request_id)  # Targeted send
         assert call_args.args[1]["version"] == "1.2.3"
 
         # Then pending version still stored (NOT cleared)
@@ -200,7 +200,7 @@ class TestFrontendVersionService:
         # Then same pending version sent again
         assert mock_sse_connection_manager.send_event.call_count == 1
         second_call_args = mock_sse_connection_manager.send_event.call_args
-        assert second_call_args.args[0] == request_id
+        assert second_call_args.args[0] == Target.connection(request_id)
         assert second_call_args.args[1]["version"] == "1.2.3"
 
 
