@@ -1,9 +1,9 @@
 # KubeCoder environment manifest for the Electronics Inventory monorepo.
 #
-# One primary repository, two components: a Poetry/Flask backend and a pnpm/Vite
+# One primary repository, two components: a uv/Flask backend and a pnpm/Vite
 # frontend with a Playwright suite. Both toolchains come from the single
 # `modern-app` sidecar (Node 24 + pnpm + the Chromium system libraries, plus
-# uv/Poetry/Ruff), because the Playwright harness boots the Python backend per
+# uv/Ruff), because the Playwright harness boots the Python backend per
 # worker and so needs both toolsets in one container.
 #
 # Two sidecars beside it. `postgres` is the honcho dev stack's database: the
@@ -71,11 +71,11 @@ ports:
 
 preamble:
   instructions: |
-    Electronics Inventory is a monorepo: `backend/` (Flask + SQLAlchemy, Poetry)
+    Electronics Inventory is a monorepo: `backend/` (Flask + SQLAlchemy, uv)
     and `frontend/` (React + Vite + TanStack Router, pnpm, Playwright).
 
     Use `kc project build`, `kc project test` and `kc project lint` rather than
-    invoking poetry or pnpm directly; both toolchains live in the `modern-app`
+    invoking uv or pnpm directly; both toolchains live in the `modern-app`
     tool sidecar, so ad-hoc commands need `cexec modern-app ...`.
 
     The dev runner is the exception: `./scripts/dev.py` runs honcho inside the

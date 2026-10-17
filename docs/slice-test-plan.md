@@ -45,7 +45,7 @@ not inherited — treat it as a blocking finding rather than looking for a pre-e
 Two things that are *not* failures: `kc project test` writes a gitignored, multi-megabyte
 `test_results.md` at the root (grep it, never read it whole), and `run-suite --output-mode simple`
 reports only `PASS`/`FAIL` per step. If a count is wanted, run the underlying command once directly
-(`cexec modern-app sh -c 'cd backend && poetry run pytest'`).
+(`cexec modern-app sh -c 'cd backend && uv run pytest'`).
 
 `frontend`'s vitest suite is deliberately outside the pipeline. Run `cexec modern-app sh -c 'cd
 frontend && pnpm test:unit'` by hand when the slice touched `src/**/__tests__` or
@@ -54,7 +54,7 @@ frontend && pnpm test:unit'` by hand when the slice touched `src/**/__tests__` o
 ## 2. The live check
 
 Boot the dev stack the way this repo does — honcho, via `scripts/dev.py`, in the `modern-app`
-sidecar (this container has no poetry, pnpm or node). It runs in the foreground and stops on
+sidecar (this container has no uv, pnpm or node). It runs in the foreground and stops on
 Ctrl-C, so drive it through a FIFO and keep the wrapper's pid:
 
 ```bash

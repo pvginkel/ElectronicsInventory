@@ -11,11 +11,11 @@ and deploys to one production instance. There is no DTAP: a push to `main` deplo
 
 ## Repository shape
 
-- `backend/` — Flask + SQLAlchemy BFF API (Poetry, Python 3.13).
+- `backend/` — Flask + SQLAlchemy BFF API (uv, Python 3.13).
 - `frontend/` — React 19 + Vite SPA (pnpm) with a Playwright E2E suite and a published VitePress
   docs site under `frontend/docs/`.
 - root — the suite runner (`tools/suite_runner/`), the honcho dev stack, CI, and the KubeCoder
-  manifest. The root Poetry project exists only for that tooling.
+  manifest. The root uv project exists only for that tooling.
 - `../ElectronicsInventorySpecs` — the spec repo, where the pipeline's slices live. It is a
   **separate git repo** and a shared clone mounted into every environment of this project: commit
   there separately, early and often, staging by name.

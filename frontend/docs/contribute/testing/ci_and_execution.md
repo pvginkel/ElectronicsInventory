@@ -83,9 +83,9 @@ Service URLs are managed automatically by worker fixtures and should not be over
 
 - Suites run headless with per-worker managed services.
 - CI does not invoke Playwright directly. The root suite runner drives both suites —
-  `poetry run run-suite` from the repository root, or `kc project test --project frontend`
+  `uv run run-suite` from the repository root, or `kc project test --project frontend`
   for this one — and the single root `Jenkinsfile` runs it as
-  `poetry run run-suite --output-mode full --junitxml-dir /work/results --retries 2`.
+  `uv run --no-sync run-suite --output-mode full --junitxml-dir /work/results --retries 2`.
 - The backend lives at `../backend/` in this monorepo, which is where the worker fixtures
   expect it. The SSE Gateway is resolved as an npm devDependency, never from a sibling checkout.
 - Artifacts (`test-results/`, `playwright-report/`) should be collected for debugging.

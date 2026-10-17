@@ -20,7 +20,7 @@ app/
 
 - Backend and frontend are one monorepo, checked out at `/work/ElectronicsInventory`. Git is fully
   writable here — commit as you go.
-- The toolchain (Poetry, Node, pnpm) lives in the `modern-app` sidecar, not in this container:
+- The toolchain (uv, Node, pnpm) lives in the `modern-app` sidecar, not in this container:
   prefix ad-hoc commands with `cexec modern-app …`, or use `kc project` from the repo root.
 - The full command set, the dev stack and where local config lives are in the root `CLAUDE.md` and
   the root `docs/commands.md`.
@@ -199,15 +199,15 @@ class TestPartService:
 ### Linting and Formatting
 Before committing, run all checks with a single command:
 ```bash
-poetry run check   # Runs ruff, mypy, vulture, and pytest
+uv run check   # Runs ruff, mypy, vulture, and pytest
 ```
 
 Or run individual tools:
 ```bash
-poetry run ruff check .                                           # Linting
-poetry run mypy .                                                 # Type checking
-poetry run vulture app/ vulture_whitelist.py --min-confidence 80  # Dead code detection
-poetry run pytest                                                 # Full test suite
+uv run ruff check .                                           # Linting
+uv run mypy .                                                 # Type checking
+uv run vulture app/ vulture_whitelist.py --min-confidence 80  # Dead code detection
+uv run pytest                                                 # Full test suite
 ```
 
 ### Type Hints
@@ -513,7 +513,7 @@ Use the CLI to recreate the database with a consistent, realistic development da
 
 ```bash
 # Recreate database and load fixed test dataset
-poetry run python -m app.cli load-test-data --yes-i-am-sure
+uv run python -m app.cli load-test-data --yes-i-am-sure
 ```
 
 This command:
@@ -558,21 +558,21 @@ The system automatically syncs electronics part types from `app/data/setup/types
 For a new production database:
 ```bash
 # Creates database schema AND automatically loads all 99 predefined types
-poetry run python -m app.cli upgrade-db
+uv run python -m app.cli upgrade-db
 ```
 
 ### Schema Updates  
 For subsequent migrations:
 ```bash
 # Applies new migrations AND syncs any new types from setup file
-poetry run python -m app.cli upgrade-db
+uv run python -m app.cli upgrade-db
 ```
 
 ### Development Workflow
 For development with test data:
 ```bash  
 # Loads schema, syncs types from setup file, and loads realistic test data
-poetry run python -m app.cli load-test-data --yes-i-am-sure
+uv run python -m app.cli load-test-data --yes-i-am-sure
 ```
 
 The type sync is fully **idempotent** - running multiple times will only add missing types, never create duplicates.

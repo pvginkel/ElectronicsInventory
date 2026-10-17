@@ -74,7 +74,7 @@ implementation diverged from the plan, the doc describes what shipped. No change
 same rule the code obeys ([`change-discipline.md`](change-discipline.md)).
 
 **Ground every claim in the shipped source.** A doc sentence that cannot be checked against the
-merged tree does not go in. Commands in particular: this container has no poetry, pnpm or node, so
+merged tree does not go in. Commands in particular: this container has no uv, pnpm or node, so
 a command a reader can actually run carries its `cexec modern-app` prefix or is a `kc project`
 verb.
 

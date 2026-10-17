@@ -67,14 +67,14 @@ app/
 ### Prerequisites
 - Python 3.12+
 - PostgreSQL database
-- Poetry for dependency management
+- uv for dependency management
 - S3-compatible storage (Ceph/MinIO) for document storage
 
 ### Development Setup
 
 1. **Install dependencies**:
 ```bash
-poetry install
+uv sync
 ```
 
 2. **Environment configuration**:
@@ -86,10 +86,10 @@ cp .env.example .env
 3. **Database setup**:
 ```bash
 # Initialize database and load type definitions
-poetry run python -m app.cli upgrade-db
+uv run python -m app.cli upgrade-db
 
 # Optional: Load realistic test data for development
-poetry run python -m app.cli load-test-data --yes-i-am-sure
+uv run python -m app.cli load-test-data --yes-i-am-sure
 ```
 
 4. **Run development server**:
@@ -133,21 +133,21 @@ Key API endpoints:
 
 ### Code Quality Standards
 ```bash
-poetry run ruff check .      # Linting
-poetry run mypy .           # Type checking  
-poetry run pytest          # Full test suite
+uv run ruff check .      # Linting
+uv run mypy .           # Type checking  
+uv run pytest          # Full test suite
 ```
 
 ### Database Operations
 ```bash
 # Create new migration
-poetry run alembic revision --autogenerate -m "Description"
+uv run alembic revision --autogenerate -m "Description"
 
 # Apply migrations
-poetry run python -m app.cli upgrade-db
+uv run python -m app.cli upgrade-db
 
 # Load test data (development only)
-poetry run python -m app.cli load-test-data --yes-i-am-sure
+uv run python -m app.cli load-test-data --yes-i-am-sure
 ```
 
 ### Testing Requirements

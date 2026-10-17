@@ -13,7 +13,7 @@ Keep this file light and point contributors to the canonical documentation.
 
 - Backend and frontend are one monorepo, checked out at `/work/ElectronicsInventory`. Git is fully
   writable here — commit as you go.
-- The toolchain (Node, pnpm, Poetry) lives in the `modern-app` sidecar, not in this container:
+- The toolchain (Node, pnpm, uv) lives in the `modern-app` sidecar, not in this container:
   prefix ad-hoc commands with `cexec modern-app …`, or use `kc project` from the repo root.
 - The full command set, the dev stack and where local config lives are in the root `CLAUDE.md` and
   the root `docs/commands.md`.

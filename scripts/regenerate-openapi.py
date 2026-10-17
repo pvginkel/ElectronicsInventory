@@ -93,7 +93,7 @@ def start_backend(port: int, log_path: Path) -> subprocess.Popen[bytes]:
     log_file = open(log_path, "wb")
     try:
         return subprocess.Popen(
-            ["poetry", "run", "dev"],
+            ["uv", "run", "dev"],
             cwd=BACKEND_DIR,
             env=env,
             stdout=log_file,
