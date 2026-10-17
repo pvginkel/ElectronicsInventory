@@ -365,16 +365,18 @@ class TestCheckAuthorization:
         check_authorization(ctx, svc, "POST")
 
     def test_admin_only_write_gate(self) -> None:
-        """Row 2: reads open, writes gated behind admin."""
+        """Row 2: no read or write role, admin configured."""
         svc = _make_auth_service(read_role=None, write_role=None, admin_role="admin")
         admin_ctx = AuthContext(subject="u", email=None, name=None, roles={"admin"})
         anon_ctx = AuthContext(subject="u", email=None, name=None, roles=set())
         # Admin can do both
         check_authorization(admin_ctx, svc, "GET")
         check_authorization(admin_ctx, svc, "POST")
-        # Non-admin can read (no gate) but not write
-        check_authorization(anon_ctx, svc, "GET")
-        with pytest.raises(AuthorizationException):
+        # A caller with none of the configured roles is refused before the
+        # per-tier lookup, so also on a read, which has no gate of its own.
+        with pytest.raises(AuthorizationException, match="No recognized role"):
+            check_authorization(anon_ctx, svc, "GET")
+        with pytest.raises(AuthorizationException, match="No recognized role"):
             check_authorization(anon_ctx, svc, "POST")
 
     def test_reader_admin_two_tier(self) -> None:
