@@ -170,6 +170,7 @@ class TestTestingEndpoints:
         self,
         client: FlaskClient,
         container: ServiceContainer,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that deployment trigger stores version as pending and broadcasts."""
         from unittest.mock import Mock
@@ -179,7 +180,10 @@ class TestTestingEndpoints:
 
         # Mock SSEConnectionManager to verify broadcast
         mock_sse_connection_manager = Mock()
-        version_service.sse_connection_manager = mock_sse_connection_manager
+        # On the session app's singleton: monkeypatch puts the manager and
+        # the pending versions back after the test.
+        monkeypatch.setattr(version_service, "sse_connection_manager", mock_sse_connection_manager)
+        monkeypatch.setattr(version_service, "_pending_version", {})
 
         response = client.post(
             "/api/testing/deployments/version",
@@ -208,6 +212,7 @@ class TestTestingEndpoints:
         self,
         client: FlaskClient,
         container: ServiceContainer,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         """Test deployment trigger with changelog."""
         from unittest.mock import Mock
@@ -217,7 +222,10 @@ class TestTestingEndpoints:
 
         # Mock SSEConnectionManager
         mock_sse_connection_manager = Mock()
-        version_service.sse_connection_manager = mock_sse_connection_manager
+        # On the session app's singleton: monkeypatch puts the manager and
+        # the pending versions back after the test.
+        monkeypatch.setattr(version_service, "sse_connection_manager", mock_sse_connection_manager)
+        monkeypatch.setattr(version_service, "_pending_version", {})
 
         response = client.post(
             "/api/testing/deployments/version",
