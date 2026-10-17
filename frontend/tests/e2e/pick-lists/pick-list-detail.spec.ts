@@ -1,8 +1,21 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from '../../support/fixtures';
-import { waitForListLoading, waitForUiState } from '../../support/helpers';
+import { waitForListLoading, waitForUiState, waitTestEvent } from '../../support/helpers';
+import type { UiStateTestEvent } from '@/lib/test/test-events';
 import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/generated/hooks';
 import type { createApiClient, createTestDataBundle } from '../../api';
+
+/** The `ready` that ends a pick or undo, not the one emitted when the page mounts idle. */
+function waitForExecutionReady(page: Page, action: 'pick' | 'undo'): Promise<UiStateTestEvent> {
+  return waitTestEvent<UiStateTestEvent>(
+    page,
+    'ui_state',
+    event =>
+      event.scope === 'pickLists.detail.execution' &&
+      event.phase === 'ready' &&
+      event.metadata?.action === action,
+  );
+}
 
 test.describe('Pick list detail workspace', () => {
   test('shows box-grouped lines with availability and shortfalls', async ({ pickLists, testData, apiClient, page }) => {
@@ -186,7 +199,9 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.undoButton(lineId)).toBeHidden();
 
     const pickLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
-    const pickReady = waitForUiState(page, 'pickLists.detail.execution', 'ready');
+    // The scope also emits a metadata-less `ready` when the page mounts idle, so
+    // wait for the one the pick ends with.
+    const pickReady = waitForExecutionReady(page, 'pick');
     const pickListReload = waitForListLoading(page, 'pickLists.detail', 'ready');
     const pickLinesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
 
@@ -212,7 +227,7 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.undoButton(lineId)).toBeVisible();
 
     const undoLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
-    const undoReady = waitForUiState(page, 'pickLists.detail.execution', 'ready');
+    const undoReady = waitForExecutionReady(page, 'undo');
     const undoListReload = waitForListLoading(page, 'pickLists.detail', 'ready');
     const undoLinesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
 

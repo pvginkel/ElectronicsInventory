@@ -641,7 +641,16 @@ test.describe('Kit detail workspace', () => {
     await Promise.all([pickDetailReady, pickLinesReady, pickUiReady, pickAvailabilityReady]);
 
     const executionLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
-    const executionReady = waitForUiState(page, 'pickLists.detail.execution', 'ready');
+    // The scope also emits a metadata-less `ready` when the page mounts idle, so
+    // wait for the one the pick ends with.
+    const executionReady = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'pickLists.detail.execution' &&
+        event.phase === 'ready' &&
+        event.metadata?.action === 'pick',
+    );
     const detailReload = waitForListLoading(page, 'pickLists.detail', 'ready');
     const linesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
 
