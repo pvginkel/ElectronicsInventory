@@ -60,6 +60,21 @@ The one thing to know before touching the frontend: `src/lib/api/generated/` and
 `src/routeTree.gen.ts` are **gitignored build outputs**. A fresh checkout does not type-check until
 `kc project setup` (or `pnpm generate:api`) has produced them.
 
+## Template ownership
+
+The root, `backend/` and `frontend/` are each generated from a ModernAppTemplate Copier template
+(`.copier-answers.yml` in each). Files are either **template-owned** (overwritten by
+`copier update`) or **app-owned** (generated once, never overwritten). Don't add app behaviour to
+a template-owned file; what the template lacks is changed in the template, not here.
+
+One edit stands in a template-owned file, and a `copier update` that conflicts on it keeps both
+sides: **`frontend/eslint.config.js`** carries EI's `role-gating` plugin (the imports of
+`scripts/eslint-rules/role-import-enforcement.js` and `gate-usage-enforcement.js`, and their two
+config blocks), after the template's own blocks. The template has no hook for app lint rules yet
+(card MAT-18). The violation finder (`scripts/find_template_violations.py` in ModernAppTemplate)
+also reports older, unsorted divergence in a few template-owned files (`.gitignore`s,
+`frontend/knip.config.ts`, a handful of UI components); treat those as drift, not standing edits.
+
 ## Where to read next
 
 - `backend/CLAUDE.md`, `frontend/CLAUDE.md` — the per-component patterns and definitions of done.
