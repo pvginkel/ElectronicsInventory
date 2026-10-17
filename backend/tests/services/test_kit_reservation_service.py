@@ -85,7 +85,7 @@ def test_reserved_totals_allow_zero_build_target(session, make_attachment_set):
 
 def test_list_active_reservations_returns_metadata(session, make_attachment_set):
     part_attachment_set = make_attachment_set()
-    part = Part(key="LM358", description="Op-amp", attachment_set_id=part_attachment_set.id)
+    part = Part(key="LM35", description="Op-amp", attachment_set_id=part_attachment_set.id)
     kit_attachment_set = make_attachment_set()
     kit = Kit(name="Audio Preamp", build_target=4, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
 

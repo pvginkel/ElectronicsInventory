@@ -386,7 +386,7 @@ class TestKitPickListService:
 
     ) -> None:
         kit = _create_active_kit(session, make_attachment_set)
-        part = _create_part(session, make_attachment_set, "DETAIL", "Detail Part")
+        part = _create_part(session, make_attachment_set, "DTL1", "Detail Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=80, loc_no=1)
         _attach_location(session, part, location, qty=2)
@@ -547,7 +547,7 @@ class TestKitPickListService:
 
     ) -> None:
         kit = _create_active_kit(session, make_attachment_set)
-        part = _create_part(session, make_attachment_set, "UNDO2", "Undo Timestamp Part")
+        part = _create_part(session, make_attachment_set, "UND2", "Undo Timestamp Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=103, loc_no=1)
         _attach_location(session, part, location, qty=1)

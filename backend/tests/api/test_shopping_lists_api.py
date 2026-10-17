@@ -158,7 +158,7 @@ class TestShoppingListsAPI:
         kit_attachment_set = make_attachment_set()
         part_attachment_set = make_attachment_set()
         kit = Kit(name="List Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
-        part = Part(key="LIST1", description="List Part", attachment_set_id=part_attachment_set.id)
+        part = Part(key="LST1", description="List Part", attachment_set_id=part_attachment_set.id)
         session.add_all([kit, part])
         session.flush()
         content = KitContent(kit_id=kit.id, part_id=part.id, required_per_unit=1)

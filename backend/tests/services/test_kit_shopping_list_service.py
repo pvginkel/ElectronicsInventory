@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from datetime import UTC, datetime
 
 import pytest
@@ -12,6 +13,9 @@ from app.models.kit_content import KitContent
 from app.models.part import Part
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.services.kit_reservation_service import KitReservationUsage
+
+# Part keys are CHAR(4): unique within a test, which is all they need to be.
+_part_numbers = itertools.count()
 
 
 def _create_kit_with_content(
@@ -29,7 +33,7 @@ def _create_kit_with_content(
         attachment_set_id=kit_attachment_set.id,
     )
     part_attachment_set = make_attachment_set()
-    part = Part(key=f"P{int(datetime.now(UTC).timestamp())}", description="Test part", attachment_set_id=part_attachment_set.id)
+    part = Part(key=f"P{next(_part_numbers) % 1000:03d}", description="Test part", attachment_set_id=part_attachment_set.id)
     session.add_all([kit, part])
     session.flush()
 
@@ -313,11 +317,11 @@ class TestKitShoppingListService:
         kit_empty_attachment_set = make_attachment_set()
         kit_empty = Kit(name="Kit Empty", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_empty_attachment_set.id)
         part_a_attachment_set = make_attachment_set()
-        part_a = Part(key="KA-BULK", description="Kit A Part", attachment_set_id=part_a_attachment_set.id)
+        part_a = Part(key="KABK", description="Kit A Part", attachment_set_id=part_a_attachment_set.id)
         part_b_attachment_set = make_attachment_set()
-        part_b = Part(key="KB-BULK", description="Kit B Part", attachment_set_id=part_b_attachment_set.id)
+        part_b = Part(key="KBBK", description="Kit B Part", attachment_set_id=part_b_attachment_set.id)
         part_empty_attachment_set = make_attachment_set()
-        part_empty = Part(key="KC-BULK", description="Kit Empty Part", attachment_set_id=part_empty_attachment_set.id)
+        part_empty = Part(key="KCBK", description="Kit Empty Part", attachment_set_id=part_empty_attachment_set.id)
         session.add_all([kit_a, kit_b, kit_empty, part_a, part_b, part_empty])
         session.flush()
         session.add_all(

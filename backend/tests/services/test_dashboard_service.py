@@ -449,7 +449,7 @@ class TestDashboardService:
         parts = []
         for i in range(15):
             attachment_set = make_attachment_set()
-            part = Part(key=f"CON{i:02d}", description=f"Connector {i}", type_id=type_obj.id, attachment_set_id=attachment_set.id)
+            part = Part(key=f"C{i:03d}", description=f"Connector {i}", type_id=type_obj.id, attachment_set_id=attachment_set.id)
             parts.append(part)
 
         session.add_all(parts)
