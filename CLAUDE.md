@@ -14,8 +14,9 @@ and deploys to one production instance. There is no DTAP: a push to `main` deplo
 - `backend/` — Flask + SQLAlchemy BFF API (uv, Python 3.13).
 - `frontend/` — React 19 + Vite SPA (pnpm) with a Playwright E2E suite and a published VitePress
   docs site under `frontend/docs/`.
-- root — the suite runner (`tools/suite_runner/`), the honcho dev stack, CI, and the KubeCoder
-  manifest. The root uv project exists only for that tooling.
+- root — the suite runner (`tools/suite_runner/`), the honcho dev stack, CI (including
+  `Jenkinsfile.architecture`, which publishes the architecture model), and the KubeCoder manifest.
+  The root uv project exists only for that tooling.
 - `../ElectronicsInventorySpecs` — the spec repo, where the pipeline's slices live. It is a
   **separate git repo** and a shared clone mounted into every environment of this project: commit
   there separately, early and often, staging by name.
@@ -34,6 +35,13 @@ repo root — the verbs are cwd-bound.
 kc project setup|build   [--project root|backend|frontend]
 kc project test|lint     [--project backend|frontend]
 ```
+
+The root and `backend/` are two uv projects, each with its own committed `uv.lock`, because CI and
+the image sync `--locked`. `scripts/dev.py stop` stops the dev stack from another shell. After a
+backend API change, `scripts/regenerate-openapi.py --frontend` refreshes the frontend's OpenAPI
+cache and client; a backend test fails while the committed cache is stale.
+`cexec modern-app python3 scripts/check_updates.py` reports the dependencies with a newer release,
+major, minor and patch, in every component it finds.
 
 Everything else — the suite runner and its flags, running one test, the dev stack, regenerating the
 API client, the database CLI, architecture validation, and where local config lives — is in
@@ -59,6 +67,20 @@ boot real services, and what CI deploys.
 The one thing to know before touching the frontend: `src/lib/api/generated/` and
 `src/routeTree.gen.ts` are **gitignored build outputs**. A fresh checkout does not type-check until
 `kc project setup` (or `pnpm generate:api`) has produced them.
+
+## Architecture model
+
+ElectronicsInventory is a producer in the estate's federated architecture model. Its two models are
+hand-authored, the backend's in `backend/docs/architecture/*.yaml` and the frontend's in
+`frontend/docs/architecture/*.yaml`. `Jenkinsfile.architecture`, the job `AaC/ElectronicsInventory`,
+validates each against the architecture service on every push and archives them for AaC/Architecture
+to collect; `kc project lint` validates them too (`arch-validate`, in the `aac-tools` sidecar).
+
+The model is kept current centrally, not from here: the central architecture update in
+`pvginkel/Architecture` (`tooling/fleet.py update`) reads the commits since the model last changed
+and commits what they change in it. Nothing needs to run here after a change.
+
+`Jenkinsfile.architecture` is the app's own, and `copier update` leaves it alone.
 
 ## Template ownership
 
