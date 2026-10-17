@@ -184,8 +184,9 @@ test.describe('Kits overview', () => {
     await successEventPromise;
     await toastEventPromise;
 
-    // Wait for toast to be visible
-    await toastHelper.expectSuccessToast(/Archived/i);
+    // Wait for toast to be visible. Not expectSuccessToast: it closes the toast,
+    // and the undo button with it.
+    await toastHelper.waitForToastWithText(/Archived/i);
 
     // Set up undo event listeners BEFORE clicking undo
     const undoSubmit = waitTestEvent<FormTestEvent>(page, 'form', (event) =>
