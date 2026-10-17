@@ -84,6 +84,7 @@ export function KanbanCardField({
   // Sync display value when the persisted value changes externally (e.g. cache update)
   useEffect(() => {
     if (!isEditing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync the edit buffer to the persisted value when it changes externally and the field is not being edited
       setEditValue(String(value));
     }
   }, [value, isEditing]);

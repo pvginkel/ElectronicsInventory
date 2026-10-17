@@ -182,6 +182,7 @@ function ShoppingListDetailRoute() {
     }
     const stillExists = lines.some(line => line.id === duplicateNotice.lineId);
     if (!stillExists) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the duplicate notice when its line no longer exists
       setDuplicateNotice(null);
       setHighlightedLineId(null);
     }
@@ -863,6 +864,7 @@ function ShoppingListDetailRoute() {
       })
       .map(m => m.lineId);
     if (confirmedIds.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Drop optimistic moves once server data reflects them
       setOptimisticMoves(prev => prev.filter(m => !confirmedIds.includes(m.lineId)));
     }
   }, [sellerGroups, optimisticMoves]);

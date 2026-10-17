@@ -244,6 +244,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
 
   useEffect(() => {
     if (!editingRow) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync the edit draft to the row being edited, clearing it when editing stops
       setEditDraftState(null);
       setEditErrors(null);
       return;
@@ -277,6 +278,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
 
   useEffect(() => {
     if (confirmRowId !== null && !confirmRow) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the confirm target when its row no longer exists in the contents
       setConfirmRowId(null);
     }
   }, [confirmRow, confirmRowId]);
@@ -286,6 +288,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       return;
     }
     if (!createMutation.isPending && pendingCreateRow.status === 'creating') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Advance the pending-create row to refetching once the create mutation settles
       setPendingCreateRow((previous) =>
         previous ? { ...previous, status: 'refetching' } : previous
       );
@@ -294,6 +297,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
 
   useEffect(() => {
     if (!isEditSubmitting) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Settle pending row updates once the edit submission finishes
       setPendingUpdates((previous) => {
         const next = new Map(previous);
         for (const [rowId, pending] of previous) {

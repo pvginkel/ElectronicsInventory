@@ -352,6 +352,7 @@ export function UpdateStockDialog({
     }
     if (line) {
       form.setValue('allocations', buildInitialAllocations(line));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional re-initialization of allocation state when the dialog opens or the line data changes
       setShowAllocationErrors(false);
       submitModeRef.current = 'complete';
       receiveSucceededRef.current = false;
@@ -375,6 +376,7 @@ export function UpdateStockDialog({
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of completion and mismatch state when the dialog closes
       setCompletionDialogOpen(false);
       setMismatchReason('');
       setMismatchError(null);

@@ -150,6 +150,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     snapshotFields,
   });
 
+  // eslint-disable-next-line react-hooks/refs -- Ref mirrors the latest instrumentation so stable callbacks can read it
   instrumentationRef.current = instrumentation;
 
   const defaultSellerId = part.defaultSellerId ?? null;
@@ -169,6 +170,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     if (!open) {
       initializationRef.current = false;
       formApi.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of form, mode and conflict error when the dialog closes
       setSelectionMode('select');
       setConflictError(null);
       return;

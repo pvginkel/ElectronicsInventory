@@ -106,6 +106,7 @@ export function PartForm({
   // Populate form with existing part data
   useEffect(() => {
     if (existingPart && isEditing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Populate the form from the loaded part when editing
       setFormData({
         description: existingPart.description,
         manufacturerCode: existingPart.manufacturer_code || '',
@@ -134,6 +135,7 @@ export function PartForm({
   // Populate form with duplicate part data
   useEffect(() => {
     if (duplicateFormData && isDuplicating) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Populate the form from the source part when duplicating
       setFormData({
         description: duplicateFormData.description,
         manufacturerCode: duplicateFormData.manufacturerCode,

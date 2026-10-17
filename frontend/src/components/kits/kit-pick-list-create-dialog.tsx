@@ -102,6 +102,7 @@ export function KitPickListCreateDialog({
 
     const requestedUnits = parseRequestedUnits(form.values.requestedUnits);
     if (requestedUnits === null || requestedUnits <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the shortfall preview when the requested units become invalid
       setPreviewData(null);
       setIsPreviewLoading(false);
       return;
@@ -319,6 +320,7 @@ export function KitPickListCreateDialog({
     // Reset all state when dialog opens
     pendingSnapshotRef.current = null;
     successSnapshotRef.current = null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of all wizard state when the dialog opens
     setRequestedUnitsError(undefined);
     setCurrentStep('units');
     setShortfallParts([]);

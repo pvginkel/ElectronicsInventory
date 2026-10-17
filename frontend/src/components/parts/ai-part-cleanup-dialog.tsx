@@ -116,6 +116,7 @@ export function AIPartCleanupDialog({ open, onClose, partId }: AIPartCleanupDial
   useEffect(() => {
     if (open && partId) {
       // Reset to progress step and start cleanup
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset to the progress step when the dialog opens, before starting cleanup
       setCurrentStep('progress');
       startCleanup(partId);
     } else if (!open) {

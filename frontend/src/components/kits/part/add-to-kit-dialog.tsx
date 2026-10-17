@@ -166,6 +166,7 @@ export function AddToKitDialog({ open, onClose, part }: AddToKitDialogProps) {
     snapshotFields,
   });
 
+  // eslint-disable-next-line react-hooks/refs -- Ref mirrors the latest instrumentation so stable callbacks can read it
   instrumentationRef.current = instrumentation;
 
   const isMutating = form.isSubmitting || createMutation.isPending;
@@ -182,6 +183,7 @@ export function AddToKitDialog({ open, onClose, part }: AddToKitDialogProps) {
     if (!open) {
       initializationRef.current = false;
       formApi.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of the form and conflict error when the dialog closes
       setConflictError(null);
       return;
     }

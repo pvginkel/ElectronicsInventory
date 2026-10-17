@@ -59,6 +59,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset to the input step when the dialog opens
       setCurrentStep('input');
       setIsCreatingPart(false);
     } else {
