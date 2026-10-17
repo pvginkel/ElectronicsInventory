@@ -825,7 +825,10 @@ class TestPartsAPI:
             # Set as cover - fetch the attachment_set
             from app.models.attachment_set import AttachmentSet
             attachment_set = session.get(AttachmentSet, attachment_set_id)
-            attachment_set.cover_attachment_id = attachment.id
+            # Through the relationship: the requests share the test's session,
+            # whose attachment set still holds the cover_attachment the first
+            # request loaded (None), and commits expire nothing.
+            attachment_set.cover_attachment = attachment
             session.commit()
 
             # Detail endpoint should now reflect the cover assignment
