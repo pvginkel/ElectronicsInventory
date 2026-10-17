@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, func
+from sqlalchemy import ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -16,6 +16,10 @@ class QuantityHistory(db.Model):  # type: ignore[name-defined]
     """Model representing quantity changes for parts over time."""
 
     __tablename__ = "quantity_history"
+    # Revision 009: for the dashboard's queries by time, grouped by part.
+    __table_args__ = (
+        Index("idx_quantity_history_timestamp_part_id", "timestamp", "part_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     part_id: Mapped[int] = mapped_column(

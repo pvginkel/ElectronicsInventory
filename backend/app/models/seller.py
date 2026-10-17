@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-from sqlalchemy import String, func
+from sqlalchemy import Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 class Seller(db.Model):  # type: ignore[name-defined]
     __tablename__ = "sellers"
+    # Revision 011 indexes the name besides its unique constraint.
+    __table_args__ = (Index("ix_sellers_name", "name"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)

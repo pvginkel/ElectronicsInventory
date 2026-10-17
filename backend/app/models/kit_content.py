@@ -31,10 +31,10 @@ class KitContent(db.Model):  # type: ignore[name-defined]
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     kit_id: Mapped[int] = mapped_column(
-        ForeignKey("kits.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("kits.id", ondelete="CASCADE"), nullable=False, index=True
     )
     part_id: Mapped[int] = mapped_column(
-        ForeignKey("parts.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("parts.id", ondelete="CASCADE"), nullable=False, index=True
     )
     required_per_unit: Mapped[int] = mapped_column(Integer, nullable=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)

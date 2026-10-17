@@ -9,11 +9,13 @@ from typing import TYPE_CHECKING
 from sqlalchemy import (
     CheckConstraint,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -61,7 +63,9 @@ class Kit(db.Model):  # type: ignore[name-defined]
         index=True,
     )
     attachment_set_id: Mapped[int] = mapped_column(
-        ForeignKey("attachment_sets.id"), nullable=False
+        ForeignKey("attachment_sets.id", name="fk_kits_attachment_set", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     archived_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -78,6 +82,8 @@ class Kit(db.Model):  # type: ignore[name-defined]
             "(status != 'archived') OR (archived_at IS NOT NULL)",
             name="ck_kits_archived_requires_timestamp",
         ),
+        Index("ix_kits_status_updated_at_desc", "status", text("updated_at DESC")),
+        Index("ix_kits_lower_name", text("lower(name)")),
     )
 
     shopping_list_links: Mapped[list[KitShoppingListLink]] = relationship(

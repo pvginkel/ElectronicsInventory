@@ -31,10 +31,12 @@ class KitShoppingListLink(db.Model):  # type: ignore[name-defined]
     kit_id: Mapped[int] = mapped_column(
         ForeignKey("kits.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     shopping_list_id: Mapped[int] = mapped_column(
         ForeignKey("shopping_lists.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     requested_units: Mapped[int] = mapped_column(
         Integer,

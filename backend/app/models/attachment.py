@@ -30,7 +30,7 @@ class Attachment(db.Model):  # type: ignore[name-defined]
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     attachment_set_id: Mapped[int] = mapped_column(
-        ForeignKey("attachment_sets.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("attachment_sets.id", ondelete="CASCADE"), nullable=False, index=True
     )
     attachment_type: Mapped[AttachmentType] = mapped_column(
         SQLEnum(AttachmentType, name="attachment_type", values_callable=lambda obj: [e.value for e in obj]),

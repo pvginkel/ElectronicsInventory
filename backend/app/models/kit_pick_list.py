@@ -33,6 +33,7 @@ class KitPickList(db.Model):  # type: ignore[name-defined]
     kit_id: Mapped[int] = mapped_column(
         ForeignKey("kits.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     requested_units: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[KitPickListStatus] = mapped_column(

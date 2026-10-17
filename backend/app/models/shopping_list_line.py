@@ -65,6 +65,7 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
             name="shopping_list_line_status",
             values_callable=lambda enum_cls: [item.value for item in enum_cls],
             native_enum=False,
+            length=16,
         ),
         nullable=False,
         default=ShoppingListLineStatus.NEW,
@@ -106,6 +107,8 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
         ),
         Index("ix_shopping_list_lines_list_status", "shopping_list_id", "status"),
         Index("ix_shopping_list_lines_list_received", "shopping_list_id", "received"),
+        Index("ix_shopping_list_lines_list_seller", "shopping_list_id", "seller_id"),
+        Index("ix_shopping_list_lines_status", "status"),
     )
 
     def __repr__(self) -> str:

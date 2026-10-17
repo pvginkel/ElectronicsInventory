@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     CHAR,
-    JSON,
     CheckConstraint,
     ForeignKey,
     Integer,
@@ -41,12 +40,14 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     tags: Mapped[list[str] | None] = mapped_column(
-        postgresql.ARRAY(Text).with_variant(JSON, "sqlite"), nullable=True
+        postgresql.ARRAY(Text), nullable=True
     )
     manufacturer: Mapped[str | None] = mapped_column(String(255), nullable=True)
     product_page: Mapped[str | None] = mapped_column(String(500), nullable=True)
     attachment_set_id: Mapped[int] = mapped_column(
-        ForeignKey("attachment_sets.id"), nullable=False
+        ForeignKey("attachment_sets.id", name="fk_parts_attachment_set", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Extended technical fields

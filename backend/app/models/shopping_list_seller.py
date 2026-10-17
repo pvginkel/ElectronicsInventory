@@ -47,6 +47,7 @@ class ShoppingListSeller(db.Model):  # type: ignore[name-defined]
             name="shopping_list_seller_status",
             values_callable=lambda enum_cls: [item.value for item in enum_cls],
             native_enum=False,
+            length=50,
         ),
         nullable=False,
         default=ShoppingListSellerStatus.ACTIVE,
