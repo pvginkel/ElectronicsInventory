@@ -24,7 +24,8 @@ class TestBoxService:
 
             # Verify return type is ORM model
             assert isinstance(result, Box)
-            assert result.box_no == 1
+            # The sequence is not rolled back with the test: any number will do.
+            assert result.box_no > 0
             assert result.description == "Test Box"
             assert result.capacity == 10
 
@@ -42,9 +43,10 @@ class TestBoxService:
             box2 = container.box_service().create_box("Box 2", 3)
             box3 = container.box_service().create_box("Box 3", 8)
 
-            assert box1.box_no == 1
-            assert box2.box_no == 2
-            assert box3.box_no == 3
+            # The sequence is not rolled back with the test: the numbers
+            # follow on from earlier tests'.
+            assert box2.box_no == box1.box_no + 1
+            assert box3.box_no == box2.box_no + 1
 
     def test_get_box_existing(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting an existing box with its locations."""
@@ -84,9 +86,9 @@ class TestBoxService:
     def test_get_all_boxes_multiple(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting all boxes when multiple exist."""
         with app.app_context():
-            container.box_service().create_box("Box A", 5)
-            container.box_service().create_box("Box B", 10)
-            container.box_service().create_box("Box C", 3)
+            box_a = container.box_service().create_box("Box A", 5)
+            box_b = container.box_service().create_box("Box B", 10)
+            box_c = container.box_service().create_box("Box C", 3)
             session.commit()
 
             result = container.box_service().get_all_boxes()
@@ -100,26 +102,22 @@ class TestBoxService:
 
             # Verify ordering by box_no
             box_nos = [box.box_no for box in result]
-            assert box_nos == [1, 2, 3]
+            assert box_nos == [box_a.box_no, box_b.box_no, box_c.box_no]
 
             # Verify descriptions
             descriptions = [box.description for box in result]
             assert descriptions == ["Box A", "Box B", "Box C"]
 
     def test_create_box_concurrent_sessions_unique_sequence(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, committed_app: Flask
     ) -> None:
-        """Ensure concurrent box creation assigns unique numbers when sequences are available."""
-        with app.app_context():
-            bind = session.get_bind()
-            if bind is None or not bind.dialect.name.startswith("postgres"):
-                pytest.skip("Sequence-backed concurrency test requires PostgreSQL")
+        """Ensure concurrent box creation assigns unique numbers from the sequence.
 
-            # Ensure a clean slate to make box numbers predictable
-            session.query(Box).delete()
-            session.commit()
-
-            session_factory = container.session_maker()
+        Two threads with sessions of their own, committing for real: on
+        committed_app, whose database is a fresh clone of the template.
+        """
+        with committed_app.app_context():
+            session_factory = committed_app.container.session_maker()
 
             def create_box(description: str) -> int:
                 local_session = session_factory()

@@ -213,7 +213,7 @@ class TestDashboardAPI:
         for field in required_fields:
             assert field in box_summary
 
-        assert box_summary['box_no'] == 1
+        assert box_summary['box_no'] == box.box_no
         assert box_summary['description'] == "Small Parts Box"
         assert box_summary['total_locations'] == 20
         assert box_summary['occupied_locations'] == 5

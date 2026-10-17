@@ -22,13 +22,14 @@ class TestBoxAPI:
         assert response.status_code == 201
         response_data = json.loads(response.data)
 
-        assert response_data["box_no"] == 1
+        # The sequence is not rolled back with the test: any number will do.
+        assert response_data["box_no"] > 0
         assert response_data["description"] == "Storage Box A"
         assert response_data["capacity"] == 12
         assert len(response_data["locations"]) == 12
 
         # Verify in database
-        box = session.get(Box, 1)
+        box = session.query(Box).filter_by(box_no=response_data["box_no"]).one_or_none()
         assert box is not None
         assert box.description == "Storage Box A"
 
@@ -90,9 +91,9 @@ class TestBoxAPI:
     def test_get_all_boxes_multiple(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting all boxes when multiple exist."""
         # Create test boxes
-        container.box_service().create_box("Box 1", 5)
-        container.box_service().create_box("Box 2", 10)
-        container.box_service().create_box("Box 3", 3)
+        box1 = container.box_service().create_box("Box 1", 5)
+        box2 = container.box_service().create_box("Box 2", 10)
+        box3 = container.box_service().create_box("Box 3", 3)
 
         response = client.get("/api/boxes")
 
@@ -102,15 +103,15 @@ class TestBoxAPI:
         assert len(response_data) == 3
 
         # Verify ordering and content
-        assert response_data[0]["box_no"] == 1
+        assert response_data[0]["box_no"] == box1.box_no
         assert response_data[0]["description"] == "Box 1"
         assert response_data[0]["capacity"] == 5
 
-        assert response_data[1]["box_no"] == 2
+        assert response_data[1]["box_no"] == box2.box_no
         assert response_data[1]["description"] == "Box 2"
         assert response_data[1]["capacity"] == 10
 
-        assert response_data[2]["box_no"] == 3
+        assert response_data[2]["box_no"] == box3.box_no
         assert response_data[2]["description"] == "Box 3"
         assert response_data[2]["capacity"] == 3
 
@@ -519,7 +520,6 @@ class TestBoxAPI:
 
         assert response1.status_code == 201
         box1_data = json.loads(response1.data)
-        assert box1_data["box_no"] == 1
 
         # Create second box
         data2 = {"description": "Box 2", "capacity": 3}
@@ -529,4 +529,6 @@ class TestBoxAPI:
 
         assert response2.status_code == 201
         box2_data = json.loads(response2.data)
-        assert box2_data["box_no"] == 2
+        # The sequence is not rolled back with the test: the numbers follow
+        # on from earlier tests'.
+        assert box2_data["box_no"] == box1_data["box_no"] + 1

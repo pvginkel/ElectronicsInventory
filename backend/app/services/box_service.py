@@ -49,15 +49,6 @@ class BoxService:
         box = Box(description=description, capacity=capacity)
         self.db.add(box)
 
-        bind = self.db.bind
-        if bind is not None and bind.dialect.name == "sqlite":
-            # SQLite lacks sequences, so fall back to deterministic numbering for tests
-            with self.db.no_autoflush:
-                max_box_no = self.db.execute(
-                    select(func.coalesce(func.max(Box.box_no), 0))
-                ).scalar()
-            box.box_no = (max_box_no or 0) + 1
-
         # Force flush so the database populates id and box_no before locations are created
         self.db.flush()
 
@@ -150,8 +141,6 @@ class BoxService:
 
     def calculate_box_usage(self, box_no: int) -> 'BoxUsageStatsModel':
         """Calculate usage statistics for a specific box."""
-        from sqlalchemy import func
-
         from app.schemas.box import BoxUsageStatsModel
 
         # Get box info
@@ -179,8 +168,6 @@ class BoxService:
 
     def get_all_boxes_with_usage(self) -> list['BoxWithUsageModel']:
         """Get all boxes with their usage statistics calculated."""
-        from sqlalchemy import func
-
         from app.schemas.box import BoxWithUsageModel
 
         # Query to get all boxes with usage stats in one go
