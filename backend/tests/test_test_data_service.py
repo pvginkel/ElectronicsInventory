@@ -23,6 +23,8 @@ from app.models.shopping_list_seller import ShoppingListSeller
 from app.models.type import Type
 from app.services.container import ServiceContainer
 
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
+
 
 class TestTestDataService:
     """Test cases for TestDataService."""

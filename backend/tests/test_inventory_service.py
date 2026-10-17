@@ -12,6 +12,8 @@ from app.exceptions import (
 from app.models.part_location import PartLocation
 from app.services.container import ServiceContainer
 
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
+
 
 class TestInventoryService:
     """Test cases for InventoryService."""

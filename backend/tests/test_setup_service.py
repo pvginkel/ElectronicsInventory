@@ -11,6 +11,8 @@ from app.services.container import ServiceContainer
 from app.services.setup_service import SetupService
 from app.utils.file_parsers import get_types_from_setup
 
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
+
 
 class TestSetupService:
     """Test cases for SetupService functionality."""

@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
@@ -11,6 +12,8 @@ from app.models.part import Part
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
 from app.services.container import ServiceContainer
+
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
 
 
 class TestDashboardAPI:

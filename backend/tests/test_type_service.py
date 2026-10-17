@@ -8,6 +8,8 @@ from app.exceptions import DependencyException, RecordNotFoundException
 from app.models.type import Type
 from app.services.container import ServiceContainer
 
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
+
 
 class TestTypeService:
     """Test cases for TypeService."""

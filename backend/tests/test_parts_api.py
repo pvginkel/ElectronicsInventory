@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
@@ -12,6 +13,8 @@ from app.models.kit_content import KitContent
 from app.models.shopping_list import ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.services.container import ServiceContainer
+
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
 
 
 class TestPartsAPI:

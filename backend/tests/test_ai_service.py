@@ -25,6 +25,8 @@ from app.services.type_service import TypeService
 from app.utils.temp_file_manager import TempFileManager
 from tests.testing_utils import StubLifecycleCoordinator
 
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
+
 
 @pytest.fixture
 def ai_test_settings() -> AppSettings:

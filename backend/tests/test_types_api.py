@@ -2,11 +2,14 @@
 
 import json
 
+import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.services.container import ServiceContainer
+
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
 
 
 class TestTypesAPI:

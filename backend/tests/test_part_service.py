@@ -11,6 +11,8 @@ from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.services.container import ServiceContainer
 
+pytestmark = pytest.mark.usefixtures("without_seeded_types")
+
 
 class AttachmentSetStub:
     """Minimal stub for AttachmentSetService that creates real attachment sets."""

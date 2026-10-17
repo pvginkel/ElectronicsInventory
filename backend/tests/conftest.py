@@ -13,10 +13,13 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import delete
+from sqlalchemy.orm import Session
 
 from app import create_app
 from app.app_config import AppSettings
 from app.config import Settings
+from app.models.type import Type
 
 # Import all infrastructure fixtures
 from tests.conftest_infrastructure import *  # noqa: F403
@@ -56,6 +59,19 @@ def _ei_build_test_app_settings() -> AppSettings:
 def test_app_settings() -> AppSettings:
     """Override infrastructure fixture to include EI-specific settings."""
     return _ei_build_test_app_settings()
+
+
+@pytest.fixture
+def without_seeded_types(session: Session) -> None:
+    """Start the test with no types.
+
+    The run's template database is built as ``cli upgrade-db`` builds
+    production's, so ``post_migration_hook`` has seeded the types in
+    ``app/data/setup/types.txt``. A test that creates types of those names,
+    or counts the catalogue, requests this: it deletes them in the test's
+    transaction, which the teardown rolls back.
+    """
+    session.execute(delete(Type))
 
 
 # ---------------------------------------------------------------------------
