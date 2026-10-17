@@ -78,12 +78,13 @@ curl -sS -o /dev/null -w 'proxied %{http_code}\n' http://localhost:3000/api/type
 ```
 
 Expected: `frontend 200`, `healthz 200`, `openapi 200`, `types 200`, `proxied 200`, and
-`readyz 200` with `"database": {"connected": true}` and `"sse_gateway": {"reachable": true}`.
+`readyz 200` with `"status": "ok"`, and `checks.database.status` and `checks.sse_gateway.status`
+both `"ok"`.
 The dev stack has a database — the `postgres` sidecar, which `kc project setup` creates and
 migrates — so `/api/types` is a real read against it, direct on 3001 and through the Vite dev
 server's proxy on 3000. That makes this check prove a data path as well as that all three
 processes boot, serve and wire to each other. Both suites remain unaffected either way: they
-configure SQLite themselves.
+build their own databases on the same server, never `electronics_inventory`.
 
 Stop it by sending Ctrl-C down the FIFO and waiting on the pid you captured:
 

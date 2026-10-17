@@ -1,20 +1,32 @@
 #!/usr/bin/env python3
-"""Regenerate the frontend's OpenAPI client and cached spec.
+"""Regenerate the OpenAPI cache for one or more frontend subprojects.
 
-Picks a free port, starts the backend, waits for the OpenAPI spec endpoint to
-be reachable, runs `pnpm generate:api` in the frontend, and stops the backend
-cleanly on exit. The frontend's `scripts/fetch-openapi.js` reads PORT and
-writes `frontend/openapi-cache/openapi.json`, which is committed so that
-`pnpm build` (which runs `generate:api:build --cache-only`) needs no backend.
+Picks a free port, starts the backend, waits for the OpenAPI spec
+endpoint to be reachable, runs `pnpm generate:api` in the requested
+subproject(s), and stops the backend cleanly on exit.
 
-We poll `/api/docs/openapi.json` directly rather than `/health/readyz`: the
-readiness probe can sit at HTTP 503 when a non-critical dependency is degraded
-locally, even though the OpenAPI endpoint itself is perfectly usable. What we
-actually care about is whether the downstream `generate:api` fetch will
-succeed, so that's what we poll.
+We poll `/api/docs/openapi.json` directly rather than `/health/readyz`:
+the readiness probe can sit at HTTP 503 indefinitely when a non-critical
+dependency is degraded in the local dev environment, even though the
+OpenAPI endpoint itself is perfectly usable. What we actually care
+about is whether the downstream `generate:api` fetch will succeed, so
+that's what we poll.
+
+## Customize for your project
+
+The defaults below assume:
+- A `backend/` subproject started with `uv run dev` (long-running server).
+  The backend's database must already be migrated (`kc project setup` does
+  that); this script adds no one-shot prepare step.
+- The OpenAPI spec lives at `/api/docs/openapi.json`.
+- A `frontend/` subproject with a `pnpm generate:api` script in its
+  `package.json`.
+
+If your stack differs, edit the constants and the `start_backend` helper.
+The flow (start backend → wait → generate → stop) is the load-bearing part.
 
 Usage:
-    scripts/regenerate-openapi.py
+    scripts/regenerate-openapi.py --frontend
 """
 
 from __future__ import annotations
@@ -32,9 +44,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = ROOT / "backend"
-FRONTEND_DIR = ROOT / "frontend"
 LOG_DIR = ROOT / "logs"
 
+OPENAPI_PATH = "/api/docs/openapi.json"
 READY_TIMEOUT_S = 120
 
 
@@ -49,7 +61,7 @@ def wait_for_ready(port: int, dev_proc: subprocess.Popen[bytes], timeout_s: int)
 
     Fails fast if the backend process has exited.
     """
-    url = f"http://localhost:{port}/api/docs/openapi.json"
+    url = f"http://localhost:{port}{OPENAPI_PATH}"
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         rc = dev_proc.poll()
@@ -105,12 +117,13 @@ def start_backend(port: int, log_path: Path) -> subprocess.Popen[bytes]:
         raise
 
 
-def regenerate(port: int) -> int:
+def regenerate(project: str, port: int) -> int:
+    project_dir = ROOT / project
     env = {**os.environ, "PORT": str(port)}
-    print("[frontend] pnpm generate:api", flush=True)
+    print(f"[{project}] pnpm generate:api", flush=True)
     result = subprocess.run(
         ["pnpm", "generate:api"],
-        cwd=FRONTEND_DIR,
+        cwd=project_dir,
         env=env,
     )
     return result.returncode
@@ -118,6 +131,7 @@ def regenerate(port: int) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--frontend", action="store_true", help="Regenerate frontend OpenAPI client")
     parser.add_argument(
         "--timeout",
         type=int,
@@ -125,6 +139,12 @@ def main() -> int:
         help="Seconds to wait for backend readiness (default: %(default)s)",
     )
     args = parser.parse_args()
+
+    targets: list[str] = []
+    if args.frontend:
+        targets.append("frontend")
+    if not targets:
+        parser.error("Specify --frontend")
 
     LOG_DIR.mkdir(exist_ok=True)
     backend_log = LOG_DIR / "regenerate-openapi-backend.log"
@@ -136,10 +156,11 @@ def main() -> int:
     try:
         wait_for_ready(port, dev_proc, args.timeout)
         print(f"Backend ready on port {port}", flush=True)
-        rc = regenerate(port)
-        if rc != 0:
-            print("generate:api failed", file=sys.stderr)
-            return rc
+        for target in targets:
+            rc = regenerate(target, port)
+            if rc != 0:
+                print(f"generate:api failed for {target}", file=sys.stderr)
+                return rc
     finally:
         stop_backend(dev_proc)
 

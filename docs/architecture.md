@@ -22,7 +22,7 @@ at `/api/docs/openapi.json`, annotated with per-endpoint `x-required-role` / `x-
 Two consequences worth internalising:
 
 - **`src/lib/api/generated/` and `src/routeTree.gen.ts` are gitignored.** A fresh checkout, or any
-  backend schema change, needs `pnpm generate:api` (or `scripts/regenerate-openapi.py`) before the
+  backend schema change, needs `pnpm generate:api` (or `scripts/regenerate-openapi.py --frontend`) before the
   frontend type-checks. A missing `role-map.json` makes the role-gating eslint rule error out,
   which reads confusingly if you don't know why. `kc project setup` generates both.
 - **Authorisation is generated, then lint-enforced.** `role-import-enforcement` requires a mutation

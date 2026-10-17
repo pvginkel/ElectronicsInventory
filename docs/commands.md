@@ -79,13 +79,13 @@ or node, none of which exist in the dev container — so it needs no `cexec` pre
 `postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory`, which is where the
 sidecar listens, and `kc project setup` creates that database and applies the migrations — see the
 two commands below. So the SPA, `/health/healthz` and the data calls all answer, and
-`/health/readyz` returns 200 with `database.connected: true`. Neither suite touches it: both
-configure SQLite themselves.
+`/health/readyz` returns 200 with `checks.database.status: ok`. Neither suite touches that
+database: both build their own on the same server, through `TEST_DATABASE_ADMIN_URL`.
 
 ## Regenerating the API client
 
 ```bash
-cexec modern-app scripts/regenerate-openapi.py
+cexec modern-app python3 scripts/regenerate-openapi.py --frontend
 ```
 
 Boots the backend on a free port, polls `/api/docs/openapi.json`, then runs `pnpm generate:api` in

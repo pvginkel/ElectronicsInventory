@@ -79,7 +79,7 @@ the first thing to solve — say so and fix the seam, rather than shipping it un
 Both trees are **gitignored**, which makes hand-edits vanish rather than persist — but the rule
 matters before that, because an edit there is an edit to something the next `pnpm build`
 overwrites. Change the source and regenerate: a route file, or a backend schema followed by
-`scripts/regenerate-openapi.py` (which also refreshes the committed
+`scripts/regenerate-openapi.py --frontend` (which also refreshes the committed
 `frontend/openapi-cache/openapi.json` the offline build consumes).
 
 Authorisation is part of that generated surface. The `role-import-enforcement` and
