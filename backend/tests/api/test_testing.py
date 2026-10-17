@@ -2,9 +2,9 @@
 
 import io
 import json
-import sqlite3
 import threading
 import time
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.parse import urlsplit
@@ -13,14 +13,15 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from PIL import Image
-from sqlalchemy.pool import StaticPool
 
-from app import create_app
+from app.app_config import AppSettings
 from app.config import Settings
 from app.models.attachment import AttachmentType
 from app.services.container import ServiceContainer
 from app.services.download_cache_service import DownloadResult
+from app.services.sse_connection_manager import BROADCAST_TARGET, Target
 from app.utils.log_capture import LogCaptureHandler, SSELogClient
+from tests.conftest_infrastructure import _create_test_app, _dispose_app
 
 
 class TestTestingEndpoints:
@@ -196,7 +197,7 @@ class TestTestingEndpoints:
         # Verify it was broadcast
         mock_sse_connection_manager.send_event.assert_called_once()
         call_args = mock_sse_connection_manager.send_event.call_args
-        assert call_args.args[0] is None  # Broadcast mode
+        assert call_args.args[0] == BROADCAST_TARGET
         assert call_args.args[1] == {"version": "2024.01.0"}
 
         # Verify it was stored as pending
@@ -383,33 +384,26 @@ class TestTestingEndpointsNonTestingMode:
     """Test testing endpoints behavior when not in testing mode."""
 
     @pytest.fixture
-    def non_testing_settings(self) -> Settings:
-        """Create settings with testing mode disabled."""
-        # Create a dedicated SQLite connection for this test
-        conn = sqlite3.connect(":memory:", check_same_thread=False)
-        return Settings(
-            database_url="sqlite://",
-            secret_key="test-secret-key",
-            debug=True,
-            flask_env="development",  # Not testing mode
-            cors_origins=["http://localhost:3000"],
-            # SQLite compatibility options
-            sqlalchemy_engine_options={
-                "poolclass": StaticPool,
-                "creator": lambda: conn,
-            },
+    def non_testing_app(
+        self, app: Flask, test_settings: Settings, test_app_settings: AppSettings
+    ) -> Generator[Flask]:
+        """Create Flask app with testing mode disabled.
+
+        On the session app's database: the guard turns every request away
+        before it touches the database.
+        """
+        settings = test_settings.model_copy(
+            update={
+                "database_url": app.config["SQLALCHEMY_DATABASE_URI"],
+                "flask_env": "development",  # Not testing mode
+            }
         )
+        non_testing = _create_test_app(settings, test_app_settings)
 
-    @pytest.fixture
-    def non_testing_app(self, non_testing_settings: Settings) -> Flask:
-        """Create Flask app with testing mode disabled."""
-        app = create_app(non_testing_settings)
-
-        with app.app_context():
-            from app.extensions import db
-            db.create_all()
-
-        return app
+        try:
+            yield non_testing
+        finally:
+            _dispose_app(non_testing)
 
     @pytest.fixture
     def non_testing_client(self, non_testing_app: Flask):
@@ -424,7 +418,9 @@ class TestTestingEndpointsNonTestingMode:
         data = response.get_json()
         assert data["error"] == "This endpoint is only available when the server is running in testing mode"
         assert data["code"] == "ROUTE_NOT_AVAILABLE"
-        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
+        assert data["details"]["message"] == (
+            "Testing endpoints require FLASK_ENV=testing and a STAGE other than prd"
+        )
 
     def test_logs_stream_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
         """Test that logs stream endpoint returns 400 when not in testing mode."""
@@ -434,7 +430,9 @@ class TestTestingEndpointsNonTestingMode:
         data = response.get_json()
         assert data["error"] == "This endpoint is only available when the server is running in testing mode"
         assert data["code"] == "ROUTE_NOT_AVAILABLE"
-        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
+        assert data["details"]["message"] == (
+            "Testing endpoints require FLASK_ENV=testing and a STAGE other than prd"
+        )
 
     def test_before_request_applies_to_all_testing_routes(self, non_testing_client: FlaskClient):
         """Test that before_request handler applies to all routes in testing blueprint."""
@@ -491,7 +489,7 @@ class TestTaskEventEndpoint:
             # Verify send_event was called with correct parameters
             mock_send.assert_called_once()
             call_args = mock_send.call_args
-            assert call_args.args[0] == "playwright-test-123"  # request_id
+            assert call_args.args[0] == Target.connection("playwright-test-123")
             assert call_args.kwargs["event_name"] == "task_event"
             assert call_args.kwargs["service_type"] == "task"
 
