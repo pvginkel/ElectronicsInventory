@@ -52,12 +52,15 @@ models before components see them. `src/lib/test/` holds the test instrumentatio
 
 ## Tests boot real services
 
-There are no service mocks in the E2E layer. Playwright's global setup seeds a SQLite DB via
-`backend/scripts/initialize-sqlite-database.sh`, then each worker boots its own backend, SSE
-gateway and frontend on `get-port`-allocated ports. `page.route`/response mocking is banned by the
-`testing/no-route-mocks` eslint rule. The backend suite runs on in-memory SQLite (Alembic once per
-session, then a per-test copy), so neither suite touches the `postgres` sidecar — that one is the
-honcho dev stack's database. **S3 must be reachable**, though:
+There are no service mocks in the E2E layer. Playwright's global setup builds the run's seed
+database on PostgreSQL with the backend's `load-test-data`, then each worker boots its own backend
+(on its own clone of the seed), SSE gateway and frontend on `get-port`-allocated ports.
+`page.route`/response mocking is banned by the `testing/no-route-mocks` eslint rule. The backend
+suite runs on PostgreSQL too: one template database per run, built by the migrations as `upgrade-db`
+builds production's (so it carries `post_migration_hook`'s seeded part types), served to the tests
+as clones, each test inside a transaction that is rolled back. Both suites reach the `postgres`
+sidecar through `TEST_DATABASE_ADMIN_URL` and never touch the honcho dev stack's
+`electronics_inventory` database. **S3 must be reachable**, though:
 `pytest_configure` aborts the entire run if `S3_ENDPOINT_URL` is down. Locally that is the `s3storage`
 sidecar (RustFS) at `localhost:9000` (`s3storage`/`s3storage`); in CI it is a RustFS sidecar inside the
 validation pod.
