@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 
 from prometheus_client import Gauge
 
+from app.database import scoped_session
+
 if TYPE_CHECKING:
     from app.services.container import ServiceContainer
 
@@ -68,59 +70,52 @@ def create_dashboard_polling_callback(
 ) -> Callable[[], None]:
     """Return a closure that updates all dashboard gauges.
 
-    The closure follows the singleton session pattern:
-    try / commit / except / rollback / finally / reset.
+    Each poll runs in its own ``scoped_session()``, which commits or rolls
+    back, closes the session and resets the container's provider. A failed
+    poll is logged; the next one tries again.
 
     Args:
         container: The DI service container (captured by the closure).
     """
 
     def _poll() -> None:
-        session = container.db_session()
-
         try:
-            dashboard_service = container.dashboard_service()
+            with scoped_session(container):
+                dashboard_service = container.dashboard_service()
 
-            # Inventory stats
-            stats = dashboard_service.get_dashboard_stats()
-            INVENTORY_TOTAL_PARTS.set(stats["total_parts"])
-            INVENTORY_TOTAL_QUANTITY.set(stats["total_quantity"])
-            INVENTORY_LOW_STOCK_PARTS.set(stats["low_stock_count"])
-            INVENTORY_RECENT_CHANGES_7D.set(stats["changes_7d"])
-            INVENTORY_RECENT_CHANGES_30D.set(stats["changes_30d"])
+                # Inventory stats
+                stats = dashboard_service.get_dashboard_stats()
+                INVENTORY_TOTAL_PARTS.set(stats["total_parts"])
+                INVENTORY_TOTAL_QUANTITY.set(stats["total_quantity"])
+                INVENTORY_LOW_STOCK_PARTS.set(stats["low_stock_count"])
+                INVENTORY_RECENT_CHANGES_7D.set(stats["changes_7d"])
+                INVENTORY_RECENT_CHANGES_30D.set(stats["changes_30d"])
 
-            # Parts without docs
-            undocumented = dashboard_service.get_parts_without_documents()
-            INVENTORY_PARTS_WITHOUT_DOCS.set(undocumented["count"])
+                # Parts without docs
+                undocumented = dashboard_service.get_parts_without_documents()
+                INVENTORY_PARTS_WITHOUT_DOCS.set(undocumented["count"])
 
-            # Storage summary (per-box utilization)
-            storage_summary = dashboard_service.get_storage_summary()
-            INVENTORY_BOX_UTILIZATION_PERCENT.clear()
-            for box_data in storage_summary:
-                box_no = str(box_data["box_no"])
-                utilization = box_data["usage_percentage"]
-                INVENTORY_BOX_UTILIZATION_PERCENT.labels(box_no=box_no).set(
-                    utilization
-                )
-            INVENTORY_TOTAL_BOXES.set(len(storage_summary))
+                # Storage summary (per-box utilization)
+                storage_summary = dashboard_service.get_storage_summary()
+                INVENTORY_BOX_UTILIZATION_PERCENT.clear()
+                for box_data in storage_summary:
+                    box_no = str(box_data["box_no"])
+                    utilization = box_data["usage_percentage"]
+                    INVENTORY_BOX_UTILIZATION_PERCENT.labels(box_no=box_no).set(
+                        utilization
+                    )
+                INVENTORY_TOTAL_BOXES.set(len(storage_summary))
 
-            # Category distribution
-            category_distribution = dashboard_service.get_category_distribution()
-            INVENTORY_PARTS_BY_TYPE.clear()
-            for category_data in category_distribution:
-                type_name = category_data["type_name"]
-                part_count = category_data["part_count"]
-                INVENTORY_PARTS_BY_TYPE.labels(type_name=type_name).set(
-                    part_count
-                )
-
-            session.commit()
-
+                # Category distribution
+                category_distribution = dashboard_service.get_category_distribution()
+                INVENTORY_PARTS_BY_TYPE.clear()
+                for category_data in category_distribution:
+                    type_name = category_data["type_name"]
+                    part_count = category_data["part_count"]
+                    INVENTORY_PARTS_BY_TYPE.labels(type_name=type_name).set(
+                        part_count
+                    )
         except Exception as e:
-            session.rollback()
             logger.error("Error in dashboard polling callback: %s", e)
-
-        finally:
-            container.db_session.reset()
 
     return _poll
