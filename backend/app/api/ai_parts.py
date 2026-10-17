@@ -24,6 +24,7 @@ from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.part_service import PartService
 from app.services.task_service import TaskService
+from app.utils.auth import get_auth_context
 from app.utils.flask_error_handlers import build_error_response
 from app.utils.spectree_config import api
 from app.utils.url_utils import get_filename_from_url
@@ -121,8 +122,10 @@ def analyze_part(
     # Create and start the AI analysis task
     task = AIPartAnalysisTask(container=container)
 
+    auth = get_auth_context()
     task_start_response = task_service.start_task(
         task=task,
+        caller_subject=auth.subject if auth else None,
         text_input=text_input,
         image_data=image_data,
         image_mime_type=image_mime_type
@@ -255,6 +258,11 @@ def cleanup_part(
     # Create and start the AI cleanup task
     task = AIPartCleanupTask(container=container)
 
-    task_start_response = task_service.start_task(task=task, part_key=data.part_key)
+    auth = get_auth_context()
+    task_start_response = task_service.start_task(
+        task=task,
+        caller_subject=auth.subject if auth else None,
+        part_key=data.part_key,
+    )
 
     return task_start_response.model_dump(), 201
