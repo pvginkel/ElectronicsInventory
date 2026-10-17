@@ -15,6 +15,16 @@ from app.models.type import Type
 from app.services.container import ServiceContainer
 
 
+def _validation_error_fields(data: object) -> set[str]:
+    """The fields a request-validation 400 names.
+
+    Spectree answers a request its schema rejects with pydantic's error list,
+    not the app's error envelope.
+    """
+    assert isinstance(data, list)
+    return {".".join(str(part) for part in error["loc"]) for error in data}
+
+
 class TestSellerAPI:
     """Test cases for Seller API endpoints."""
 
@@ -123,7 +133,7 @@ class TestSellerAPI:
 
         assert response.status_code == 400
         data = response.get_json()
-        assert "error" in data
+        assert "name" in _validation_error_fields(data)
 
     def test_create_seller_missing_fields(self, app: Flask, client: FlaskClient, session: Session):
         """Test POST /api/sellers with missing required fields returns 400."""
@@ -140,7 +150,7 @@ class TestSellerAPI:
 
         assert response.status_code == 400
         data = response.get_json()
-        assert "error" in data
+        assert "website" in _validation_error_fields(data)
 
     def test_get_seller_success(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test GET /api/sellers/{id} returns seller details."""
@@ -283,7 +293,7 @@ class TestSellerAPI:
 
         assert response.status_code == 400
         data = response.get_json()
-        assert "error" in data
+        assert "name" in _validation_error_fields(data)
 
     def test_delete_seller_success(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test DELETE /api/sellers/{id} removes seller successfully."""
@@ -374,7 +384,7 @@ class TestSellerAPI:
 
         assert response.status_code == 400
         data = response.get_json()
-        assert "error" in data
+        assert _validation_error_fields(data)
 
     def test_seller_response_schema_structure(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that seller responses have exactly the expected fields."""
