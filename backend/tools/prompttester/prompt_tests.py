@@ -69,7 +69,7 @@ def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str]
             datasheet_extraction_service = get_datasheet_extraction_service(model, runner)
             datasheet_extraction = ExtractSpecsFromDatasheetFunction(datasheet_extraction_service)
 
-            efforts_to_test = reasoning_efforts if reasoning_efforts else [None]  # type: ignore[list-item]
+            efforts_to_test = reasoning_efforts if reasoning_efforts else [None]
             for reasoning_effort in efforts_to_test:
                 for run in range(0, runs):
                     query_key = slugify(query)

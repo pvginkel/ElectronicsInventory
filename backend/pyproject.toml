@@ -12,8 +12,8 @@ dependencies = [
     "psycopg[binary]>=3.1.0,<4",
     "pydantic>=2.5.0,<3",
     "pydantic-settings>=2.1.0,<3",
-    "spectree>=1.2.0,<2",
-    "flask-cors>=4.0.0,<5",
+    "spectree>=2.0.0,<3",
+    "flask-cors>=6.0.0,<7",
     "waitress>=3.0.0,<4",
     "boto3>=1.34.0,<2",
     "celery>=5.3.0,<6",
@@ -21,7 +21,7 @@ dependencies = [
     "anthropic>=0.42.0,<0.43",
     "paste>=3.10.1,<4",
     "dependency-injector>=4.48.1,<5",
-    "pillow>=10.2.0,<11",
+    "pillow>=12.0.0,<13",
     "beautifulsoup4>=4.12.0,<5",
     "requests>=2.31.0,<3",
     "python-magic>=0.4.27,<0.5",
@@ -40,17 +40,17 @@ check = "scripts.check:main"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.0,<0.12",
+    "ruff>=0.15.0,<0.16",
     "mypy>=1.8.0,<2",
-    "pytest>=7.4.0,<8",
-    "pytest-cov>=4.1.0,<5",
-    "types-flask-cors>=4.0.0,<5",
+    "pytest>=9.0.0,<10",
+    "pytest-cov>=7.0.0,<8",
+    "types-flask-cors>=6.0.0,<7",
     "types-requests>=2.31.0,<3",
     "types-beautifulsoup4>=4.12.0,<5",
-    "types-pillow>=10.2.0,<11",
     "boto3-stubs[s3]>=1.40.25,<2",
     "types-waitress>=3.0.1.20250801,<4",
     "vulture>=2.14,<3",
+    "watchdog[watchmedo]>=6.0.0,<7",
 ]
 
 # Only app/ is a package; run.py and scripts/ are reached through the editable
@@ -66,7 +66,7 @@ packages = ["app"]
 [tool.ruff]
 target-version = "py313"
 line-length = 88
-exclude = ["vulture_whitelist.py"]
+extend-exclude = ["vulture_whitelist.py"]
 
 [tool.ruff.lint]
 select = [
