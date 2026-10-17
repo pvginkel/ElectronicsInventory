@@ -10,18 +10,12 @@ Tests cover:
   - OpenAPI security annotations
 """
 
-import sqlite3
-from collections.abc import Generator
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 from flask import Blueprint, Flask
-from sqlalchemy.pool import StaticPool
 
-from app import create_app
 from app.app_config import AppSettings
-from app.config import Settings
 from app.exceptions import AuthorizationException
 from app.services.auth_service import AuthContext, AuthService
 from app.utils.auth import (
@@ -498,61 +492,13 @@ class TestValidateAllowRolesAtStartup:
 # ===========================================================================
 
 @pytest.fixture
-def oidc_role_app(
-    test_settings: Settings,
-    test_app_settings: AppSettings,
-    template_connection: sqlite3.Connection,
-    mock_oidc_discovery: dict[str, Any],
-    generate_test_jwt: Any,
-) -> Generator[Flask]:
-    """Create an OIDC-enabled app for role-based access tests.
+def oidc_role_app(oidc_app: Flask) -> Flask:
+    """An OIDC-enabled app for role-based access tests.
 
-    The same pattern as the standard oidc_app fixture but kept local to
-    ensure test isolation.
+    The template's ``oidc_app``: its requests share the test's session, so
+    what they write is rolled back.
     """
-    clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
-    template_connection.backup(clone_conn)
-
-    settings = test_settings.model_copy(update={
-        "database_url": "sqlite://",
-        "sqlalchemy_engine_options": {
-            "poolclass": StaticPool,
-            "creator": lambda: clone_conn,
-        },
-        "oidc_enabled": True,
-        "oidc_client_secret": "test-secret",
-    })
-
-    with patch("httpx.get") as mock_get:
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_oidc_discovery
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
-
-        with patch("app.services.auth_service.PyJWKClient") as mock_jwk_client_class:
-            mock_jwk_client = MagicMock()
-            mock_signing_key = MagicMock()
-            mock_signing_key.key = generate_test_jwt.public_key
-            mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
-            mock_jwk_client_class.return_value = mock_jwk_client
-
-            app = create_app(
-                settings,
-                app_settings=test_app_settings,
-                skip_background_services=True,
-            )
-
-            try:
-                yield app
-            finally:
-                try:
-                    app.container.lifecycle_coordinator().shutdown()
-                except Exception:
-                    pass
-                with app.app_context():
-                    from app.extensions import db as flask_db
-                    flask_db.session.remove()
-                clone_conn.close()
+    return oidc_app
 
 
 @pytest.fixture

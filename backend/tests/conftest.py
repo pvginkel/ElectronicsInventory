@@ -6,7 +6,6 @@ domain fixtures plus SSE integration fixtures.
 """
 
 import socket
-import sqlite3
 import threading
 import time
 from collections.abc import Callable, Generator
@@ -14,31 +13,21 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy.pool import StaticPool
 
-# ---------------------------------------------------------------------------
-# Monkey-patch _build_test_app_settings BEFORE importing infrastructure
-# fixtures so that session-scoped fixtures (template_connection) use
-# EI-specific defaults (ai_testing_mode=True, etc.).
-# ---------------------------------------------------------------------------
-import tests.conftest_infrastructure as _infra
 from app import create_app
 from app.app_config import AppSettings
-
-
-def _ei_build_test_app_settings() -> AppSettings:
-    """EI-specific test app settings."""
-    return AppSettings(ai_testing_mode=True)
-
-
-_infra._build_test_app_settings = _ei_build_test_app_settings
+from app.config import Settings
 
 # Import all infrastructure fixtures
-from tests.conftest_infrastructure import *  # noqa: F403, E402
-from tests.conftest_infrastructure import _build_test_settings  # noqa: E402
+from tests.conftest_infrastructure import *  # noqa: F403
+from tests.conftest_infrastructure import (
+    RunDatabases,
+    _clear_prometheus_registry,
+    _dispose_app,
+)
 
 # Import domain fixtures to make them available to all tests
-from tests.domain_fixtures import (  # noqa: F401, E402
+from tests.domain_fixtures import (  # noqa: F401
     large_image_file,
     make_attachment_set,
     make_attachment_set_flask,
@@ -52,12 +41,20 @@ from tests.domain_fixtures import (  # noqa: F401, E402
     temp_thumbnail_dir,
 )
 
+
+def _ei_build_test_app_settings() -> AppSettings:
+    """EI-specific test app settings."""
+    return AppSettings(ai_testing_mode=True)
+
+
 # ---------------------------------------------------------------------------
-# Override template's test_app_settings fixture for EI-specific defaults
+# Override template's test_app_settings fixture for EI-specific defaults.
+# Session-scoped, as the template's: the session app and the run's template
+# database are built from it.
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def test_app_settings():
+@pytest.fixture(scope="session")
+def test_app_settings() -> AppSettings:
     """Override infrastructure fixture to include EI-specific settings."""
     return _ei_build_test_app_settings()
 
@@ -77,37 +74,39 @@ def _find_free_port() -> int:
 
 
 @pytest.fixture(scope="session")
-def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, Any]]:
+def sse_server(
+    run_databases: RunDatabases, test_settings: Settings, test_app_settings: AppSettings
+) -> Generator[tuple[str, Any]]:
     """Start a real Flask development server for SSE integration tests.
 
+    It serves from its own threads and commits for real, so it runs on a
+    database of its own, cloned from the run's template. Tests that use it
+    point the API's wiring at its app (see the template's mother suite,
+    ``tests/integration/conftest.py``): wiring is per module, and the session
+    app takes it back at the start of every test.
+
     Returns tuple of (base_url, app) where base_url is like http://localhost:5001.
-    The server runs in a background thread and is cleaned up after the session.
     """
-    # Find a free port
+    import requests
+
     port = _find_free_port()
+    database_url = run_databases.clone("sse")
 
-    # Create Flask app with template database clone for SSE tests
-    clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
-    template_connection.backup(clone_conn)
+    settings = test_settings.model_copy(
+        update={"database_url": database_url, "flask_env": "testing"}
+    )
 
-    settings = _build_test_settings().model_copy(update={
-        "database_url": "sqlite://",
-        "flask_env": "testing",  # Enable testing API endpoints
-        "sqlalchemy_engine_options": {
-            "poolclass": StaticPool,
-            "creator": lambda: clone_conn,
-        },
-    })
-    app_settings = _ei_build_test_app_settings()
-
-    app = create_app(settings, app_settings=app_settings)
+    # A full app, background services included: clear the registry first so
+    # its metrics don't collide with the session app's.
+    _clear_prometheus_registry()
+    app = create_app(settings, app_settings=test_app_settings)
 
     # Mock frontend version service to avoid external frontend dependency
-    version_json = '{"version": "test-1.0.0", "environment": "test", "git_commit": "abc123"}'
+    version_data = {"version": "test-1.0.0", "environment": "test", "git_commit": "abc123"}
     version_mock = patch.object(
         app.container.frontend_version_service(),
-        'fetch_frontend_version',
-        return_value=version_json
+        "_fetch_frontend_version",
+        return_value=version_data,
     )
     version_mock.start()
 
@@ -126,12 +125,9 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, 
     # Give server time to start and bind to the port
     time.sleep(1.5)
 
-    # Build base URL
     base_url = f"http://127.0.0.1:{port}"
 
     # Wait for server to be ready (poll health endpoint)
-    import requests
-
     max_attempts = 20
     for _ in range(max_attempts):
         try:
@@ -147,22 +143,9 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, 
     try:
         yield (base_url, app)
     finally:
-        # Shut down all background services via the lifecycle coordinator
-        try:
-            app.container.lifecycle_coordinator().shutdown()
-        except Exception:
-            pass
-
-        # Stop version service mock after lifecycle shutdown
         version_mock.stop()
-
-        # Clean up database connection.
-        with app.app_context():
-            from app.extensions import db as flask_db
-
-            flask_db.session.remove()
-
-        clone_conn.close()
+        _dispose_app(app)
+        run_databases.drop(database_url)
 
 
 @pytest.fixture
