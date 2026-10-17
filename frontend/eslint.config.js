@@ -39,6 +39,13 @@ export default tseslint.config([
     },
   },
   {
+    // TanStack file routes export `Route` next to their components.
+    files: ['src/routes/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     files: ['src/**/*.{ts,tsx}'],
     plugins: {
       'role-gating': {
