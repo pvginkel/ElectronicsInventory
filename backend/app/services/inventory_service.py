@@ -16,6 +16,7 @@ from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.services.part_service import PartService
+from app.utils.pagination import apply_sorting
 
 # Inventory activity metrics
 INVENTORY_QUANTITY_CHANGES_TOTAL = Counter(
@@ -355,7 +356,8 @@ class InventoryService:
         if type_id is not None:
             stmt = stmt.where(Part.type_id == type_id)
 
-        stmt = stmt.order_by(Part.created_at.desc()).limit(limit).offset(offset)
+        # Newest first; apply_sorting() adds the id tiebreaker paging needs
+        stmt = apply_sorting(stmt, Part, "created_at", "desc").limit(limit).offset(offset)
 
         results = self.db.execute(stmt).all()
 

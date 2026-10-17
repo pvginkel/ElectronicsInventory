@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_location import PartLocation
+from app.utils.pagination import apply_sorting
 
 
 class PartService:
@@ -122,8 +123,8 @@ class PartService:
         return [(requested_key, key_to_id[requested_key]) for requested_key in part_keys]
 
     def get_parts_list(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[Part]:
-        """List parts with pagination, ordered by creation date."""
-        stmt = select(Part).order_by(Part.created_at.desc())
+        """List parts with pagination, newest first (``id`` breaks ties)."""
+        stmt = apply_sorting(select(Part), Part, "created_at", "desc")
 
         # Apply type filter if specified
         if type_id is not None:
