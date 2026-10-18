@@ -508,22 +508,22 @@ class TestTaskEventEndpoint:
             assert event_data["data"] == {"text": "Processing...", "value": 0.5}
 
     def test_send_task_event_no_connection(self, client: FlaskClient, container: ServiceContainer):
-        """Test 400 error when no connection exists for the request_id."""
+        """Test 404 error when no connection exists for the request_id."""
         # The sse_connection_manager won't have any connections registered,
-        # so any request_id should trigger the 400 response
+        # so any request_id should trigger the 404 response
         response = client.post("/api/testing/sse/task-event", json={
             "request_id": "nonexistent-connection",
             "task_id": "task-xyz",
             "event_type": "task_started"
         })
 
-        assert response.status_code == 400
+        assert response.status_code == 404
         payload = response.get_json()
         assert "error" in payload
         assert "nonexistent-connection" in payload["error"]
 
     def test_send_task_event_send_failure(self, client: FlaskClient, container: ServiceContainer):
-        """Test 400 error when send_event fails (connection disappears during send)."""
+        """Test 502 error when send_event fails (connection disappears during send)."""
         sse_connection_manager = container.sse_connection_manager()
 
         with patch.object(sse_connection_manager, 'has_connection', return_value=True), \
@@ -534,10 +534,12 @@ class TestTaskEventEndpoint:
                 "event_type": "task_completed"
             })
 
-            assert response.status_code == 400
+            assert response.status_code == 502
             payload = response.get_json()
-            assert "error" in payload
-            assert "Failed to send event" in payload["error"]
+            assert payload["error"] == (
+                "Cannot send the task event to SSE connection test-connection because "
+                "external service failed: the SSE Gateway did not deliver it"
+            )
 
     def test_send_task_event_all_event_types(self, client: FlaskClient, container: ServiceContainer):
         """Test all supported event types."""
