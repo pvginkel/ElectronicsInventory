@@ -89,11 +89,10 @@ The root, `backend/` and `frontend/` are each generated from a ModernAppTemplate
 `copier update`) or **app-owned** (generated once, never overwritten). Don't add app behaviour to
 a template-owned file; what the template lacks is changed in the template, not here.
 
-One edit stands in a template-owned file, and a `copier update` that conflicts on it keeps both
-sides: **`frontend/eslint.config.js`** carries EI's `role-gating` plugin (the imports of
-`scripts/eslint-rules/role-import-enforcement.js` and `gate-usage-enforcement.js`, and their two
-config blocks), after the template's own blocks. The template has no hook for app lint rules yet.
-The violation finder (`scripts/find_template_violations.py` in ModernAppTemplate)
+No edit stands in a template-owned file. EI's `role-gating` lint rules
+(`scripts/eslint-rules/role-import-enforcement.js` and `gate-usage-enforcement.js`) are configured
+in app-owned `frontend/eslint.app.config.js`, which the template's `eslint.config.js` spreads after
+its own blocks. The violation finder (`scripts/find_template_violations.py` in ModernAppTemplate)
 also reports older, unsorted divergence in a few template-owned files (`.gitignore`s,
 `frontend/knip.config.ts`, a handful of UI components); treat those as drift, not standing edits.
 

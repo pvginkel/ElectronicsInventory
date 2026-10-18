@@ -14,7 +14,7 @@
  *   import { myRoleConst } from '@/lib/api/generated/roles';
  *
  * This rule applies only to .tsx files (component files with JSX). Hook files
- * (.ts) are excluded via the eslint.config.js file glob.
+ * (.ts) are excluded via the eslint.app.config.js file glob.
  */
 
 /** Suffixes that identify the generated roles module in import paths. */
