@@ -39,9 +39,10 @@ cexec modern-app uv run run-suite --suite frontend --frontend-args "tests/e2e/pa
 ```
 
 Other flags: `--max-failures`, `--retries`, `--workers`, `--output-mode {simple,full}`,
-`--junitxml-dir`. `simple` (default) writes a summary plus the gitignored, multi-megabyte
-`test_results.md` at the root — grep it, do not read it whole, and note it records only `PASS`/`FAIL`
-per step, never a count. There is no changed-file detection and no way to list tests.
+`--junitxml-dir` (which works in either output mode). `simple` (default) writes a summary plus the
+gitignored, multi-megabyte `test_results.md` at the root — grep it, do not read it whole. The
+summary's "test counts" block and `test_results.md`'s step headings carry each suite's passed,
+failed and skipped counts. There is no changed-file detection and no way to list tests.
 
 The `frontend` suite runs a full `pnpm install` + `pnpm build` (which itself runs `pnpm check`) +
 `playwright install` before a single spec executes. For iteration, go direct instead:

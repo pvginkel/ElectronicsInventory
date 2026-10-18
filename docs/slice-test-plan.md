@@ -42,10 +42,9 @@ means the slice never should have reached this phase.
 build #239 (`exit=0, 1382 passed, 0 failed, 6 skipped`). A failure here is therefore this slice's,
 not inherited — treat it as a blocking finding rather than looking for a pre-existing card.
 
-Two things that are *not* failures: `kc project test` writes a gitignored, multi-megabyte
-`test_results.md` at the root (grep it, never read it whole), and `run-suite --output-mode simple`
-reports only `PASS`/`FAIL` per step. If a count is wanted, run the underlying command once directly
-(`cexec modern-app sh -c 'cd backend && uv run pytest'`).
+`kc project test` writes a gitignored, multi-megabyte `test_results.md` at the root, which is not a
+failure (grep it, never read it whole). The run-suite summary's "test counts" block and
+`test_results.md`'s step headings carry each suite's passed, failed and skipped counts.
 
 `frontend`'s vitest suite is deliberately outside the pipeline. Run `cexec modern-app sh -c 'cd
 frontend && pnpm test:unit'` by hand when the slice touched `src/**/__tests__` or
