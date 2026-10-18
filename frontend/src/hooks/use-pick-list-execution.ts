@@ -299,6 +299,8 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
     isLoading: Boolean(progress),
     getReadyMetadata: () => readyMetadataRef.current ?? undefined,
     getErrorMetadata: () => errorMetadataRef.current ?? undefined,
+    // An action scope: idle at mount, so it emits nothing until its first action.
+    readyOnMount: false,
   });
 
   const pickMutation = usePostPickListsLinesPickByPickListIdAndLineId({

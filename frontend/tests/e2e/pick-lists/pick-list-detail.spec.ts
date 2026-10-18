@@ -6,9 +6,9 @@ import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/genera
 import type { createApiClient, createTestDataBundle } from '../../api';
 
 /**
- * The `ready` that ends an action (a pick, an undo, a quantity update). The
- * action scopes also emit a metadata-less `ready` when the page mounts idle,
- * and the event buffer would hand that one to a waiter registered later.
+ * The `ready` that ends an action (a pick, an undo, a quantity update): the
+ * one whose metadata names the action, so a waiter can't take another
+ * action's `ready` from the event buffer.
  */
 function waitForActionReady(
   page: Page,
