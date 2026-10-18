@@ -89,7 +89,9 @@ The root, `backend/` and `frontend/` are each generated from a ModernAppTemplate
 `copier update`) or **app-owned** (generated once, never overwritten). Don't add app behaviour to
 a template-owned file; what the template lacks is changed in the template, not here.
 
-No edit stands in a template-owned file. EI's `role-gating` lint rules
+One edit stands in a template-owned file: the root **`Jenkinsfile`** builds, pushes and pins a
+third image, `electronics-inventory-docs` (its `Build electronics-inventory-docs image` stage), and a
+`copier update` that conflicts there keeps that stage. EI's `role-gating` lint rules
 (`scripts/eslint-rules/role-import-enforcement.js` and `gate-usage-enforcement.js`) are configured
 in app-owned `frontend/eslint.app.config.js`, which the template's `eslint.config.js` spreads after
 its own blocks. The violation finder (`scripts/find_template_violations.py` in ModernAppTemplate)
