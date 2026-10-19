@@ -211,12 +211,11 @@ class ServiceContainer(containers.DeclarativeContainer):
         config=config,
     )
 
-    # SSEConnectionManager - Singleton for SSE Gateway token mapping
+    # SSE connection manager - Singleton holding the browsers' event streams
     sse_connection_manager = providers.Singleton(
         SSEConnectionManager,
-        gateway_url=config.provided.sse_gateway_url,
-        http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
-        health_service=health_service,
+        lifecycle_coordinator=lifecycle_coordinator,
+        queue_max_frames=config.provided.sse_queue_max_frames,
     )
 
     kit_reservation_service = providers.Factory(

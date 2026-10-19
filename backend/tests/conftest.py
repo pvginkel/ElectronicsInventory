@@ -198,38 +198,3 @@ def sse_client_factory(sse_server: tuple[str, Any]):
         return SSEClient(url, strict=strict)
 
     return create_client
-
-
-@pytest.fixture(scope="session")
-def sse_gateway_server(sse_server: tuple[str, Any]) -> Generator[str]:
-    """Start SSE Gateway subprocess for integration tests.
-
-    Returns the base URL for the gateway (e.g., http://localhost:3001).
-    """
-    from tests.integration.sse_gateway_helper import SSEGatewayProcess
-
-    server_url, app = sse_server
-
-    gateway_port = _find_free_port()
-    callback_url = f"{server_url}/api/sse/callback?secret=test-secret"
-
-    gateway = SSEGatewayProcess(
-        callback_url=callback_url,
-        port=gateway_port,
-        startup_timeout=10.0,
-        health_check_interval=0.5,
-        shutdown_timeout=5.0,
-    )
-
-    try:
-        gateway.start()
-        gateway_url = gateway.get_base_url()
-
-        # Update Flask app's SSEConnectionManager with gateway URL
-        sse_connection_manager = app.container.sse_connection_manager()
-        sse_connection_manager.gateway_url = gateway_url
-
-        yield gateway_url
-    finally:
-        gateway.print_logs()
-        gateway.stop()
