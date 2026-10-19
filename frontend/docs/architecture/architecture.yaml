@@ -10,10 +10,10 @@ producer: electronics-inventory
 # backend/docs/architecture/architecture.yaml — same producer, separate file.
 #
 # The SPA is served as static assets by an in-container nginx, which
-# also reverse-proxies /api/** (and /api/sse/**) to the backend and SSE
-# gateway on the same origin. The browser therefore makes all calls to
-# its own origin; its architectural dependencies are the backend API and
-# the in-house SSE gateway it streams live updates from.
+# also reverse-proxies /api/** to the backend on the same origin, the
+# SSE stream it takes live updates from (/api/sse/stream) included. The
+# browser therefore makes all calls to its own origin; its architectural
+# dependency is the backend API.
 # ─────────────────────────────────────────────────────────────────────
 
 applicationComponents:
@@ -63,12 +63,4 @@ relations:
   - id: rel:eiui-consumes-backend-api
     source: app:electronics-inventory-ui,31069366-0e8b-4b4e-895b-77beb8023b47
     target: svc:electronics-inventory-api,2f8b6c1e-4d3a-4b9c-8a7f-6e5d4c3b2a19
-    type: Association
-
-  # ── frontend → SSE gateway ───────────────────────────────────────────
-  # The SPA opens an EventSource to /api/sse/** which nginx proxies to the
-  # in-house SSE gateway (same origin → no boundBy). Cross-producer svc.
-  - id: rel:eiui-consumes-sse-gateway
-    source: app:electronics-inventory-ui,31069366-0e8b-4b4e-895b-77beb8023b47
-    target: svc:ssegateway,59a7d043-bb0c-4e44-a8b8-3e943338f807
     type: Association
