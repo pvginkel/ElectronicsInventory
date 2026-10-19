@@ -63,8 +63,8 @@ DEVPID=$!
 exec 9> /tmp/devfifo                 # hold the write end open, or dev.py sees EOF
 ```
 
-Then probe the three ports `.kubecoder/config.yaml` publishes — frontend `3000`, backend `3001`,
-SSE gateway `3002` — plus whatever surface this slice actually changed:
+Then probe the two ports `.kubecoder/config.yaml` publishes — frontend `3000` and backend `3001`,
+which serves the SSE stream too — plus whatever surface this slice actually changed:
 
 ```bash
 curl -sS --retry 40 --retry-delay 3 --retry-connrefused -o /dev/null \
@@ -77,11 +77,11 @@ curl -sS -o /dev/null -w 'proxied %{http_code}\n' http://localhost:3000/api/type
 ```
 
 Expected: `frontend 200`, `healthz 200`, `openapi 200`, `types 200`, `proxied 200`, and
-`readyz 200` with `"status": "ok"`, and `checks.database.status` and `checks.sse_gateway.status`
+`readyz 200` with `"status": "ok"`, and `checks.database.status` and `checks.s3.status`
 both `"ok"`.
 The dev stack has a database — the `postgres` sidecar, which `kc project setup` creates and
 migrates — so `/api/types` is a real read against it, direct on 3001 and through the Vite dev
-server's proxy on 3000. That makes this check prove a data path as well as that all three
+server's proxy on 3000. That makes this check prove a data path as well as that both
 processes boot, serve and wire to each other. Both suites remain unaffected either way: they
 build their own databases on the same server, never `electronics_inventory`.
 
@@ -93,7 +93,7 @@ wait $DEVPID                          # exit 130 is the clean Ctrl-C path
 exec 9>&-; rm -f /tmp/devfifo
 ```
 
-Confirm all three ports are closed afterwards. Never `pkill -f dev.py` — the pattern matches the
+Confirm both ports are closed afterwards. Never `pkill -f dev.py` — the pattern matches the
 killing shell's own command line. `scripts/dev.py` tees per-service output to `logs/<service>.log`;
 read those when a probe surprises you, and check `git status` is clean before moving on.
 

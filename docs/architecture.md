@@ -3,12 +3,12 @@
 The system-level shape, across both components. Each component's own layer-by-layer patterns are in
 its `CLAUDE.md`.
 
-## Runtime: three processes
+## Runtime: two processes
 
-The app is a BFF backend, an SPA, and an **SSE gateway** that is not code in this repo — it is the
-`ssegateway` npm package, a git dependency of `frontend/package.json`. The backend pushes events to
-it (`app/services/sse_connection_manager.py`, `app/api/sse.py`) and browsers subscribe through it;
-the Vite dev server proxies `/api` to the backend and `/api/sse` to the gateway. Anything
+The app is a BFF backend and an SPA. The backend serves the browser's SSE stream itself,
+`GET /api/sse/stream` (`app/api/sse.py`), and delivers events to it in-process
+(`app/services/sse_connection_manager.py`); the Vite dev server proxies `/api` to the backend, the
+stream included. Anything
 long-running goes through `app/services/task_service.py`, which runs the work on a thread pool and
 streams progress over SSE.
 
@@ -54,7 +54,7 @@ models before components see them. `src/lib/test/` holds the test instrumentatio
 
 There are no service mocks in the E2E layer. Playwright's global setup builds the run's seed
 database on PostgreSQL with the backend's `load-test-data`, then each worker boots its own backend
-(on its own clone of the seed), SSE gateway and frontend on `get-port`-allocated ports.
+(on its own clone of the seed) and frontend on `get-port`-allocated ports.
 `page.route`/response mocking is banned by the `testing/no-route-mocks` eslint rule. The backend
 suite runs on PostgreSQL too: one template database per run, built by the migrations as `upgrade-db`
 builds production's (so it carries `post_migration_hook`'s seeded part types), served to the tests

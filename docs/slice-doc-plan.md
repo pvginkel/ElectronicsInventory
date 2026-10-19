@@ -47,7 +47,7 @@ that adds a gated surface updates it there, not in a new doc.
 `backend/README.md` and `frontend/README.md` are the reader-facing front doors, owed an update when
 the component's shape, its stack, or how you run it changed. **Both are known stale on setup
 topics** — they still describe standalone repositories and the pre-merge ports (5000 / 8000)
-rather than the monorepo's 3000/3001/3002. Do not treat that as this slice's to fix, and do not
+rather than the monorepo's 3000/3001. Do not treat that as this slice's to fix, and do not
 copy from them; if a slice's change lands in a paragraph that is already wrong, correct that
 paragraph and say so.
 

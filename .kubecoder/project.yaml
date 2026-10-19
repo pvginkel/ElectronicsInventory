@@ -79,8 +79,8 @@ projects:
   frontend:
     description: >-
       React 19 + Vite SPA with TanStack Router/Query and a generated OpenAPI
-      client; Playwright E2E suite that boots the backend, SSE gateway and
-      frontend per worker.
+      client; Playwright E2E suite that boots the backend and frontend per
+      worker.
     setup:
       - cexec modern-app pnpm install --frozen-lockfile --config.confirmModulesPurge=false
       # src/lib/api/generated/ and src/routeTree.gen.ts are gitignored, so a

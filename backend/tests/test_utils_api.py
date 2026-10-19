@@ -12,8 +12,8 @@ from app.services.sse_connection_manager import BROADCAST_TARGET, Target
 from app.utils.lifecycle_coordinator import LifecycleEvent
 from tests.testing_utils import StubLifecycleCoordinator
 
-# Note: The /api/utils/version/stream endpoint was removed in favor of SSE Gateway pattern.
-# SSE Gateway tests are in tests/api/test_sse.py
+# Note: The /api/utils/version/stream endpoint was removed in favor of the shared SSE stream,
+# GET /api/sse/stream.
 
 
 class TestFrontendVersionService:

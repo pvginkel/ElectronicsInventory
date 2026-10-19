@@ -66,9 +66,6 @@ ports:
   - name: backend
     port: 3001
     type: http
-  - name: sse-gateway
-    port: 3002
-    type: http
 
 preamble:
   instructions: |
@@ -80,14 +77,14 @@ preamble:
     tool sidecar, so ad-hoc commands need `cexec modern-app ...`.
 
     The dev runner is the exception: `./scripts/dev.py` runs honcho inside the
-    `modern-app` sidecar itself (backend :3001, frontend :3000, SSE gateway
-    :3002).
+    `modern-app` sidecar itself (backend :3001, which serves the SSE stream
+    too, and frontend :3000).
 
     The `postgres` sidecar (PostgreSQL 18 on localhost:5432, postgres/postgres)
     holds the honcho dev stack's database and both suites' throwaway ones: the
     backend suite runs on clones of a template database it builds per run, and
-    the Playwright suite boots its own backend, SSE gateway and frontend per
-    worker, each backend on its own clone of a seed database. S3 attachment storage
+    the Playwright suite boots its own backend and frontend per worker, each
+    backend on its own clone of a seed database. S3 attachment storage
     needs a live endpoint — the test fixtures abort when `S3_ENDPOINT_URL` is
     unset or unreachable — and it comes from the `s3storage` sidecar (RustFS) on
     localhost:9000 (s3storage/s3storage). `kc project setup` seeds

@@ -6,7 +6,7 @@ Guidance for Claude Code and any other agent working in this repository.
 
 A hobby electronics parts inventory system: a Flask BFF backend and a React SPA, merged from two
 repos into one monorepo on 2026-08-19 (history preserved, one merge commit with two parents). It
-runs as three processes — the backend, the SPA, and an SSE gateway that is not code in this repo —
+runs as two processes — the backend, which serves the browser's SSE stream too, and the SPA —
 and deploys to one production instance. There is no DTAP: a push to `main` deploys.
 
 ## Repository shape
@@ -60,7 +60,7 @@ instrumentation and Playwright specs ship with it.
 
 ## Architecture
 
-[`docs/architecture.md`](docs/architecture.md) covers the three processes, the generated
+[`docs/architecture.md`](docs/architecture.md) covers the two processes, the generated
 role-annotated API client that is the seam between the components, both layerings, how the suites
 boot real services, and what CI deploys.
 

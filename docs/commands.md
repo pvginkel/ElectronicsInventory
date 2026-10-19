@@ -67,14 +67,14 @@ behind; every image build context excludes them.
 ## Dev stack
 
 ```bash
-./scripts/dev.py                    # honcho: backend :3001, frontend :3000, SSE gateway :3002
+./scripts/dev.py                    # honcho: backend :3001, frontend :3000
 ./scripts/dev.py backend frontend   # subset (positional; honcho's -e is --env, not --except)
 ```
 
 `dev.py` runs honcho inside the `modern-app` sidecar itself — every Procfile line needs uv, pnpm
 or node, none of which exist in the dev container — so it needs no `cexec` prefix. VS Code's _Dev Services_ task in
 `ElectronicsInventory.code-workspace` runs exactly this. Per-service output is tee'd to
-`logs/<service>.log`, and the same three ports are what `.kubecoder/config.yaml` exposes.
+`logs/<service>.log`, and the same two ports are what `.kubecoder/config.yaml` exposes.
 
 **The dev stack runs on the `postgres` sidecar.** `DATABASE_URL` defaults to
 `postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory`, which is where the
