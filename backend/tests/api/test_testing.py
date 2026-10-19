@@ -538,7 +538,7 @@ class TestTaskEventEndpoint:
             payload = response.get_json()
             assert payload["error"] == (
                 "Cannot send the task event to SSE connection test-connection because "
-                "external service failed: the SSE Gateway did not deliver it"
+                "external service failed: the connection did not take it"
             )
 
     def test_send_task_event_all_event_types(self, client: FlaskClient, container: ServiceContainer):
