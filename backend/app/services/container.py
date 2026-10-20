@@ -26,6 +26,7 @@ from app.services.kit_pick_list_service import KitPickListService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.kit_service import KitService
 from app.services.kit_shopping_list_service import KitShoppingListService
+from app.services.metrics.dashboard_metrics import create_dashboard_polling_callback
 from app.services.metrics_service import MetricsService
 from app.services.mouser_service import MouserService
 from app.services.oidc_client_service import OidcClientService
@@ -92,6 +93,17 @@ _background_starters: list[Callable[[Any], None]] = []
 def register_for_background_startup(fn: Callable[[Any], None]) -> None:
     """Register a callable to be invoked during background service startup."""
     _background_starters.append(fn)
+
+
+def _start_metrics_polling(container: Any) -> None:
+    """Register the dashboard gauges' polling callback and start the polling thread."""
+    metrics_service = container.metrics_service()
+    metrics_service.register_for_polling(
+        "dashboard", create_dashboard_polling_callback(container)
+    )
+    metrics_service.start_background_updater(
+        container.config().metrics_update_interval
+    )
 
 
 class ServiceContainer(containers.DeclarativeContainer):
@@ -197,6 +209,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         container=providers.Self(),
         lifecycle_coordinator=lifecycle_coordinator,
     )
+    register_for_background_startup(_start_metrics_polling)
 
     # Auth services - Singletons for OIDC authentication
     auth_service = providers.Singleton(
