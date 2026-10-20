@@ -338,8 +338,7 @@ export function KitMetadataDialog({ open, kit, onOpenChange, onSuccess }: KitMet
     [detailQueryKey, kit.description, kit.buildTarget, kit.id, kit.name, mutation, queryClient]
   );
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- Callback deliberately re-reads form.values and the instrumentation snapshot on each change for validation tracking
-  const handleValidationTracking = useCallback(() => {
+  const handleValidationTracking = () => {
     const validationErrors = collectValidationErrors(form.values);
     const errors = Object.entries(validationErrors).reduce<Record<string, string | undefined>>((acc, [field, message]) => {
       if (typeof message === 'string' && message.trim().length > 0) {
@@ -358,10 +357,9 @@ export function KitMetadataDialog({ open, kit, onOpenChange, onSuccess }: KitMet
         trackFormValidationError(FORM_ID, field, message, snapshot);
       }
     }
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- Dependency list intentionally keys off the live form values and instrumentation snapshot
-  }, [form.values, instrumentationSnapshot]);
+  };
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = async () => {
     const syntheticEvent = {
       preventDefault: () => {},
     } as React.FormEvent<HTMLFormElement>;
@@ -370,7 +368,7 @@ export function KitMetadataDialog({ open, kit, onOpenChange, onSuccess }: KitMet
       setTimeout(resolve, 0);
     });
     handleValidationTracking();
-  }, [form, handleValidationTracking]);
+  };
 
   const handleDialogOpenChange = useCallback(
     (nextOpen: boolean) => {

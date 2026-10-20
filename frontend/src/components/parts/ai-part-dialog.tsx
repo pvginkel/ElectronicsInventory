@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { AIPartInputStep } from './ai-part-input-step';
 import { AIPartProgressStep } from './ai-part-progress-step';
@@ -56,17 +56,19 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
     }
   });
 
-  // Reset state when dialog opens/closes
-  useEffect(() => {
+  // Guidepost: reset while rendering the open/close transition rather than in an effect. The
+  // dialog stays mounted, so the analysis hook keeps its state across openings as before.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset to the input step when the dialog opens
       setCurrentStep('input');
       setIsCreatingPart(false);
     } else {
       // Clear search text when dialog is closed
       setLastSearchText('');
     }
-  }, [open]);
+  }
 
   const handleInputSubmit = useCallback((data: { text: string }) => {
     setLastSearchText(data.text);

@@ -345,22 +345,30 @@ export function UpdateStockDialog({
     ? `${line.id}:${line.received}:${line.partLocations.map((l) => `${l.id}:${l.quantity}`).join(',')}`
     : '';
 
-  // Re-initialize form when dialog opens, line data changes, or after a save operation
+  // Guidepost: re-initialize the form when the dialog opens, the line data changes, or after a
+  // save operation, and drop the completion and mismatch state when it closes. Both are adjusted
+  // while rendering the change of session key rather than in an effect.
+  const sessionKey = open ? lineDataKey : null;
+  const [prevSessionKey, setPrevSessionKey] = useState<string | null>(null);
+  if (sessionKey !== prevSessionKey) {
+    setPrevSessionKey(sessionKey);
+    if (open) {
+      form.setValue('allocations', line ? buildInitialAllocations(line) : []);
+      setShowAllocationErrors(false);
+    } else {
+      setCompletionDialogOpen(false);
+      setMismatchReason('');
+      setMismatchError(null);
+    }
+  }
+
+  // The submit-mode refs re-initialize on the same change, after commit
   useEffect(() => {
-    if (!open) {
+    if (!open || !lineDataKey) {
       return;
     }
-    if (line) {
-      form.setValue('allocations', buildInitialAllocations(line));
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional re-initialization of allocation state when the dialog opens or the line data changes
-      setShowAllocationErrors(false);
-      submitModeRef.current = 'complete';
-      receiveSucceededRef.current = false;
-    } else {
-      form.setValue('allocations', []);
-      setShowAllocationErrors(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    submitModeRef.current = 'complete';
+    receiveSucceededRef.current = false;
   }, [open, lineDataKey]);
 
   useEffect(() => {
@@ -373,15 +381,6 @@ export function UpdateStockDialog({
       });
     }
   }, [open, restoreFocusElement]);
-
-  useEffect(() => {
-    if (!open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of completion and mismatch state when the dialog closes
-      setCompletionDialogOpen(false);
-      setMismatchReason('');
-      setMismatchError(null);
-    }
-  }, [open]);
 
   const formInstrumentation = useFormInstrumentation({
     formId: line ? `ShoppingListLineReceive:line:${line.id}` : 'ShoppingListLineReceive:line:none',

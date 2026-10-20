@@ -81,13 +81,8 @@ export function KanbanCardField({
   const [editValue, setEditValue] = useState(String(value));
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
-  // Sync display value when the persisted value changes externally (e.g. cache update)
-  useEffect(() => {
-    if (!isEditing) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync the edit buffer to the persisted value when it changes externally and the field is not being edited
-      setEditValue(String(value));
-    }
-  }, [value, isEditing]);
+  // The edit buffer only matters while editing: display mode renders the persisted value, and
+  // entering edit mode seeds the buffer from it, so an external value change needs no sync.
 
   // Auto-focus and select content when entering edit mode
   useEffect(() => {

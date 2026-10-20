@@ -15,6 +15,7 @@ import { Alert } from '@/components/primitives';
 import { KitSelector } from '@/components/kits/kit-selector';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
+import { useDialogSessionKey } from '@/hooks/use-dialog-session-key';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
 import { usePostKitsContentsByKitId, useGetPartsKitReservationsByPartKey } from '@/lib/api/generated/hooks';
 // eslint-disable-next-line role-gating/gate-usage-enforcement -- Gate is provided by the outer part-details wrapper
@@ -52,7 +53,13 @@ type KitContentFormSnapshot = {
 const NOTE_LIMIT = 500;
 const FORM_ID = 'KitContent:addFromPart';
 
-export function AddToKitDialog({ open, onClose, part }: AddToKitDialogProps) {
+export function AddToKitDialog(props: AddToKitDialogProps) {
+  // Guidepost: each opening mounts a fresh session, so the form and conflict error start clean
+  const sessionKey = useDialogSessionKey(props.open);
+  return <AddToKitDialogSession key={sessionKey} {...props} />;
+}
+
+function AddToKitDialogSession({ open, onClose, part }: AddToKitDialogProps) {
   const queryClient = useQueryClient();
   const { showSuccess, showException } = useToast();
   const instrumentationRef = useRef<UseFormInstrumentationResult<KitContentFormSnapshot> | null>(null);
@@ -166,38 +173,12 @@ export function AddToKitDialog({ open, onClose, part }: AddToKitDialogProps) {
     snapshotFields,
   });
 
-  // eslint-disable-next-line react-hooks/refs -- Ref mirrors the latest instrumentation so stable callbacks can read it
-  instrumentationRef.current = instrumentation;
+  // Mirror the latest instrumentation so stable callbacks can read it
+  useEffect(() => {
+    instrumentationRef.current = instrumentation;
+  }, [instrumentation]);
 
   const isMutating = form.isSubmitting || createMutation.isPending;
-
-  const initializationRef = useRef(false);
-  const formApiRef = useRef(form);
-  useEffect(() => {
-    formApiRef.current = form;
-  }, [form]);
-
-  useEffect(() => {
-    const formApi = formApiRef.current;
-
-    if (!open) {
-      initializationRef.current = false;
-      formApi.reset();
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of the form and conflict error when the dialog closes
-      setConflictError(null);
-      return;
-    }
-
-    if (initializationRef.current) {
-      return;
-    }
-
-    initializationRef.current = true;
-    setConflictError(null);
-    formApi.setValue('kitId', '');
-    formApi.setValue('requiredPerUnit', '1');
-    formApi.setValue('note', '');
-  }, [open]);
 
   const handleClose = () => {
     if (isMutating) {

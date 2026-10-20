@@ -110,18 +110,22 @@ export function AIPartCleanupDialog({ open, onClose, partId }: AIPartCleanupDial
     }
   }, [open, partId]);
 
+  // Guidepost: back to the progress step when the dialog opens (or switches part) and when it
+  // closes — adjusted while rendering the transition. The dialog stays mounted rather than
+  // remounting per opening, so the cleanup below starts once per opening, StrictMode included.
+  const [stepResetKey, setStepResetKey] = useState({ open, partId });
+  if (stepResetKey.open !== open || stepResetKey.partId !== partId) {
+    setStepResetKey({ open, partId });
+    if (!open || partId) {
+      setCurrentStep('progress');
+    }
+  }
+
   // Start cleanup immediately when dialog opens
-  // Guidepost: Use effect to trigger cleanup on open, state update is intentional
   // Note: Only depend on open and partId to avoid infinite loops from state changes
   useEffect(() => {
     if (open && partId) {
-      // Reset to progress step and start cleanup
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset to the progress step when the dialog opens, before starting cleanup
-      setCurrentStep('progress');
       startCleanup(partId);
-    } else if (!open) {
-      // Reset state when dialog closes
-      setCurrentStep('progress');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally exclude startCleanup to prevent re-triggering
   }, [open, partId]);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useDeleteKitsContentsByKitIdAndContentId,
@@ -150,6 +150,15 @@ const KIT_CONTENT_CREATE_FORM_ID = 'KitContent:create';
 const KIT_CONTENT_UPDATE_FORM_ID = 'KitContent:update';
 const KIT_CONTENT_DELETE_FORM_ID = 'KitContent:delete';
 
+function buildEditDraft(row: KitContentRow): UpdateDraft {
+  return {
+    contentId: row.id,
+    version: row.version,
+    requiredPerUnit: row.requiredPerUnit.toString(),
+    note: row.note ?? '',
+  };
+}
+
 export function useKitContents({ detail, contents, query }: UseKitContentsOptions): UseKitContentsResult {
   const queryClient = useQueryClient();
   const { showSuccess, showException } = useToast();
@@ -171,7 +180,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
   const [editDraft, setEditDraftState] = useState<UpdateDraft | null>(null);
   const [editErrors, setEditErrors] = useState<UpdateErrors | null>(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
-  const syncEditDraftRef = useRef(false);
 
   const [confirmRowId, setConfirmRowId] = useState<number | null>(null);
 
@@ -242,62 +250,43 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
     [confirmRowId, contents]
   );
 
-  useEffect(() => {
-    if (!editingRow) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync the edit draft to the row being edited, clearing it when editing stops
+  // Guidepost: the edit draft follows the row being edited — startEdit seeds it, a newer row
+  // version refreshes it, and it clears once the row is gone. Adjusted while rendering the
+  // change rather than in an effect.
+  if (!editingRow) {
+    if (editDraft !== null || editErrors !== null) {
       setEditDraftState(null);
       setEditErrors(null);
-      return;
     }
+  } else if (editDraft === null || editDraft.contentId !== editingRow.id) {
+    setEditDraftState(buildEditDraft(editingRow));
+    setEditErrors(null);
+  } else if (editingRow.version !== editDraft.version) {
+    setEditDraftState({
+      ...editDraft,
+      version: editingRow.version,
+      requiredPerUnit: editingRow.requiredPerUnit.toString(),
+      note: editingRow.note ?? '',
+    });
+  }
 
-    if (syncEditDraftRef.current || editDraft === null || editDraft.contentId !== editingRow.id) {
-      setEditDraftState({
-        contentId: editingRow.id,
-        version: editingRow.version,
-        requiredPerUnit: editingRow.requiredPerUnit.toString(),
-        note: editingRow.note ?? '',
-      });
-      syncEditDraftRef.current = false;
-      setEditErrors(null);
-      return;
-    }
+  // The confirm target lapses when its row no longer exists in the contents
+  const activeConfirmRowId = confirmRow ? confirmRowId : null;
 
-    if (editingRow.version !== editDraft.version) {
-      setEditDraftState((previous) =>
-        previous
-          ? {
-              ...previous,
-              version: editingRow.version,
-              requiredPerUnit: editingRow.requiredPerUnit.toString(),
-              note: editingRow.note ?? '',
-            }
-          : previous
-      );
-    }
-  }, [editDraft, editingRow, isEditSubmitting]);
+  // The pending-create row reads as refetching once the create mutation settles
+  const pendingCreateOverlay = useMemo(
+    () =>
+      pendingCreateRow && pendingCreateRow.status === 'creating' && !createMutation.isPending
+        ? { ...pendingCreateRow, status: 'refetching' as const }
+        : pendingCreateRow,
+    [createMutation.isPending, pendingCreateRow]
+  );
 
-  useEffect(() => {
-    if (confirmRowId !== null && !confirmRow) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the confirm target when its row no longer exists in the contents
-      setConfirmRowId(null);
-    }
-  }, [confirmRow, confirmRowId]);
-
-  useEffect(() => {
-    if (!pendingCreateRow) {
-      return;
-    }
-    if (!createMutation.isPending && pendingCreateRow.status === 'creating') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Advance the pending-create row to refetching once the create mutation settles
-      setPendingCreateRow((previous) =>
-        previous ? { ...previous, status: 'refetching' } : previous
-      );
-    }
-  }, [createMutation.isPending, pendingCreateRow]);
-
-  useEffect(() => {
+  // Settle pending row updates once the edit submission finishes, while rendering that change
+  const [settledEditSubmitting, setSettledEditSubmitting] = useState(isEditSubmitting);
+  if (settledEditSubmitting !== isEditSubmitting) {
+    setSettledEditSubmitting(isEditSubmitting);
     if (!isEditSubmitting) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Settle pending row updates once the edit submission finishes
       setPendingUpdates((previous) => {
         const next = new Map(previous);
         for (const [rowId, pending] of previous) {
@@ -308,7 +297,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
         return next;
       });
     }
-  }, [isEditSubmitting]);
+  }
 
   const existingPartKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -346,11 +335,11 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
   const buildDeleteMetadata = useCallback(
     (phase: KitContentFormMetadata['phase']): KitContentFormMetadata => ({
       kitId,
-      contentId: confirmRowId,
+      contentId: activeConfirmRowId,
       partKey: confirmRow?.part.key ?? null,
       phase,
     }),
-    [confirmRow?.part.key, confirmRowId, kitId]
+    [activeConfirmRowId, confirmRow?.part.key, kitId]
   );
 
   const createInstrumentation = useFormInstrumentation<KitContentFormMetadata>({
@@ -367,7 +356,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
 
   const deleteInstrumentation = useFormInstrumentation<KitContentFormMetadata>({
     formId: KIT_CONTENT_DELETE_FORM_ID,
-    isOpen: confirmRowId !== null,
+    isOpen: activeConfirmRowId !== null,
     snapshotFields: () => buildDeleteMetadata(deleteMutation.isPending ? 'pending' : 'idle'),
   });
 
@@ -625,7 +614,8 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
         return;
       }
       setEditingRowId(row.id);
-      syncEditDraftRef.current = true;
+      setEditDraftState(buildEditDraft(row));
+      setEditErrors(null);
     },
     [isArchived, showException]
   );
@@ -732,8 +722,9 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
           phase: 'conflict',
         });
         showException('Changes conflict with a newer version. Refreshing latest data.', error);
-        syncEditDraftRef.current = true;
         await query.refetch();
+        // The refetched row re-seeds the draft and clears the errors
+        setEditErrors(null);
         const latestDetail = queryClient.getQueryData<KitDetailResponseSchema_b98797e>(kitQueryKey);
         const latestRow = latestDetail?.contents?.find((row) => row.id === editingRow.id);
         if (latestRow) {
@@ -936,14 +927,14 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       instrumentation: updateInstrumentation,
     },
     remove: {
-      confirmRowId,
+      confirmRowId: activeConfirmRowId,
       confirmRow,
       open: openDelete,
       close: closeDelete,
       instrumentation: deleteInstrumentation,
     },
     overlays: {
-      pendingCreateRow,
+      pendingCreateRow: pendingCreateOverlay,
       pendingUpdates,
     },
     isMutationPending,

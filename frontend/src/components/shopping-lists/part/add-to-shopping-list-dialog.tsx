@@ -9,6 +9,7 @@ import { SellerSelector } from '@/components/sellers/seller-selector';
 import { ShoppingListSelector } from '@/components/shopping-lists/shopping-list-selector';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
+import { useDialogSessionKey } from '@/hooks/use-dialog-session-key';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
 import {
   useCreateShoppingListLineMutation,
@@ -49,7 +50,13 @@ type MembershipFormSnapshot = {
 const NOTE_LIMIT = 500;
 const FORM_ID = 'ShoppingListMembership:addFromPart';
 
-export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1 }: AddToShoppingListDialogProps) {
+export function AddToShoppingListDialog(props: AddToShoppingListDialogProps) {
+  // Guidepost: each opening mounts a fresh session, so the form, mode and conflict error start clean
+  const sessionKey = useDialogSessionKey(props.open);
+  return <AddToShoppingListDialogSession key={sessionKey} {...props} />;
+}
+
+function AddToShoppingListDialogSession({ open, onClose, part, defaultNeeded = 1 }: AddToShoppingListDialogProps) {
   const queryClient = useQueryClient();
   const { showSuccess, showException, showWarning } = useToast();
   const instrumentationRef = useRef<UseFormInstrumentationResult<MembershipFormSnapshot> | null>(null);
@@ -150,44 +157,12 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     snapshotFields,
   });
 
-  // eslint-disable-next-line react-hooks/refs -- Ref mirrors the latest instrumentation so stable callbacks can read it
-  instrumentationRef.current = instrumentation;
-
-  const defaultSellerId = part.defaultSellerId ?? null;
+  // Mirror the latest instrumentation so stable callbacks can read it
+  useEffect(() => {
+    instrumentationRef.current = instrumentation;
+  }, [instrumentation]);
 
   const isMutating = form.isSubmitting || createLineMutation.isPending;
-
-  const initializationRef = useRef(false);
-
-  const formApiRef = useRef(form);
-  useEffect(() => {
-    formApiRef.current = form;
-  }, [form]);
-
-  useEffect(() => {
-    const formApi = formApiRef.current;
-
-    if (!open) {
-      initializationRef.current = false;
-      formApi.reset();
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of form, mode and conflict error when the dialog closes
-      setSelectionMode('select');
-      setConflictError(null);
-      return;
-    }
-
-    if (initializationRef.current) {
-      return;
-    }
-
-    initializationRef.current = true;
-    setConflictError(null);
-    setSelectionMode('select');
-    formApi.setValue('listId', '');
-    formApi.setValue('needed', String(defaultNeeded));
-    formApi.setValue('sellerId', defaultSellerId ?? undefined);
-    formApi.setValue('note', '');
-  }, [defaultSellerId, defaultNeeded, open]);
 
   const handleClose = () => {
     if (isMutating) {

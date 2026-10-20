@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Form, FormField, FormLabel } from '@/components/primitives/form';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
@@ -103,66 +103,82 @@ export function PartForm({
     snapshotFields: () => ({ description: formData.description })
   });
 
+  // Guidepost: the form is seeded from the loaded part (editing) or the source part
+  // (duplicating), and seeded again whenever that data changes. The seeding happens while
+  // rendering the change rather than in an effect.
+
   // Populate form with existing part data
-  useEffect(() => {
-    if (existingPart && isEditing) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Populate the form from the loaded part when editing
-      setFormData({
-        description: existingPart.description,
-        manufacturerCode: existingPart.manufacturer_code || '',
-        typeId: existingPart.type_id || undefined,
-        tags: existingPart.tags || [],
-        manufacturer: existingPart.manufacturer || '',
-        productPage: existingPart.product_page || '',
-        dimensions: existingPart.dimensions || '',
-        mountingType: existingPart.mounting_type || '',
-        package: existingPart.package || '',
-        pinCount: existingPart.pin_count?.toString() || '',
-        pinPitch: existingPart.pin_pitch || '',
-        series: existingPart.series || '',
-        voltageRating: existingPart.voltage_rating || '',
-        inputVoltage: existingPart.input_voltage || '',
-        outputVoltage: existingPart.output_voltage || '',
-      });
-      // Pre-populate seller from existing seller links
-      const firstLink = existingPart.seller_links?.[0];
-      if (firstLink) {
-        setSellerId(firstLink.seller_id);
-      }
+  const [seededPart, setSeededPart] = useState<typeof existingPart>(undefined);
+  if (existingPart && isEditing && existingPart !== seededPart) {
+    setSeededPart(existingPart);
+    setFormData({
+      description: existingPart.description,
+      manufacturerCode: existingPart.manufacturer_code || '',
+      typeId: existingPart.type_id || undefined,
+      tags: existingPart.tags || [],
+      manufacturer: existingPart.manufacturer || '',
+      productPage: existingPart.product_page || '',
+      dimensions: existingPart.dimensions || '',
+      mountingType: existingPart.mounting_type || '',
+      package: existingPart.package || '',
+      pinCount: existingPart.pin_count?.toString() || '',
+      pinPitch: existingPart.pin_pitch || '',
+      series: existingPart.series || '',
+      voltageRating: existingPart.voltage_rating || '',
+      inputVoltage: existingPart.input_voltage || '',
+      outputVoltage: existingPart.output_voltage || '',
+    });
+    // Pre-populate seller from existing seller links
+    const firstLink = existingPart.seller_links?.[0];
+    if (firstLink) {
+      setSellerId(firstLink.seller_id);
     }
-  }, [existingPart, isEditing]);
+  }
 
   // Populate form with duplicate part data
-  useEffect(() => {
-    if (duplicateFormData && isDuplicating) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Populate the form from the source part when duplicating
-      setFormData({
-        description: duplicateFormData.description,
-        manufacturerCode: duplicateFormData.manufacturerCode,
-        typeId: duplicateFormData.typeId,
-        tags: duplicateFormData.tags,
-        manufacturer: duplicateFormData.manufacturer,
-        productPage: duplicateFormData.productPage,
-        dimensions: duplicateFormData.dimensions,
-        mountingType: duplicateFormData.mountingType,
-        package: duplicateFormData.package,
-        pinCount: duplicateFormData.pinCount,
-        pinPitch: duplicateFormData.pinPitch,
-        series: duplicateFormData.series,
-        voltageRating: duplicateFormData.voltageRating,
-        inputVoltage: duplicateFormData.inputVoltage,
-        outputVoltage: duplicateFormData.outputVoltage,
-      });
+  const [seededDuplicate, setSeededDuplicate] = useState<{
+    formData: typeof duplicateFormData;
+    documents: typeof duplicateSourceDocuments;
+    coverDocumentId: typeof duplicateCoverDocumentId;
+  } | null>(null);
+  if (
+    duplicateFormData &&
+    isDuplicating &&
+    (seededDuplicate?.formData !== duplicateFormData ||
+      seededDuplicate?.documents !== duplicateSourceDocuments ||
+      seededDuplicate?.coverDocumentId !== duplicateCoverDocumentId)
+  ) {
+    setSeededDuplicate({
+      formData: duplicateFormData,
+      documents: duplicateSourceDocuments,
+      coverDocumentId: duplicateCoverDocumentId,
+    });
+    setFormData({
+      description: duplicateFormData.description,
+      manufacturerCode: duplicateFormData.manufacturerCode,
+      typeId: duplicateFormData.typeId,
+      tags: duplicateFormData.tags,
+      manufacturer: duplicateFormData.manufacturer,
+      productPage: duplicateFormData.productPage,
+      dimensions: duplicateFormData.dimensions,
+      mountingType: duplicateFormData.mountingType,
+      package: duplicateFormData.package,
+      pinCount: duplicateFormData.pinCount,
+      pinPitch: duplicateFormData.pinPitch,
+      series: duplicateFormData.series,
+      voltageRating: duplicateFormData.voltageRating,
+      inputVoltage: duplicateFormData.inputVoltage,
+      outputVoltage: duplicateFormData.outputVoltage,
+    });
 
-      // Set duplicate documents
-      if (duplicateSourceDocuments) {
-        setDuplicateDocuments(duplicateSourceDocuments);
-      }
-      if (duplicateCoverDocumentId) {
-        setCoverDocumentId(duplicateCoverDocumentId);
-      }
+    // Set duplicate documents
+    if (duplicateSourceDocuments) {
+      setDuplicateDocuments(duplicateSourceDocuments);
     }
-  }, [duplicateFormData, duplicateSourceDocuments, duplicateCoverDocumentId, isDuplicating]);
+    if (duplicateCoverDocumentId) {
+      setCoverDocumentId(duplicateCoverDocumentId);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

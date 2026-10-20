@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { SegmentedTabs } from '@/components/primitives/segmented-tabs';
 import { useFormState } from '@/hooks/use-form-state';
+import { useDialogSessionKey } from '@/hooks/use-dialog-session-key';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useToast } from '@/hooks/use-toast';
@@ -55,17 +56,89 @@ interface KitPickListCreateDialogProps {
   onSuccess: (response: KitPickListDetailSchema_b247181) => Promise<void> | void;
 }
 
-export function KitPickListCreateDialog({
+type CreatePickListMutation = ReturnType<typeof usePostKitsPickListsByKitId>;
+type SnapshotRef = RefObject<KitPickListSnapshot | null>;
+
+interface KitPickListCreateSessionProps extends KitPickListCreateDialogProps {
+  mutation: CreatePickListMutation;
+  pendingSnapshotRef: SnapshotRef;
+  successSnapshotRef: SnapshotRef;
+  snapshotFieldsRef: RefObject<(() => KitPickListSnapshot) | null>;
+}
+
+export function KitPickListCreateDialog(props: KitPickListCreateDialogProps) {
+  const { open, kit } = props;
+  const pendingSnapshotRef = useRef<KitPickListSnapshot | null>(null);
+  const successSnapshotRef = useRef<KitPickListSnapshot | null>(null);
+  const snapshotFieldsRef = useRef<(() => KitPickListSnapshot) | null>(null);
+
+  // Guidepost: the create mutation and its loading instrumentation outlive the session below,
+  // so a fresh session on each opening emits no extra mount-time ready event.
+  const mutation = usePostKitsPickListsByKitId({
+    mutationKey: ['kits.detail.pickLists.create', kit.id],
+  });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    // Reset the submission snapshots when the dialog opens
+    pendingSnapshotRef.current = null;
+    successSnapshotRef.current = null;
+  }, [open]);
+
+  useListLoadingInstrumentation({
+    scope: 'kits.detail.pickLists.create',
+    isLoading: mutation.isPending,
+    error: mutation.error,
+    getReadyMetadata: () =>
+      successSnapshotRef.current ?? pendingSnapshotRef.current ?? { kitId: kit.id },
+    getErrorMetadata: (error) => {
+      const snapshot =
+        pendingSnapshotRef.current ?? snapshotFieldsRef.current?.();
+      if (!snapshot) {
+        return undefined;
+      }
+      return {
+        ...snapshot,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    },
+    getAbortedMetadata: () => {
+      if (!pendingSnapshotRef.current) {
+        return { kitId: kit.id, status: 'aborted' as const };
+      }
+      return { ...pendingSnapshotRef.current, status: 'aborted' as const };
+    },
+  });
+
+  // Each opening mounts a fresh session, so the wizard starts over
+  const sessionKey = useDialogSessionKey(open);
+  return (
+    <KitPickListCreateSession
+      key={sessionKey}
+      {...props}
+      mutation={mutation}
+      pendingSnapshotRef={pendingSnapshotRef}
+      successSnapshotRef={successSnapshotRef}
+      snapshotFieldsRef={snapshotFieldsRef}
+    />
+  );
+}
+
+function KitPickListCreateSession({
   open,
   kit,
   onOpenChange,
   onSuccess,
-}: KitPickListCreateDialogProps) {
+  mutation,
+  pendingSnapshotRef,
+  successSnapshotRef,
+  snapshotFieldsRef,
+}: KitPickListCreateSessionProps) {
   const { showSuccess, showException } = useToast();
   const instrumentationRef =
     useRef<UseFormInstrumentationResult<KitPickListSnapshot> | null>(null);
-  const pendingSnapshotRef = useRef<KitPickListSnapshot | null>(null);
-  const successSnapshotRef = useRef<KitPickListSnapshot | null>(null);
 
   const [requestedUnitsError, setRequestedUnitsError] = useState<string | undefined>(undefined);
   const [currentStep, setCurrentStep] = useState<DialogStep>('units');
@@ -75,10 +148,6 @@ export function KitPickListCreateDialog({
   const [previewData, setPreviewData] = useState<KitPickListPreviewResponseSchema_b247181 | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const mutation = usePostKitsPickListsByKitId({
-    mutationKey: ['kits.detail.pickLists.create', kit.id],
-  });
 
   const previewMutation = usePostKitsPickListsPreviewByKitId();
 
@@ -100,16 +169,11 @@ export function KitPickListCreateDialog({
       previewDebounceRef.current = null;
     }
 
+    // The change handler clears the preview or shows it loading; this only schedules the call
     const requestedUnits = parseRequestedUnits(form.values.requestedUnits);
     if (requestedUnits === null || requestedUnits <= 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the shortfall preview when the requested units become invalid
-      setPreviewData(null);
-      setIsPreviewLoading(false);
       return;
     }
-
-    // Show loading state while debouncing
-    setIsPreviewLoading(true);
 
     // Debounce the API call
     previewDebounceRef.current = setTimeout(async () => {
@@ -147,6 +211,11 @@ export function KitPickListCreateDialog({
     }),
     [form.values.requestedUnits, kit.id, shortfallParts.length],
   );
+
+  // Let the loading instrumentation fall back to the live snapshot
+  useEffect(() => {
+    snapshotFieldsRef.current = instrumentationSnapshot;
+  }, [instrumentationSnapshot, snapshotFieldsRef]);
 
   // Build the shortfall_handling payload from user selections
   const buildShortfallHandlingPayload = useCallback((): Record<string, KitPickListCreateSchema_b247181_ShortfallActionSchema> | null => {
@@ -232,7 +301,7 @@ export function KitPickListCreateDialog({
         showException('Failed to create pick list', error);
       }
     }
-  }, [mutation, form.values.requestedUnits, shortfallParts, kit.id, buildShortfallHandlingPayload, showSuccess, onSuccess, showException, onOpenChange]);
+  }, [mutation, form.values.requestedUnits, shortfallParts, kit.id, pendingSnapshotRef, successSnapshotRef, buildShortfallHandlingPayload, showSuccess, onSuccess, showException, onOpenChange]);
 
   // Handle "Continue" button click from units step
   const handleContinue = useCallback(async () => {
@@ -313,53 +382,20 @@ export function KitPickListCreateDialog({
     instrumentationRef.current = instrumentation
   }, [instrumentation])
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    // Reset all state when dialog opens
-    pendingSnapshotRef.current = null;
-    successSnapshotRef.current = null;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset of all wizard state when the dialog opens
-    setRequestedUnitsError(undefined);
-    setCurrentStep('units');
-    setShortfallParts([]);
-    setPreviewData(null);
-    setIsPreviewLoading(false);
-    if (previewDebounceRef.current) {
-      clearTimeout(previewDebounceRef.current);
-      previewDebounceRef.current = null;
-    }
-    form.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  useListLoadingInstrumentation({
-    scope: 'kits.detail.pickLists.create',
-    isLoading: mutation.isPending,
-    error: mutation.error,
-    getReadyMetadata: () =>
-      successSnapshotRef.current ?? pendingSnapshotRef.current ?? { kitId: kit.id },
-    getErrorMetadata: (error) => {
-      const snapshot =
-        pendingSnapshotRef.current ?? instrumentationSnapshot();
-      if (!snapshot) {
-        return undefined;
-      }
-      return {
-        ...snapshot,
-        message: error instanceof Error ? error.message : String(error),
-      };
-    },
-    getAbortedMetadata: () => {
-      if (!pendingSnapshotRef.current) {
-        return { kitId: kit.id, status: 'aborted' as const };
-      }
-      return { ...pendingSnapshotRef.current, status: 'aborted' as const };
-    },
-  });
-
   const requestedUnitsField = form.getFieldProps('requestedUnits');
+
+  // Guidepost: the shortfall preview follows the typed units — cleared for an invalid value,
+  // loading for a valid one until the debounced preview call settles
+  const handleRequestedUnitsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const requestedUnits = parseRequestedUnits(event.target.value);
+    if (requestedUnits === null || requestedUnits <= 0) {
+      setPreviewData(null);
+      setIsPreviewLoading(false);
+    } else {
+      setIsPreviewLoading(true);
+    }
+    requestedUnitsField.onChange(event);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -382,6 +418,8 @@ export function KitPickListCreateDialog({
       setRequestedUnitsError(undefined);
       setCurrentStep('units');
       setShortfallParts([]);
+      setPreviewData(null);
+      setIsPreviewLoading(false);
       form.reset();
     } else {
       onOpenChange(true);
@@ -408,7 +446,7 @@ export function KitPickListCreateDialog({
         <Form onSubmit={handleSubmit} data-testid="kits.detail.pick-list.create.form">
           {currentStep === 'units' ? (
             <UnitsStep
-              requestedUnitsField={requestedUnitsField}
+              requestedUnitsField={{ ...requestedUnitsField, onChange: handleRequestedUnitsChange }}
               requestedUnitsError={requestedUnitsError}
               setRequestedUnitsError={setRequestedUnitsError}
               formTouched={form.touched.requestedUnits}

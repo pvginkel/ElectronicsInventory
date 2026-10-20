@@ -176,17 +176,11 @@ function ShoppingListDetailRoute() {
     return () => clearTimeout(timer);
   }, [highlightedLineId]);
 
-  useEffect(() => {
-    if (!duplicateNotice) {
-      return;
-    }
-    const stillExists = lines.some(line => line.id === duplicateNotice.lineId);
-    if (!stillExists) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the duplicate notice when its line no longer exists
-      setDuplicateNotice(null);
-      setHighlightedLineId(null);
-    }
-  }, [duplicateNotice, lines]);
+  // Clear the duplicate notice when its line no longer exists, while rendering that change
+  if (duplicateNotice && !lines.some(line => line.id === duplicateNotice.lineId)) {
+    setDuplicateNotice(null);
+    setHighlightedLineId(null);
+  }
 
   // -- Instrumentation --
   useListLoadingInstrumentation({
@@ -854,20 +848,16 @@ function ShoppingListDetailRoute() {
     return groups;
   }, [sellerGroups, optimisticMoves]);
 
-  // Clean up optimistic moves once server data reflects the change
-  useEffect(() => {
-    if (optimisticMoves.length === 0) return;
-    const confirmedIds = optimisticMoves
-      .filter(move => {
-        const targetGroup = sellerGroups.find(g => g.sellerId === move.toSellerId);
-        return targetGroup?.lines.some(l => l.id === move.lineId) ?? false;
-      })
-      .map(m => m.lineId);
-    if (confirmedIds.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Drop optimistic moves once server data reflects them
-      setOptimisticMoves(prev => prev.filter(m => !confirmedIds.includes(m.lineId)));
-    }
-  }, [sellerGroups, optimisticMoves]);
+  // Clean up optimistic moves once server data reflects the change, while rendering that change
+  const confirmedMoveLineIds = optimisticMoves
+    .filter(move => {
+      const targetGroup = sellerGroups.find(g => g.sellerId === move.toSellerId);
+      return targetGroup?.lines.some(l => l.id === move.lineId) ?? false;
+    })
+    .map(m => m.lineId);
+  if (confirmedMoveLineIds.length > 0) {
+    setOptimisticMoves(prev => prev.filter(m => !confirmedMoveLineIds.includes(m.lineId)));
+  }
 
   if (!hasValidListId) {
     return (
