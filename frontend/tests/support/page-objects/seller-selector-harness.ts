@@ -59,6 +59,11 @@ export class SellerSelectorHarness {
     const option = listbox.getByRole('option', { name })
     await expect(option).toBeVisible()
     await expect(async () => {
+      // The listbox is fixed-positioned against the input, so scrolling the
+      // option alone cannot bring it back once the page has scrolled away:
+      // scroll the input into view first, then the option within the listbox.
+      await this.input.scrollIntoViewIfNeeded()
+      await option.evaluate((element) => element.scrollIntoView({ block: 'nearest' }))
       const isInView = await option.evaluate((element) => {
         const rect = element.getBoundingClientRect()
         const withinHorizontalBounds = rect.right > 0 && rect.left < window.innerWidth
@@ -66,7 +71,7 @@ export class SellerSelectorHarness {
         return withinHorizontalBounds && withinVerticalBounds
       })
       expect(isInView).toBe(true)
-    }).toPass()
+    }).toPass({ timeout: 15_000 })
     await option.click()
   }
 

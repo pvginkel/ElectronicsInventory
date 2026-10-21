@@ -506,6 +506,10 @@ export class PartsPage extends BasePage {
     const option = this.page.getByRole('option', { name: typeName });
     await expect(option).toBeVisible();
     await option.click();
+    // Settle the selector before returning: the select refocuses its input after a
+    // selection, and a caller moving on to the next field must not race that.
+    await expect(option).toBeHidden();
+    await expect(typeSearchInput).toHaveValue(typeName);
   }
 
   async submitForm(): Promise<void> {
