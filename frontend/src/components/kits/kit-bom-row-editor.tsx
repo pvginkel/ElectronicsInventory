@@ -54,6 +54,7 @@ interface KitBOMRowEditorEditProps extends KitBOMRowEditorSharedProps {
     coverUrl: string | null;
   };
   onPartSelectionChange?: never;
+  onDismissConflict: () => void;
 }
 
 type KitBOMRowEditorProps = KitBOMRowEditorCreateProps | KitBOMRowEditorEditProps;
@@ -91,6 +92,9 @@ export function KitBOMRowEditor(props: KitBOMRowEditorProps) {
   const noteError = errors?.note;
   const conflictMessage = errors && 'conflict' in errors ? errors.conflict : undefined;
   const formMessage = errors?.form ?? conflictMessage;
+  // Only the edit-mode conflict notice is dismissible; form errors clear when the user acts
+  const onDismissMessage =
+    props.mode === 'edit' && conflictMessage && !errors?.form ? props.onDismissConflict : undefined;
   const textareaClasses =
     'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -209,7 +213,12 @@ export function KitBOMRowEditor(props: KitBOMRowEditorProps) {
       </div>
 
       {formMessage ? (
-        <Alert variant="error" icon={true} testId="kits.detail.bom.row-editor.error">
+        <Alert
+          variant="error"
+          icon={true}
+          testId="kits.detail.bom.row-editor.error"
+          onDismiss={onDismissMessage}
+        >
           {formMessage}
         </Alert>
       ) : null}

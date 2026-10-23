@@ -112,6 +112,7 @@ interface EditControls {
   setRequiredPerUnit: (value: string) => void;
   setNote: (value: string) => void;
   submit: () => Promise<void>;
+  dismissConflict: () => void;
   instrumentation: UseFormInstrumentationResult<KitContentFormMetadata>;
 }
 
@@ -611,12 +612,20 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
 
   const setEditRequiredPerUnit = useCallback((value: string) => {
     setEditDraftState((previous) => (previous ? { ...previous, requiredPerUnit: value } : previous));
-    setEditErrors((previous) => (previous ? { ...previous, requiredPerUnit: undefined, form: undefined } : previous));
+    setEditErrors((previous) =>
+      previous ? { ...previous, requiredPerUnit: undefined, form: undefined, conflict: undefined } : previous
+    );
   }, []);
 
   const setEditNote = useCallback((value: string) => {
     setEditDraftState((previous) => (previous ? { ...previous, note: value } : previous));
-    setEditErrors((previous) => (previous ? { ...previous, note: undefined, form: undefined } : previous));
+    setEditErrors((previous) =>
+      previous ? { ...previous, note: undefined, form: undefined, conflict: undefined } : previous
+    );
+  }, []);
+
+  const dismissEditConflict = useCallback(() => {
+    setEditErrors((previous) => (previous ? { ...previous, conflict: undefined } : previous));
   }, []);
 
   const handleEditSubmit = useCallback(async () => {
@@ -700,9 +709,9 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
           phase: 'conflict',
         });
         showException('Changes conflict with a newer version. Refreshing latest data.', error);
+        // The conflict message stays up until the user dismisses it, edits a field, resubmits or
+        // cancels; the refetched row re-seeds the draft underneath it
         await query.refetch();
-        // The refetched row re-seeds the draft and clears the errors
-        setEditErrors(null);
         const latestDetail = queryClient.getQueryData<KitDetailResponseSchema_b98797e>(kitQueryKey);
         const latestRow = latestDetail?.contents?.find((row) => row.id === editingRow.id);
         if (latestRow) {
@@ -898,6 +907,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       setRequiredPerUnit: setEditRequiredPerUnit,
       setNote: setEditNote,
       submit: handleEditSubmit,
+      dismissConflict: dismissEditConflict,
       instrumentation: updateInstrumentation,
     },
     remove: {

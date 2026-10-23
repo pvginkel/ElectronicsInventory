@@ -370,6 +370,20 @@ export class KitsPage extends BasePage {
     return this.page.getByTestId(`kits.detail.table.editor.${suffix}.cancel`);
   }
 
+  detailEditorError(mode: 'create'): Locator;
+  detailEditorError(mode: 'edit', rowId: number): Locator;
+  detailEditorError(mode: 'create' | 'edit', rowId?: number): Locator {
+    const editor = mode === 'create' ? this.detailEditor('create') : this.detailEditor('edit', rowId ?? -1);
+    return editor.getByTestId('kits.detail.bom.row-editor.error');
+  }
+
+  detailEditorErrorDismiss(mode: 'create'): Locator;
+  detailEditorErrorDismiss(mode: 'edit', rowId: number): Locator;
+  detailEditorErrorDismiss(mode: 'create' | 'edit', rowId?: number): Locator {
+    const editor = mode === 'create' ? this.detailEditor('create') : this.detailEditor('edit', rowId ?? -1);
+    return editor.getByTestId('kits.detail.bom.row-editor.error.dismiss');
+  }
+
   // --- Pick List Shortfall Handling ---
 
   /**

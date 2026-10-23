@@ -1119,6 +1119,9 @@ test.describe('Kit detail workspace', () => {
     await kits.detailEditorSubmit('edit', seeded.id).click();
     // Conflict recovery: form syncs to server values (quantity 9, note "External update")
     await expect(kits.detailEditorNote('edit', seeded.id)).toHaveValue('External update');
+    // The conflict notice outlives the refetch that re-seeded the draft
+    const conflictAlert = kits.detailEditorError('edit', seeded.id);
+    await expect(conflictAlert).toContainText('Another user updated this part');
     const postConflictFormEvents = await testEvents.getEventsByKind('form');
     const conflictEvent = postConflictFormEvents.find((event, index) => {
       if (event.kind !== 'form' || index < preConflictFormEvents.length) {
@@ -1133,6 +1136,12 @@ test.describe('Kit detail workspace', () => {
     });
     expect(conflictEvent).toBeDefined();
     await toastHelper.dismissToast({ all: true });
+
+    // The notice stays until the user dismisses it
+    await expect(conflictAlert).toBeVisible();
+    await kits.detailEditorErrorDismiss('edit', seeded.id).click();
+    await expect(conflictAlert).toBeHidden();
+    await expect(kits.detailEditorQuantity('edit', seeded.id)).toHaveValue('9');
 
     const resolvedDetail = await testData.kits.getDetail(kit.id);
     const resolvedContents = (resolvedDetail.contents ?? []) as KitContentDetailSchema_b98797e[];

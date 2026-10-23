@@ -84,6 +84,7 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
               onCancel={edit.cancel}
               onRequiredPerUnitChange={edit.setRequiredPerUnit}
               onNoteChange={edit.setNote}
+              onDismissConflict={edit.dismissConflict}
               existingPartKeys={existingPartKeys}
               disabled={disableMutations}
               rowId={row.id}
@@ -109,6 +110,7 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
       create.submit,
       disableMutations,
       edit.cancel,
+      edit.dismissConflict,
       edit.draft,
       edit.errors,
       edit.isSubmitting,
