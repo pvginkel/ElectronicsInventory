@@ -116,10 +116,7 @@ interface EditControls {
 }
 
 interface DeleteControls {
-  confirmRowId: number | null;
-  confirmRow: KitContentRow | null;
   open: (row: KitContentRow) => void;
-  close: () => void;
   instrumentation: UseFormInstrumentationResult<KitContentFormMetadata>;
 }
 
@@ -180,8 +177,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
   const [editDraft, setEditDraftState] = useState<UpdateDraft | null>(null);
   const [editErrors, setEditErrors] = useState<UpdateErrors | null>(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
-
-  const [confirmRowId, setConfirmRowId] = useState<number | null>(null);
 
   // Undo support for deletion - using Map to support concurrent deletions
   interface DeletedContentSnapshot {
@@ -245,11 +240,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
     [contents, editingRowId]
   );
 
-  const confirmRow = useMemo(
-    () => (confirmRowId === null ? null : contents.find((row) => row.id === confirmRowId) ?? null),
-    [confirmRowId, contents]
-  );
-
   // Guidepost: the edit draft follows the row being edited — startEdit seeds it, a newer row
   // version refreshes it, and it clears once the row is gone. Adjusted while rendering the
   // change rather than in an effect.
@@ -269,9 +259,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       note: editingRow.note ?? '',
     });
   }
-
-  // The confirm target lapses when its row no longer exists in the contents
-  const activeConfirmRowId = confirmRow ? confirmRowId : null;
 
   // The pending-create row reads as refetching once the create mutation settles
   const pendingCreateOverlay = useMemo(
@@ -332,16 +319,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
     [editingRow?.part.key, editingRowId, kitId]
   );
 
-  const buildDeleteMetadata = useCallback(
-    (phase: KitContentFormMetadata['phase']): KitContentFormMetadata => ({
-      kitId,
-      contentId: activeConfirmRowId,
-      partKey: confirmRow?.part.key ?? null,
-      phase,
-    }),
-    [activeConfirmRowId, confirmRow?.part.key, kitId]
-  );
-
   const createInstrumentation = useFormInstrumentation<KitContentFormMetadata>({
     formId: KIT_CONTENT_CREATE_FORM_ID,
     isOpen: isAdding,
@@ -354,10 +331,11 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
     snapshotFields: () => buildEditMetadata(isEditSubmitting ? 'pending' : 'idle'),
   });
 
+  // Deletion is immediate (no confirmation dialog), so the form never opens; every track call
+  // passes its own fields
   const deleteInstrumentation = useFormInstrumentation<KitContentFormMetadata>({
     formId: KIT_CONTENT_DELETE_FORM_ID,
-    isOpen: activeConfirmRowId !== null,
-    snapshotFields: () => buildDeleteMetadata(deleteMutation.isPending ? 'pending' : 'idle'),
+    isOpen: false,
   });
 
   const resetCreateDraft = useCallback(() => {
@@ -889,10 +867,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
     ]
   );
 
-  const closeDelete = useCallback(() => {
-    setConfirmRowId(null);
-  }, []);
-
   const isMutationPending =
     isCreateSubmitting || isEditSubmitting || createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
@@ -927,10 +901,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       instrumentation: updateInstrumentation,
     },
     remove: {
-      confirmRowId: activeConfirmRowId,
-      confirmRow,
       open: openDelete,
-      close: closeDelete,
       instrumentation: deleteInstrumentation,
     },
     overlays: {
