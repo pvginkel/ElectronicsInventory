@@ -1,8 +1,6 @@
 # Multi-stage build for VitePress documentation site
-FROM node:lts-slim AS build
-
-# Enable pnpm via corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# The build image (DockerImages, modern-app-frontend-build) carries Node and pnpm.
+FROM registry:5000/modern-app-frontend-build AS build
 
 WORKDIR /app
 
